@@ -31,6 +31,9 @@ func _ready() -> void:
 		if OS.get_cmdline_user_args().has("--weg"):
 			_weg_ansicht()
 			return
+		if OS.get_cmdline_user_args().has("--fluss"):
+			_fluss_ansicht()
+			return
 		if OS.get_cmdline_user_args().has("--aerial"):
 			# Luftbild: eigene Kamera hoch über dem Startgebiet, Blick nach Norden über die Insel
 			var cam := Camera3D.new()
@@ -234,6 +237,42 @@ func _craft_test() -> void:
 		player.get_profession_level("weaponsmithing")])
 	time = 34.0
 	get_tree().current_scene.get_node("HUD").open_station.call_deferred("weaponsmith")
+
+
+## Ans Ufer des nächsten größeren Flusses (Breite ab 14 m) stellen und flussabwärts schauen
+func _fluss_ansicht() -> void:
+	var main = get_tree().current_scene
+	var best := Vector3.ZERO
+	var richtung := Vector3.FORWARD
+	var breite := 0.0
+	var best_d := INF
+	var liste: Array = JSON.parse_string(FileAccess.get_file_as_string("res://welt_daten/fluesse.json"))
+	var anzahl := 0
+	var km := 0.0
+	for f in liste:
+		var p: Array = f["punkte"]
+		anzahl += 1
+		for i in range(1, p.size()):
+			km += Vector2(p[i][0] - p[i - 1][0], p[i][2] - p[i - 1][2]).length() / 1000.0
+		for i in range(3, p.size() - 3):
+			if float(p[i][3]) < 14.0:
+				continue
+			var q := Vector3(p[i][0], p[i][1], p[i][2])
+			var d := q.distance_to(player.global_position)
+			if d < best_d:
+				best_d = d
+				best = q
+				breite = float(p[i][3])
+				richtung = (Vector3(p[i + 3][0], 0, p[i + 3][2]) - Vector3(p[i - 3][0], 0, p[i - 3][2])).normalized()
+	var quer := Vector3(-richtung.z, 0, richtung.x)
+	var ufer := best + quer * (breite / 2.0 + 6.0) - richtung * 10.0
+	ufer.y = main.terrain.get("data").get_height(ufer) + 1.0
+	player.global_position = ufer
+	var blick := best + richtung * 15.0 - ufer
+	player.cam_yaw = atan2(-blick.x, -blick.z)
+	player.cam_pitch = -0.3
+	print("AUTOTEST Fluss: %d Flussläufe, %.0f km, Blick auf %s (Breite %.0f m, Wasser %.1f m, Boden dort %.1f m)" % [
+		anzahl, km, best.round(), breite, best.y, main.terrain.get("data").get_height(best)])
 
 
 ## Auf die nächste Straße stellen und an ihr entlang schauen
