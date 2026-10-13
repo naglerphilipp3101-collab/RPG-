@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 .godot/
 welt_daten/
+
+# Welt-Exporte des Weltgenerators (zu groß für GitHub, > 100 MB)
+Welt/
+*.zip
