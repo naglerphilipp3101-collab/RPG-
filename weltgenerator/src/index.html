@@ -89,6 +89,21 @@ body.beschaeftigt button { pointer-events:none; opacity:.6; }
     <div class="reihe" style="margin-top:6px"><button id="marker-alle-loeschen">Alle Marker löschen</button></div>
     <div class="reihe" style="margin-top:8px"><button id="vorschlaege" title="Felder rund um Dörfer/Städte auf flachem Land und Minen an Felshängen vorschlagen">Felder &amp; Minen vorschlagen</button></div>
 
+    <h2>Regionen &amp; Siedlungen</h2>
+    <div class="reihe"><button id="nebeninsel" title="Formt eine kleine Insel 550–900 m vor der Küste (bevorzugt im Süden)">Nebeninsel formen</button></div>
+    <label class="regler" style="margin-top:8px"><span>Höhe Zentralberg (m)</span><output></output><input id="p-berghoehe-zentrum" type="range" min="300" max="900" step="10" value="550"></label>
+    <div class="reihe"><button id="zentralberg" title="Hebt die Inselmitte zu einem großen Berg an (danach Erosion)">Zentralberg formen</button></div>
+    <label class="regler" style="margin-top:8px"><span>Fraktionsregionen</span><output></output><input id="p-fraktionen" type="range" min="2" max="8" step="1" value="6"></label>
+    <label class="regler"><span>Startgebiet (% der Fläche)</span><output></output><input id="p-startanteil" type="range" min="5" max="20" step="1" value="11"></label>
+    <label class="regler"><span>Berg-Grenze ab Höhe (m)</span><output></output><input id="p-berglinie" type="range" min="60" max="300" step="10" value="110"></label>
+    <div class="reihe"><button id="regionen-berechnen" class="haupt">Regionen berechnen</button></div>
+    <label class="regler" style="margin-top:8px"><span>Städte pro Region</span><output></output><input id="p-staedte" type="range" min="1" max="4" step="1" value="2"></label>
+    <label class="regler"><span>Dörfer pro Region</span><output></output><input id="p-doerfer" type="range" min="0" max="8" step="1" value="3"></label>
+    <div class="reihe"><button id="siedlungen-vorschlagen" class="haupt" title="Ersetzt Städte, Dörfer, Dungeons und POIs (Felder und Minen bleiben)">Siedlungen vorschlagen</button></div>
+    <div class="hinweis" id="regionen-info"></div>
+    <label class="haken"><input id="regionen-zeigen" type="checkbox" checked> Regionsgrenzen auf der Karte zeigen</label>
+    <div class="hinweis">Startgebiet im Süden, Fraktionsregionen ringförmig um den Zentralberg. Die Grenzen folgen Flüssen und steilen Hängen. Siedlungen kommen auf ebenes Land, Städte einer Region mind. 1,3 km auseinander. Am Berg: Gipfel und Dungeon-Eingang am Südhang, auf jeder Nebeninsel ein Dungeon.</div>
+
     <h2>Ressourcen</h2>
     <label class="regler"><span>Bäume</span><output></output><input id="p-baumdichte" type="range" min="0.1" max="2" step="0.05" value="1"></label>
     <label class="regler"><span>Äste-Büsche</span><output></output><input id="p-buschdichte" type="range" min="0.1" max="2" step="0.05" value="1"></label>
@@ -141,6 +156,7 @@ body.beschaeftigt button { pointer-events:none; opacity:.6; }
 <script>/*ZIP*/</script>
 <script>/*GL*/</script>
 <script>/*MARKER*/</script>
+<script>/*REGIONEN*/</script>
 <script>/*APP*/</script>
 </body>
 </html>

@@ -3,7 +3,7 @@ import pathlib
 src = pathlib.Path(__file__).parent / "src"
 html = (src / "index.html").read_text()
 kern = (src / "kern.js").read_text()
-for platzhalter, datei in [("/*ZIP*/", "zip.js"), ("/*GL*/", "gl.js"), ("/*MARKER*/", "marker.js"), ("/*APP*/", "app.js")]:
+for platzhalter, datei in [("/*ZIP*/", "zip.js"), ("/*GL*/", "gl.js"), ("/*MARKER*/", "marker.js"), ("/*REGIONEN*/", "regionen.js"), ("/*APP*/", "app.js")]:
     html = html.replace(platzhalter, (src / datei).read_text())
 html = html.replace("/*KERN*/", kern)
 assert "</script" not in kern.lower()

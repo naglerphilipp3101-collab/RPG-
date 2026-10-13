@@ -65,6 +65,19 @@ Zeile anklicken = auswählen und hinspringen, ✕ = löschen. Bei Feldern **Umsc
 **Felder & Minen vorschlagen**: legt rund um jede Stadt (5) und jedes Dorf (3) Felder auf flachem, festem Land an
 und setzt bis zu 6 Minen an Felshängen. Vorschläge sind normale Marker – verschieben, ändern oder löschen.
 
+### Regionen & Siedlungen
+Abschnitt **Regionen & Siedlungen** (in dieser Reihenfolge benutzen):
+| Knopf | Wirkung |
+|---|---|
+| **Nebeninsel formen** | formt eine kleine Insel 550–900 m vor der Küste (bevorzugt im Süden, mit Abstand zum Kartenrand) |
+| **Zentralberg formen** | hebt die Inselmitte zu einem großen Berg an (Regler *Höhe Zentralberg*), mit Graten und Erosion |
+| **Regionen berechnen** | Startgebiet im Süden (Regler *Startgebiet %*), Fraktionsregionen ringförmig um den Berg (Regler *Fraktionsregionen*), Zentralberg ab *Berg-Grenze*. Die Grenzen folgen Flüssen und steilen Hängen, die Flächen werden angeglichen. Namen nach Himmelsrichtung. |
+| **Siedlungen vorschlagen** | je Region *Städte pro Region* + *Dörfer pro Region* auf ebenem Land, Startdorf, Gipfel-POI und Dungeon-Eingang am Südhang des Bergs, ein Dungeon je Nebeninsel. Ersetzt Städte, Dörfer, Dungeons und POIs (Felder und Minen bleiben). |
+
+Danach wie gewohnt *Felder & Minen vorschlagen*, *Wege generieren*, *Ressourcen verteilen*. Die Regionen werden im Projekt (`regionen.u8`)
+und im Export (`regionen_<Raster>.u8`, Namen in `welt.json` unter `regionen`) gespeichert.
+IDs: 0 Meer · 1 Startgebiet · 2 … Fraktionsregionen · 250 Zentralberg · 251 Nebeninseln.
+
 ### Ressourcen
 **Ressourcen verteilen** (beliebig oft neu – z. B. nachdem du Marker gesetzt hast):
 | | Wo | Details |

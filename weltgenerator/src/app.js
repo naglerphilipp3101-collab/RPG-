@@ -122,6 +122,7 @@ function weltgroesseSetzen(meter) {
   basis.width = N; basis.height = N; bctx = basis.getContext("2d");
   if (typeof markerZustand !== "undefined") { markerZustand.liste = []; markerZustand.auswahl = -1; markerZustand.ressourcen = null; markerPanel(); ressourcenInfo(); }
   if (typeof wegeZustand !== "undefined") { wegeZustand.liste = null; wegeInfo(); }
+  if (typeof regionenZustand !== "undefined") regionenZuruecksetzen();
   if (window.WELT_API) window.WELT_API.N = N;
   ansicht.passend();
   exportOptionen();
@@ -190,6 +191,8 @@ const ansicht = {
     kctx.imageSmoothingEnabled = this.zoom < 2;
     const ox = r.width / 2 - this.cx * this.zoom, oy = r.height / 2 - this.cy * this.zoom;
     kctx.drawImage(basis, ox, oy, N * this.zoom, N * this.zoom);
+    regionenZeichnen(kctx, ox, oy, this.zoom);
+    kctx.imageSmoothingEnabled = this.zoom < 2;
     markerZeichnen(kctx, ox, oy, this.zoom);
     // Maßstab: 500 m
     const l = 500 / ZELLE * this.zoom;
@@ -413,11 +416,13 @@ const textBytes = (s) => new TextEncoder().encode(s);
 async function canvasPng(c) { return new Uint8Array(await (await new Promise((r) => c.toBlob(r, "image/png"))).arrayBuffer()); }
 
 async function projektSpeichern() {
-  const meta = { programm: "Weltgenerator", version: 3, N, welt_m: WELT, params: params(), biome: biomParams() };
+  const meta = { programm: "Weltgenerator", version: 3, N, welt_m: WELT, params: params(), biome: biomParams(),
+    regionen: regionenZustand.REG ? { namen: regionenZustand.namen, gipfel: regionenZustand.gipfel } : null };
   herunterladen(zipErstellen([
     { name: "projekt.json", daten: textBytes(JSON.stringify(meta, null, 2)) },
     { name: "hoehe.r32", daten: bytes(zustand.H) },
     { name: "biome_gemalt.u8", daten: zustand.O },
+    ...(regionenZustand.REG ? [{ name: "regionen.u8", daten: regionenZustand.REG }] : []),
     { name: "marker.json", daten: textBytes(JSON.stringify(markerZustand.liste)) },
     ...(markerZustand.ressourcen ? [{ name: "ressourcen.json", daten: textBytes(JSON.stringify(markerZustand.ressourcen)) }] : []),
     ...(wegeZustand.liste ? [{ name: "wege.json", daten: textBytes(JSON.stringify(wegeExport())) }] : []),
@@ -443,6 +448,7 @@ async function projektLaden(datei) {
     markerZustand.liste = lies("marker.json") || []; markerZustand.auswahl = -1;
     markerZustand.ressourcen = lies("ressourcen.json"); markerZustand.ressourcenAlt = false;
     wegeZustand.liste = lies("wege.json"); wegeZustand.alt = false;
+    regionenLaden(z["regionen.u8"], meta.regionen);
     markerPanel(); ressourcenInfo(); wegeInfo();
     nachAenderung(true); status("Projekt geladen");
   } catch (err) { status("Laden fehlgeschlagen: " + err.message); }
@@ -474,6 +480,7 @@ async function exportieren() {
     steuerung: { datei: `steuerung_${M}.r32`, format: "uint32 little-endian, Terrain3D-Steuerkarte (Basis/Overlay/Überblendung)" },
     biome: { datei: `biome_${N}.u8`, format: `uint8 je Zelle (${ZELLE} m), ${N} x ${N}, Zeile für Zeile`, namen: BIOM_NAMEN, texturen: ["sand", "wiese", "laubboden", "nadelboden", "sumpf", "steppe", "fels", "schnee", "weg"] },
     meeresspiegel: 0, params: params(), biom_params: biomParams(),
+    regionen: regionenExportMeta(),
   };
   herunterladen(zipErstellen([
     { name: "welt.json", daten: textBytes(JSON.stringify(meta, null, 2)) },
@@ -481,6 +488,7 @@ async function exportieren() {
     { name: `farbe_${N}.png`, daten: await canvasPng(fc) },
     { name: `steuerung_${M}.r32`, daten: bytes(st.out) },
     { name: `biome_${N}.u8`, daten: E },
+    ...(regionenZustand.REG ? [{ name: `regionen_${N}.u8`, daten: regionenZustand.REG }] : []),
     { name: "marker.json", daten: textBytes(JSON.stringify(markerExport(), null, 1)) },
     ...(markerZustand.ressourcen ? [{ name: "ressourcen.json", daten: textBytes(JSON.stringify(markerZustand.ressourcen)) }] : []),
     ...(wegeZustand.liste ? [{ name: "wege.json", daten: textBytes(JSON.stringify(wegeExport())) }] : []),
@@ -556,6 +564,7 @@ function aufbauen() {
   $("exportieren").onclick = exportieren;
   for (const b of document.querySelectorAll("[data-tab-knopf]")) b.onclick = () => tab(b.dataset.tabKnopf);
   markerAufbauen();
+  regionenAufbauen();
   window.addEventListener("keydown", (e) => {
     if ((e.target.tagName === "INPUT" && e.target.type !== "range" && e.target.type !== "checkbox") || e.target.tagName === "SELECT") return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? wiederholen() : rueckgaengig(); return; }
@@ -582,6 +591,7 @@ function waehle(id) {
 
 // für automatische Tests
 window.WELT_API = { weltgroesseSetzen, wegeZustand, wegeGenerierenStarten, markerZustand, markerNeu, vorschlaegeMachen, ressourcenVerteilenStarten, zustand, effektiveBiome, generieren, erosionAnwenden, flussbettenEinschneiden, exportieren, projektSpeichern, pinsel, waehle, tab, ansicht, N, params,
+  regionenZustand, nebeninselFormen, zentralbergFormen, regionenBerechnen, siedlungenVorschlagen,
   strichTest(werkzeug, punkte, dt = 0.05) { waehle(werkzeug); undoPunkt(); strich = { ziel: zustand.H[Math.round(punkte[0][1]) * N + Math.round(punkte[0][0])] };
     for (const [x, y] of punkte) pinsel(x, y, dt); strich = null; nachAenderung(true); } };
 aufbauen();
