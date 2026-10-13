@@ -8,7 +8,7 @@ uniform vec3 farbe_tief : source_color = vec3(0.03, 0.15, 0.26);
 uniform float tiefe_farbe = 7.0;      // Meter bis zur tiefen Farbe
 uniform float sichttiefe = 2.5;       // Meter, ab denen das Wasser undurchsichtig ist
 uniform vec3 schaum_farbe : source_color = vec3(0.9, 0.95, 0.97);
-uniform float schaum_breite = 0.5;    // Meter Wassertiefe, in denen Schaum entsteht
+uniform float schaum_breite = 0.3;    // Meter Wassertiefe, in denen Schaum entsteht
 uniform float wellen_skala = 0.045;   // Wiederholungen je Meter
 uniform float wellen_staerke = 0.55;
 uniform vec2 stroemung = vec2(0.0);   // zusätzliche Fließrichtung (Flüsse), Meter je Sekunde
@@ -43,6 +43,7 @@ void fragment() {
 	float nah = 1.0 - smoothstep(0.0, schaum_breite, tiefe);
 	float muster = texture(schaum_muster, p * 0.15 + TIME * 0.02).r;
 	float schaum = smoothstep(0.55, 0.8, muster + 0.35 * nah * nah) * nah * nah * 0.85;
+	schaum *= 1.0 - smoothstep(80.0, 300.0, -VERTEX.z); // aus der Ferne kein weißer Rand
 	ALBEDO = mix(farbe, schaum_farbe, schaum);
 	ALPHA = clamp(max(tiefe / sichttiefe, schaum), 0.25, 0.97);
 	ROUGHNESS = mix(0.04, 0.6, schaum);

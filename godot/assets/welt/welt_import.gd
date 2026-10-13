@@ -26,9 +26,11 @@ extends Node3D
 			m.visible = v
 
 ## Kachelgröße der Bodentexturen in Metern (Biom-Reihenfolge wie im Generator)
+## dazu ein Farbton, mit dem die Textur im Spiel multipliziert wird (Wiese gedämpfter, Waldböden etwas grüner)
 const BODEN := [
-	["sand", 4.0], ["wiese", 3.0], ["laubboden", 3.0], ["nadelboden", 3.0],
-	["sumpf", 4.0], ["steppe", 3.0], ["fels", 8.0], ["schnee", 6.0], ["weg", 3.0],
+	["sand", 4.0, Color(1.0, 0.98, 0.95)], ["wiese", 3.0, Color(0.6, 0.64, 0.82)], ["laubboden", 3.0, Color(0.8, 0.88, 0.76)],
+	["nadelboden", 3.0, Color(0.9, 0.95, 0.85)], ["sumpf", 4.0, Color.WHITE], ["steppe", 3.0, Color(0.92, 0.9, 0.88)],
+	["fels", 8.0, Color.WHITE], ["schnee", 6.0, Color.WHITE], ["weg", 3.0, Color.WHITE],
 ]
 
 ## Platzhalter (farbige Säulen, Namen, Feldflächen) für die Marker anzeigen
@@ -74,7 +76,9 @@ func importieren() -> void:
 	var farbe: Image = null
 	var farb_pfad := daten_ordner.path_join(meta["farbe"]["datei"])
 	var welt_m: float = float(meta.get("welt_m", n * mpp))
-	if FileAccess.file_exists(farb_pfad):
+	# Die Farbkarte färbt in Terrain3D alle Bodentexturen ein (Wege würden grün, Waldboden sehr dunkel).
+	# Deshalb nur laden, wenn sie zum Vergleich angezeigt werden soll.
+	if (farbkarte_anzeigen or not meta.has("steuerung")) and FileAccess.file_exists(farb_pfad):
 		farbe = Image.load_from_file(ProjectSettings.globalize_path(farb_pfad))
 		farbe.convert(Image.FORMAT_RGBA8)
 		farbe.resize(n, n, Image.INTERPOLATE_BILINEAR)
@@ -167,6 +171,7 @@ func _texturen_einrichten(terrain: Node3D) -> void:
 		t.set("albedo_texture", load(basis.path_join("texturen/%s_albedo_hoehe.png" % name_)))
 		t.set("normal_texture", load(basis.path_join("texturen/%s_normal_rauheit.png" % name_)))
 		t.set("uv_scale", 1.0 / BODEN[id][1])
+		t.set("albedo_color", BODEN[id][2])
 		t.set("detiling_rotation", 0.3)
 		t.set("detiling_shift", 0.2)
 		# Terrain3D 1.0.x: set_texture · neuere Versionen: set_texture_asset
@@ -175,6 +180,16 @@ func _texturen_einrichten(terrain: Node3D) -> void:
 		else:
 			assets.call("set_texture", id, t)
 	assets.call("update_texture_list")
+	# Weichere Übergänge zwischen den Böden (über die Höhe in den Texturen) und großflächige Farbschwankungen,
+	# damit die Kacheln aus der Ferne nicht als Muster auffallen
+	var mat = terrain.get("material")
+	mat.call("set_shader_param", "blend_sharpness", 0.6)
+	mat.call("set_shader_param", "enable_macro_variation", true)
+	mat.call("set_shader_param", "macro_variation1", Color(1.0, 0.94, 0.86))
+	mat.call("set_shader_param", "macro_variation2", Color(0.86, 0.96, 0.88))
+	mat.call("set_shader_param", "macro_variation_slope", 0.4)
+	mat.call("set_shader_param", "noise1_scale", 0.012)
+	mat.call("set_shader_param", "noise2_scale", 0.05)
 
 
 const MARKER_FARBEN := {"stadt": Color(0.91, 0.69, 0.29), "dorf": Color(0.9, 0.83, 0.54), "dungeon": Color(0.75, 0.31, 0.3),

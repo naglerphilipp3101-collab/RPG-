@@ -28,6 +28,9 @@ func _ready() -> void:
 		if OS.get_cmdline_user_args().has("--natur"):
 			_natur_test()
 			return
+		if OS.get_cmdline_user_args().has("--weg"):
+			_weg_ansicht()
+			return
 		if OS.get_cmdline_user_args().has("--aerial"):
 			# Luftbild: eigene Kamera hoch über dem Startgebiet, Blick nach Norden über die Insel
 			var cam := Camera3D.new()
@@ -231,6 +234,28 @@ func _craft_test() -> void:
 		player.get_profession_level("weaponsmithing")])
 	time = 34.0
 	get_tree().current_scene.get_node("HUD").open_station.call_deferred("weaponsmith")
+
+
+## Auf die nächste Straße stellen und an ihr entlang schauen
+func _weg_ansicht() -> void:
+	var best := Vector3.ZERO
+	var richtung := Vector3.FORWARD
+	var best_d := INF
+	for pf in get_tree().get_nodes_in_group("welt_wege"):
+		if pf.get_meta("typ", "") != "strasse":
+			continue
+		var c: Curve3D = pf.curve
+		for i in range(2, c.point_count - 2):
+			var q := c.get_point_position(i)
+			var d := q.distance_to(player.global_position)
+			if d > 60.0 and d < best_d:
+				best_d = d
+				best = q
+				richtung = (c.get_point_position(i + 2) - c.get_point_position(i - 2)).normalized()
+	player.global_position = best + Vector3(0, 1.0, 0) - richtung * 4.0
+	player.cam_yaw = atan2(-richtung.x, -richtung.z)
+	player.cam_pitch = -0.22
+	print("AUTOTEST Weg: Blick bei %s" % best.round())
 
 
 ## Blick aufs Wasser: an die Küste beim Fischgrund (Meer) oder ans Ufer des ersten Sees (--see)

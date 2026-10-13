@@ -12,7 +12,7 @@ uniform float radius = 45.0; // Grasbereich
 varying vec3 tint;
 
 void vertex() {
-	tint = INSTANCE_CUSTOM.rgb;
+	tint = pow(INSTANCE_CUSTOM.rgb, vec3(2.2)) * 1.5; // als sRGB angegeben -> linear
 	vec3 welt = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 	float hoehe = UV.y;
 	// zum Rand hin flacher werden
@@ -28,7 +28,7 @@ void vertex() {
 
 void fragment() {
 	float h = UV.y;
-	ALBEDO = mix(fuss_farbe * tint * 2.0, tint * 0.85, smoothstep(0.0, 0.9, h));
+	ALBEDO = mix(fuss_farbe * tint * 2.0, tint, smoothstep(0.0, 0.9, h));
 	AO = mix(0.35, 0.9, h);          // unten im Büschel weniger Himmelslicht
 	AO_LIGHT_AFFECT = 0.3;
 	ROUGHNESS = 0.95;

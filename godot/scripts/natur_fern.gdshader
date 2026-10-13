@@ -13,6 +13,10 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = COLOR.rgb;
+	// Farbe steckt in den UVs (siehe natur.gd), als sRGB angegeben -> in den linearen Farbraum umrechnen
+	ALBEDO = pow(vec3(UV.x, UV.y, UV2.x), vec3(2.2)) * 1.6;
+	// weniger Himmelslicht (sonst wirken die fernen Bäume blass bläulich)
+	AO = 0.55;
+	AO_LIGHT_AFFECT = 0.0;
 	ROUGHNESS = 0.95;
 }

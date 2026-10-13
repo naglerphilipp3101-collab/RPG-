@@ -510,7 +510,9 @@ func _form(st: SurfaceTool, mesh: PrimitiveMesh, xf: Transform3D, farbe: Color) 
 	var nrm: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
 	var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
 	for i in idx:
-		st.set_color(farbe)
+		# Farbe in den UVs (UV = Rot/Grün, UV2.x = Blau): Vertexfarben kommen beim MultiMesh nicht im Shader an
+		st.set_uv(Vector2(farbe.r, farbe.g))
+		st.set_uv2(Vector2(farbe.b, 0.0))
 		st.set_normal((xf.basis * nrm[i]).normalized())
 		st.add_vertex(xf * v[i])
 
