@@ -76,7 +76,18 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
   Nah (110 m): Blender-Modelle aus `assets/` über `scripts/natur_quelle.gd` abbaubar (Werte in `gathering.json`: fichte_/kiefer_/eiche_jung|alt,
   aeste_busch, hanf, beeren, kraut, kraut_selten). Fern (950 m): einfache Bäume als MultiMesh, Shader `natur_fern.gdshader` blendet sie im Nahbereich aus.
   Erze bewusst nicht – die kommen später vor allem in die Minen. Test: `--island --natur` (mit Fenster: misst auch die FPS).
-- Noch offen: Gegner außerhalb des Startgebiets, Regionsgrenzen auf der Karte, Erze in Minen.
+- ✅ Grafik-Runde (13.10.2026): Wasser-Shader für Meer/Seen/Flüsse (`scripts/wasser.gd(shader)`, Flüsse aus `fluesse.json`),
+  Felsbrocken abbaubar (`assets/erz/felsbrocken.gd`, Stein/Feuerstein), Bodenbewuchs Gras/Farn/Kraut/Blumen (`scripts/gras.gd`),
+  Bodentexturen ohne Farbkarte, Wege sichtbar. Karte M zoombar, Wege auf Karte/Minimap, keine Wege am Zentralberg.
+- Nutzer-Feedback zur Optik: soll realistisch wirken (Referenz: New World). Gras wirkt noch "Wii-Zelda", Felsen zu low-poly,
+  Sand/Wiese/Waldboden-Texturen unausgereift → Vorschlag: CC0-Fotoscans (Poly Haven, ambientCG); Downloads nur mit Bestätigung.
+
+**Nächste Schritte (vom Nutzer festgelegt, 13.10.2026):**
+1. Nutzer schreibt die genaue Inhaltsbeschreibung (gesamter Spielinhalt) → in `godot/KONZEPT.md` übernehmen und Plan ableiten.
+2. Bäume: alle jetzigen Bäume droppen „Frischholz“ (Menge nach Größe); neue, größere „Alte Bäume“ (untere 2/3 nur kahle Äste,
+   spart Leistung, von weitem erkennbar) droppen „Gereiftes Holz“. Dazu Stein-Monolithen/Felsformationen als Landschaftsdeko.
+3. Realismus-Durchgang mit gescannten Assets (Böden, Kopfsteinpflaster, Felsen, Bewuchs).
+- Weiter offen: Gegner/Tiere (wartet auf Modelle + Animationen), feindliche Lager, Schwierigkeit, Erze in Minen, Siedlungen, Regionsgrenzen auf der Karte.
 - Spielfigur, NPCs und Gegner aus fertigen Paketen (Quaternius/KayKit + Mixamo). Downloads macht der Nutzer selbst.
 - Danach M5 (Startgebiet, Tutorial, NPCs, Dialoge), M6 (Fraktionsregion, Händler), M7 (lebendige Welt).
 
