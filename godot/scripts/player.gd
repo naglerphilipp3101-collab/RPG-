@@ -141,6 +141,11 @@ var skill_cooldowns: Dictionary = {} # Knoten-id -> verbleibende Sekunden
 var ranged_loaded := true
 var damage_dealt_total := 0.0 # nur für Tests/Statistik
 
+# Debug-Flug (F3): fliegen ohne Kollision, mit Sprinten 30-fache Geschwindigkeit, unverwundbar
+const FLY_SPEED := 12.0
+const FLY_SPRINT_FACTOR := 30.0
+var debug_fly := false
+
 # Verbrauchsgüter
 const POTION_COOLDOWN := 15.0
 var potion_cooldown := 0.0
@@ -178,6 +183,54 @@ func _ready() -> void:
 
 func is_alive() -> bool:
 	return state != State.DEAD
+
+
+# --- Debug-Flug ---------------------------------------------------------
+
+func set_debug_fly(on: bool) -> void:
+	debug_fly = on
+	if on:
+		if state == State.GATHER or state == State.FISH:
+			_end_gather()
+		elif state == State.ACTION:
+			_end_action(false)
+		if state != State.DEAD:
+			state = State.NORMAL
+		blocking = false
+		_set_block_pose(false)
+		_kill_anim(true)
+	collision_layer = 0 if on else 2
+	collision_mask = 0 if on else 1 | 4
+	velocity = Vector3.ZERO
+	message.emit("Debug-Flug AN  (Leertaste hoch · C runter · Strg ×30)" if on else "Debug-Flug AUS")
+
+
+## Springt an eine Weltposition (x/z); die Höhe bestimmt der Aufrufer (z. B. Gelände + Abstand).
+func teleport(pos: Vector3) -> void:
+	global_position = pos
+	velocity = Vector3.ZERO
+	camera_pivot.global_position = pos + Vector3(0, 1.55, 0)
+
+
+func _fly(delta: float, captured: bool) -> void:
+	health = max_health
+	stamina = max_stamina
+	var input_dir := Vector2.ZERO
+	var vertical := 0.0
+	var fast := false
+	if captured:
+		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+		vertical = (1.0 if Input.is_action_pressed("jump") else 0.0) - (1.0 if Input.is_action_pressed("fly_down") else 0.0)
+		fast = Input.is_action_pressed("sprint")
+	# Vorwärts folgt der Kamera, auch nach oben/unten geneigt
+	var fly_basis := Basis(Vector3.UP, cam_yaw) * Basis(Vector3.RIGHT, cam_pitch)
+	var dir := fly_basis * Vector3(input_dir.x, 0.0, input_dir.y) + Vector3.UP * vertical
+	if dir.length() > 1.0:
+		dir = dir.normalized()
+	var speed := FLY_SPEED * (FLY_SPRINT_FACTOR if fast else 1.0)
+	global_position += dir * speed * delta
+	if input_dir.length() > 0.1:
+		_face_angle(cam_yaw, delta, 10.0)
 
 
 func is_ranged() -> bool:
@@ -845,6 +898,11 @@ func _process(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	_update_timers(delta)
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not ui_open
+	if captured and Input.is_action_just_pressed("debug_fly") and state != State.DEAD:
+		set_debug_fly(not debug_fly)
+	if debug_fly:
+		_fly(delta, captured)
+		return
 	var input_dir := Vector2.ZERO
 	if not ui_open:
 		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
@@ -1641,7 +1699,7 @@ func _state_stagger(delta: float) -> void:
 
 
 func take_damage(amount: float, from_pos: Vector3, unblockable := false) -> void:
-	if state == State.DEAD:
+	if state == State.DEAD or debug_fly:
 		return
 	if state == State.GATHER or state == State.FISH:
 		_end_gather()

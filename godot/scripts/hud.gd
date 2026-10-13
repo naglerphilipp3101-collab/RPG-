@@ -5,6 +5,7 @@ const InventoryUIScript := preload("res://scripts/inventory_ui.gd")
 const CraftingUIScript := preload("res://scripts/crafting_ui.gd")
 const PauseMenuScript := preload("res://scripts/pause_menu.gd")
 const SkillTreeUIScript := preload("res://scripts/skill_tree_ui.gd")
+const MinimapScript := preload("res://scripts/minimap.gd")
 const NOTIFY_TIME := 3.5
 const MAX_NOTIFICATIONS := 7
 const HELP_TEXT := """Steuerung
@@ -18,6 +19,8 @@ E  Sammeln / Häuten / Angeln / Werkstatt
 1  Heiltrank    2  Essen
 Fernkampf: Rechte Maustaste zielen
 X  Waffe wechseln    K  Skillbaum
+M  Karte    N  Minimap-Zoom
+F3  Debug-Flug (Strg = ×30, Leertaste/C = hoch/runter)
 Tab oder I  Inventar
 F1  Hilfe ein/aus    Esc  Pause / Speichern"""
 
@@ -32,6 +35,7 @@ var skill_tree_ui: Control
 var weapon_label: Label
 var crosshair: Control
 var ranged_label: Label
+var minimap: Control
 var quick_slots: Array[Dictionary] = []
 var hp_bar: ProgressBar
 var hp_label: Label
@@ -197,6 +201,10 @@ func _ready() -> void:
 	ranged_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	crosshair.add_child(ranged_label)
 
+	minimap = MinimapScript.new()
+	minimap.visible = false # wird sichtbar, sobald main.gd eine Karte liefert
+	root.add_child(minimap)
+
 	inventory_ui = InventoryUIScript.new()
 	root.add_child(inventory_ui)
 	crafting_ui = CraftingUIScript.new()
@@ -271,11 +279,27 @@ func close_all_windows() -> void:
 	inventory_ui.close()
 	crafting_ui.close()
 	skill_tree_ui.close()
+	minimap.set_big(false)
 	_apply_ui_mode()
 
 
 func _any_window_open() -> bool:
-	return inventory_ui.visible or crafting_ui.visible or skill_tree_ui.visible
+	return inventory_ui.visible or crafting_ui.visible or skill_tree_ui.visible or minimap.big
+
+
+## Wird von main.gd aufgerufen, wenn eine Welt mit Übersichtskarte geladen ist.
+func setup_minimap(main_node, texture: Texture2D, world_size: float, marker_nodes: Array) -> void:
+	minimap.setup(player, main_node, texture, world_size, marker_nodes)
+
+
+func set_world_map_open(open: bool) -> void:
+	if not minimap.visible:
+		return
+	inventory_ui.close()
+	crafting_ui.close()
+	skill_tree_ui.close()
+	minimap.set_big(open)
+	_apply_ui_mode()
 
 
 func _apply_ui_mode() -> void:
@@ -316,6 +340,11 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_pressed("skill_tree") and not pause_menu.visible:
 		set_skill_tree_open(not skill_tree_ui.visible)
 		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("world_map") and not pause_menu.visible:
+		set_world_map_open(not minimap.big)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("minimap_zoom") and not pause_menu.visible:
+		minimap.cycle_zoom()
 
 
 func _process(delta: float) -> void:

@@ -30,6 +30,7 @@ var clear_spots: Array[Vector3] = []
 var area: Node3D # Wurzel des Startgebiets (lokale Koordinaten)
 var terrain = null # Terrain3D, wenn die Insel geladen ist
 var island := false
+var world_size := 8192.0 # Seitenlänge der Insel in Metern (aus welt.json)
 
 
 func _ready() -> void:
@@ -90,6 +91,11 @@ func _ready() -> void:
 	hud.name = "HUD"
 	add_child(hud)
 	hud.bind_player(player)
+	if island:
+		var map_path := ProjectSettings.globalize_path(ISLAND_DATA.path_join("uebersicht.png"))
+		if FileAccess.file_exists(map_path):
+			var map_texture := ImageTexture.create_from_image(Image.load_from_file(map_path))
+			hud.setup_minimap(self, map_texture, world_size, get_tree().get_nodes_in_group("welt_marker"))
 
 	for camp in camps:
 		var home: Vector3 = area.position + _g(camp["pos"])
@@ -162,6 +168,7 @@ func _build_island() -> void:
 
 	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(ISLAND_DATA.path_join("welt.json")))
 	var size: float = float(meta.get("welt_m", 8192))
+	world_size = size
 	var sea := PlaneMesh.new()
 	sea.size = Vector2(size * 3, size * 3)
 	var sea_mat := StandardMaterial3D.new()

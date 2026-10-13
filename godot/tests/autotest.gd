@@ -17,6 +17,11 @@ func _ready() -> void:
 		phase = "island_view"
 		player.cam_yaw = PI # Richtung Dorf (Süden)
 		player.cam_pitch = -0.25
+		if OS.get_cmdline_user_args().has("--flytest"):
+			# Debug-Flug testen: einschalten, 2 s mit 30-facher Geschwindigkeit nach Norden fliegen (simuliert)
+			phase = "flytest"
+			player.set_debug_fly(true)
+			return
 		if OS.get_cmdline_user_args().has("--aerial"):
 			# Luftbild: eigene Kamera hoch über dem Startgebiet, Blick nach Norden über die Insel
 			var cam := Camera3D.new()
@@ -225,6 +230,25 @@ func _craft_test() -> void:
 func _physics_process(delta: float) -> void:
 	time += delta
 	match phase:
+		"flytest":
+			if time < 2.0:
+				player.cam_yaw = 0.0 # Maus im Testfenster darf die Richtung nicht verfälschen
+				player.cam_pitch = 0.0
+			if time < 0.05:
+				set_meta("start", player.global_position)
+				player.cam_yaw = 0.0 # nach Norden
+				player.cam_pitch = 0.0
+				Input.action_press("move_forward")
+				Input.action_press("sprint")
+			elif time > 2.0 and time < 2.05:
+				Input.action_release("move_forward")
+				Input.action_release("sprint")
+				var start: Vector3 = get_meta("start")
+				var weg: Vector3 = player.global_position - start
+				print("AUTOTEST Flug: %.0f m in 2 s (Ziel: ~720 m), Richtung x %.0f / y %.0f / z %.0f, Leben %d, Kollision aus: %s" % [
+					weg.length(), weg.x, weg.y, weg.z, player.health, player.collision_mask == 0])
+			elif time > 2.5 and time < 2.55:
+				get_tree().current_scene.get_node("HUD").set_world_map_open(true)
 		"showcase":
 			player.health = player.max_health
 			if time < 2.0:

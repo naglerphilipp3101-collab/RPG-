@@ -287,7 +287,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _player_valid() -> bool:
-	return player != null and is_instance_valid(player) and player.is_alive()
+	return player != null and is_instance_valid(player) and player.is_alive() and not player.debug_fly
 
 
 func _flat_to_player() -> Vector3:
