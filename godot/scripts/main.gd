@@ -13,6 +13,7 @@ const ResourceNodeScript := preload("res://scripts/resource_node.gd")
 const StationScript := preload("res://scripts/crafting_station.gd")
 const SaveGame := preload("res://scripts/save_game.gd")
 const NaturScript := preload("res://scripts/natur.gd")
+const Wasser := preload("res://scripts/wasser.gd")
 
 const ISLAND_DATA := "res://welt_daten"
 const ISLAND_TERRAIN := "res://welt_daten/terrain3d"
@@ -182,16 +183,13 @@ func _build_island() -> void:
 	world_size = size
 	var sea := PlaneMesh.new()
 	sea.size = Vector2(size * 3, size * 3)
-	var sea_mat := StandardMaterial3D.new()
-	sea_mat.albedo_color = Color(0.12, 0.32, 0.5, 0.85)
-	sea_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	sea_mat.roughness = 0.08
-	sea_mat.metallic_specular = 0.8
-	MeshUtil.part(self, sea, sea_mat)
+	var sea_mat := Wasser.material("meer")
+	var sea_node := MeshUtil.part(self, sea, sea_mat)
+	sea_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var seabed := MeshUtil.part(self, sea, MeshUtil.mat(Color(0.32, 0.3, 0.24), 0.0, 1.0))
 	seabed.position.y = float(meta["hoehe"]["min"]) + 0.3
 	welt._marker_importieren()
-	welt._seen_importieren(sea_mat)
+	welt._seen_importieren(Wasser.material("see"))
 	welt._wege_importieren() # Wegverläufe und Brücken (das Gelände unter den Wegen ist schon eingeebnet)
 	welt._hoehe_bild = null # Höhendaten wurden nur für die Brückenpfeiler gebraucht
 

@@ -22,6 +22,9 @@ func _ready() -> void:
 			phase = "flytest"
 			player.set_debug_fly(true)
 			return
+		if OS.get_cmdline_user_args().has("--wasser") or OS.get_cmdline_user_args().has("--see"):
+			_wasser_ansicht(OS.get_cmdline_user_args().has("--see"))
+			return
 		if OS.get_cmdline_user_args().has("--natur"):
 			_natur_test()
 			return
@@ -228,6 +231,34 @@ func _craft_test() -> void:
 		player.get_profession_level("weaponsmithing")])
 	time = 34.0
 	get_tree().current_scene.get_node("HUD").open_station.call_deferred("weaponsmith")
+
+
+## Blick aufs Wasser: an die Küste beim Fischgrund (Meer) oder ans Ufer des ersten Sees (--see)
+func _wasser_ansicht(see: bool) -> void:
+	var main = get_tree().current_scene
+	var ziel := Vector3.ZERO
+	var ufer := Vector3.ZERO
+	if see:
+		var flaeche = get_tree().get_first_node_in_group("welt_seen")
+		# Schwerpunkt der Seefläche (aus welt.json), von dort nach Süden bis ans Ufer
+		ziel = Vector3(float(flaeche.get_meta("x")), flaeche.global_position.y, float(flaeche.get_meta("z")))
+		ufer = ziel
+		while main.terrain.get("data").get_height(ufer) < ziel.y + 0.3 and ufer.z - ziel.z < 800.0:
+			ufer.z += 2.0
+		ufer.z += 6.0
+	else:
+		for n in get_tree().get_nodes_in_group("interactable"):
+			if n.get("node_id") == "fishing_spot":
+				ziel = n.global_position
+				break
+		var weg := Vector3(player.global_position.x - ziel.x, 0, player.global_position.z - ziel.z).normalized()
+		ufer = ziel + weg * 18.0
+	ufer.y = main.terrain.get("data").get_height(ufer) + 1.0
+	player.global_position = ufer
+	var blick := ziel - ufer
+	player.cam_yaw = atan2(-blick.x, -blick.z)
+	player.cam_pitch = -0.18
+	print("AUTOTEST Wasser: Blick von %s auf %s" % [ufer.round(), ziel.round()])
 
 
 ## Natur auf der Insel: Spieler in einen Wald nahe dem Startgebiet setzen, alles laden, zählen,
