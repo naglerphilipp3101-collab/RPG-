@@ -12,16 +12,26 @@ Mit **[Vorschlag]** markierte Punkte sind Ideen von Claude und noch nicht entsch
 - **Spieler:** Überlebender eines gefallenen Königreichs. Er wacht im Startgebiet auf.
 - **Hauptstrang:**
   1. Der Spieler erledigt Quests für alle Fraktionen und lernt die Insel kennen.
-  2. Ab einem bestimmten Punkt fallen **Dämonen** ein. Ihre Basis liegt in **Region 8**, von dort greifen sie an und erobern Städte.
-  3. Ziel: Region 8 einnehmen und die Zerstörung der Insel abwenden.
+  2. Ab einem bestimmten Punkt **brechen die Dämonen im Zentrum der Insel aus der Erde**. Von dort greifen sie an und erobern Städte.
+  3. Ziel: das Zentrum einnehmen und die Zerstörung der Insel abwenden.
 
 ## 2. Welt
 
-| Teil | Inhalt |
-|---|---|
-| Region 1 | **Startgebiet:** klein, Tutorial |
-| Regionen 2–7 | **6 Fraktionsregionen:** jeweils von einer Fraktion dominiert, mit 3 Hauptstädten, mehreren Dörfern, Forts, Dungeons und POIs |
-| Region 8 | **Dämonenreich:** Endgebiet |
+Die Insel ist **8 × 8 km** groß und mit dem Weltgenerator erstellt (Höhen −41 bis 310 m, 8 Biome, Seen, Flüsse).
+
+| Teil | Lage auf der Karte | Inhalt |
+|---|---|---|
+| Region 1 | **Südspitze** (unterhalb der Linie Westküste → Südküste) | **Startgebiet:** Tutorial, fraktionslos |
+| Region 2 | Westen | Fraktionsregion |
+| Region 3 | Südwesten | Fraktionsregion |
+| Region 4 | Norden | Fraktionsregion |
+| Region 5 | Nordosten | Fraktionsregion |
+| Region 6 | Osten (östliches Bergmassiv) | Fraktionsregion |
+| Region 7 | Südosten (inkl. Küstenstreifen südlich des Zentrums) | Fraktionsregion |
+| Region 8 | **Zentrum:** Hochgebirge mit Schnee, ringförmig begrenzt | Anfangs **fraktionslos**, später **Dämonenreich** (Endgebiet) |
+| Nebeninsel | Kleine Insel im Süden | Fraktionslos, **Dungeon** |
+
+- Jede Fraktionsregion hat 3 Hauptstädte, mehrere Dörfer, Forts, Dungeons und POIs.
 
 - Jede Region hat **Ressourcenschwerpunkte**, z. B. Gebirge → Eisen, Wald → Holz.
 - **Städte erzeugen passiv Ressourcen** der Tiers 1–3 für die Wirtschaft.
