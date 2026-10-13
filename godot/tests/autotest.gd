@@ -22,6 +22,9 @@ func _ready() -> void:
 			phase = "flytest"
 			player.set_debug_fly(true)
 			return
+		if OS.get_cmdline_user_args().has("--natur"):
+			_natur_test()
+			return
 		if OS.get_cmdline_user_args().has("--aerial"):
 			# Luftbild: eigene Kamera hoch über dem Startgebiet, Blick nach Norden über die Insel
 			var cam := Camera3D.new()
@@ -227,9 +230,68 @@ func _craft_test() -> void:
 	get_tree().current_scene.get_node("HUD").open_station.call_deferred("weaponsmith")
 
 
+## Natur auf der Insel: Spieler in einen Wald nahe dem Startgebiet setzen, alles laden, zählen,
+## einen Baum fällen und eine Pflanze ernten. Mit --write-movie entstehen Bilder vom Waldrand.
+func _natur_test() -> void:
+	var natur = get_tree().current_scene.natur
+	var start := Vector2(player.global_position.x, player.global_position.z)
+	var ort := Vector2.INF
+	for r in range(260, 2000, 20):
+		for i in 24:
+			var p := start + Vector2.from_angle(TAU * i / 24.0) * r
+			if natur._biom(p.x, p.y) in [natur.LAUBWALD, natur.NADELWALD] and not natur._gesperrt(p.x, p.y):
+				ort = p
+				break
+		if ort != Vector2.INF:
+			break
+	var h: float = natur._hoehe(ort.x, ort.y)
+	player.global_position = Vector3(ort.x, h + 1.0, ort.y)
+	var t0 := Time.get_ticks_msec()
+	natur.sofort_laden()
+	var t_nah := Time.get_ticks_msec() - t0
+	t0 = Time.get_ticks_msec()
+	var k := Vector2i(floori(ort.x / 256.0) + 2, floori(ort.y / 256.0))
+	natur._fern_bauen(k)
+	var t_fern := Time.get_ticks_msec() - t0
+	var zahl := {}
+	for n in natur._nah.values():
+		zahl[n.node_id] = int(zahl.get(n.node_id, 0)) + 1
+	print("AUTOTEST Natur: Ort %s (Höhe %.0f m), %d Objekte im Nahbereich in %d ms, Fernkachel in %d ms" % [ort.round(), h, natur._nah.size(), t_nah, t_fern])
+	print("AUTOTEST Natur Arten: ", zahl)
+	# nächsten Baum und nächste Pflanze ernten
+	for gruppe in [["fichte", "kiefer", "eiche"], ["hanf", "beeren", "kraut"]]:
+		var best = null
+		var best_d := INF
+		for n in natur._nah.values():
+			if String(n.node_id).get_slice("_", 0) in gruppe:
+				var d: float = n.global_position.distance_to(player.global_position)
+				if d < best_d:
+					best_d = d
+					best = n
+		if best:
+			best.harvest(player)
+			print("AUTOTEST Natur geerntet: %s (%.0f m entfernt), danach abbaubar: %s" % [best.node_id, best_d, best.is_interactable()])
+	print("AUTOTEST Natur Inventar: ", player.inventory.items)
+	player.cam_yaw = 0.3
+	player.cam_pitch = -0.12
+	phase = "natur"
+
+
 func _physics_process(delta: float) -> void:
 	time += delta
 	match phase:
+		"natur":
+			# Bildrate im Wald messen (ohne --write-movie aussagekräftig), danach ein Stück durch den Wald laufen
+			if time > 5.0 and time - delta <= 5.0:
+				print("AUTOTEST Natur FPS stehend: %d, Nah-Objekte %d, Fernkacheln %d" % [Engine.get_frames_per_second(),
+					get_tree().current_scene.natur._nah.size(), get_tree().current_scene.natur._fern.size()])
+				Input.action_press("move_forward")
+				Input.action_press("sprint")
+			elif time > 11.0 and time - delta <= 11.0:
+				Input.action_release("move_forward")
+				Input.action_release("sprint")
+				print("AUTOTEST Natur FPS laufend: %d, Nah-Objekte %d" % [Engine.get_frames_per_second(), get_tree().current_scene.natur._nah.size()])
+				get_tree().quit()
 		"flytest":
 			if time < 2.0:
 				player.cam_yaw = 0.0 # Maus im Testfenster darf die Richtung nicht verfälschen

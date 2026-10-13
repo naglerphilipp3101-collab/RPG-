@@ -12,6 +12,7 @@ const MeshUtil := preload("res://scripts/mesh_util.gd")
 const ResourceNodeScript := preload("res://scripts/resource_node.gd")
 const StationScript := preload("res://scripts/crafting_station.gd")
 const SaveGame := preload("res://scripts/save_game.gd")
+const NaturScript := preload("res://scripts/natur.gd")
 
 const ISLAND_DATA := "res://welt_daten"
 const ISLAND_TERRAIN := "res://welt_daten/terrain3d"
@@ -29,6 +30,7 @@ var rng := RandomNumberGenerator.new()
 var clear_spots: Array[Vector3] = []
 var area: Node3D # Wurzel des Startgebiets (lokale Koordinaten)
 var terrain = null # Terrain3D, wenn die Insel geladen ist
+var natur = null # Natur-Streamer (scripts/natur.gd), nur auf der Insel
 var island := false
 var world_size := 8192.0 # Seitenlänge der Insel in Metern (aus welt.json)
 
@@ -86,6 +88,12 @@ func _ready() -> void:
 	add_child(player)
 	if terrain:
 		terrain.set_camera(player.camera)
+	if island:
+		# Bäume, Büsche und Sammelpflanzen auf der ganzen Insel (rund um den Spieler nachgeladen)
+		natur = NaturScript.new()
+		natur.name = "Natur"
+		natur.setup(self, player, ISLAND_DATA)
+		add_child(natur)
 
 	var hud = HudScript.new()
 	hud.name = "HUD"

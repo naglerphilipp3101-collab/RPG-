@@ -55,6 +55,61 @@
 		"hp": 25, "xp": 25, "respawn": 120, "visual": "herb", "color": [0.85, 0.9, 0.95], "glow": true,
 		"drops": [{"item": "silverleaf", "min": 1, "max": 2}]
 	},
+	"fichte_jung": {
+		"name": "Junge Fichte", "tier": 1, "action": "fällen", "profession": "woodcutting", "level": 1,
+		"hp": 22, "xp": 14, "respawn": 300,
+		"drops": [{"item": "green_wood", "min": 2, "max": 3}, {"item": "resin", "min": 1, "max": 1, "chance": 0.1}]
+	},
+	"fichte_alt": {
+		"name": "Fichte", "tier": 1, "action": "fällen", "profession": "woodcutting", "level": 1,
+		"hp": 40, "xp": 26, "respawn": 600,
+		"drops": [{"item": "green_wood", "min": 4, "max": 6}, {"item": "resin", "min": 1, "max": 1, "chance": 0.25}]
+	},
+	"kiefer_jung": {
+		"name": "Junge Kiefer", "tier": 1, "action": "fällen", "profession": "woodcutting", "level": 1,
+		"hp": 22, "xp": 14, "respawn": 300,
+		"drops": [{"item": "green_wood", "min": 2, "max": 3}, {"item": "resin", "min": 1, "max": 1, "chance": 0.15}]
+	},
+	"kiefer_alt": {
+		"name": "Kiefer", "tier": 1, "action": "fällen", "profession": "woodcutting", "level": 1,
+		"hp": 40, "xp": 26, "respawn": 600,
+		"drops": [{"item": "green_wood", "min": 4, "max": 6}, {"item": "resin", "min": 1, "max": 2, "chance": 0.3}]
+	},
+	"eiche_jung": {
+		"name": "Junge Eiche", "tier": 1, "action": "fällen", "profession": "woodcutting", "level": 1,
+		"hp": 25, "xp": 16, "respawn": 300,
+		"drops": [{"item": "green_wood", "min": 2, "max": 3}]
+	},
+	"eiche_alt": {
+		"name": "Alte Eiche", "tier": 2, "action": "fällen", "profession": "woodcutting", "level": 3,
+		"hp": 65, "xp": 45, "respawn": 900,
+		"drops": [{"item": "aged_wood", "min": 3, "max": 5}, {"item": "green_wood", "min": 1, "max": 2}]
+	},
+	"aeste_busch": {
+		"name": "Ästebusch", "tier": 1, "action": "sammeln", "profession": "harvesting", "level": 1,
+		"hp": 8, "xp": 5, "respawn": 300,
+		"drops": [{"item": "green_wood", "min": 1, "max": 2}]
+	},
+	"hanf": {
+		"name": "Hanf", "tier": 1, "action": "ernten", "profession": "harvesting", "level": 1,
+		"hp": 12, "xp": 8, "respawn": 300,
+		"drops": [{"item": "fiber", "min": 2, "max": 4}]
+	},
+	"beeren": {
+		"name": "Beerenstrauch", "tier": 1, "action": "pflücken", "profession": "harvesting", "level": 1,
+		"hp": 10, "xp": 8, "respawn": 300,
+		"drops": [{"item": "berries", "min": 2, "max": 4}]
+	},
+	"kraut": {
+		"name": "Heilkraut", "tier": 1, "action": "ernten", "profession": "harvesting", "level": 1,
+		"hp": 12, "xp": 10, "respawn": 300,
+		"drops": [{"item": "healing_herb", "min": 1, "max": 2}]
+	},
+	"kraut_selten": {
+		"name": "Silberblatt", "tier": 2, "action": "ernten", "profession": "harvesting", "level": 3,
+		"hp": 25, "xp": 25, "respawn": 450,
+		"drops": [{"item": "silverleaf", "min": 1, "max": 2}]
+	},
 	"fishing_spot": {
 		"name": "Fischgrund", "tier": 1, "action": "angeln", "profession": "fishing", "level": 1,
 		"xp": 18, "respawn": 60, "visual": "fishing", "catches": 4, "pick_one": true,

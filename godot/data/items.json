@@ -20,6 +20,8 @@
 		"description": "Heilende Pflanze. Grundlage für Tränke und Speisen."},
 	"silverleaf": {"name": "Silberblatt", "tier": 2, "weight": 0.1, "category": "Pflanze", "color": [0.85, 0.9, 0.95],
 		"description": "Seltenes, schwach leuchtendes Kraut."},
+	"berries": {"name": "Beeren", "tier": 1, "weight": 0.1, "category": "Pflanze", "color": [0.62, 0.16, 0.3],
+		"description": "Wilde Beeren von Sträuchern am Waldrand. Zutat fürs Kochen."},
 	"raw_hide": {"name": "Rohes Fell", "tier": 1, "weight": 0.5, "category": "Leder", "color": [0.6, 0.55, 0.5],
 		"description": "Wird in der Gerberei zu Leder verarbeitet."},
 	"thick_hide": {"name": "Dickes Fell", "tier": 2, "weight": 0.7, "category": "Leder", "color": [0.42, 0.5, 0.36],

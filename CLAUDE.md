@@ -70,7 +70,13 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
 - ✅ Terrain3D-Insel ist eingebaut (Karte 5, Seed 737707, 16,4 km, 2 m/Pixel). Rohdaten: `Welt/welt_export.zip` (+ Projekt `welt_projekt_737707.zip`),
   entpackt nach `godot/welt_daten` (gitignored), Import: `Godot --headless --path godot -s res://tests/welt_importieren.gd`.
   Das Spiel setzt `vertex_spacing` aus `meter_pro_pixel`, startet am Marker „Startdorf“, legt Seen (`welt_seen`) und Brücken an,
-  Spielstand-Welt-ID = `insel_<seed>`. Noch offen: Ressourcen/Gegner außerhalb des Startgebiets (Streamer), Regionsgrenzen auf der Karte.
+  Spielstand-Welt-ID = `insel_<seed>`.
+- ✅ Natur auf der ganzen Insel: `scripts/natur.gd` berechnet Bäume/Büsche/Sammelpflanzen je 64-m-Kachel aus Biomkarte, Gelände
+  und Sperrflächen (Siedlungen, Felder, Wege, Seen, Startgebiet) – fester Zufall je Kachel, nichts wird gespeichert.
+  Nah (110 m): Blender-Modelle aus `assets/` über `scripts/natur_quelle.gd` abbaubar (Werte in `gathering.json`: fichte_/kiefer_/eiche_jung|alt,
+  aeste_busch, hanf, beeren, kraut, kraut_selten). Fern (950 m): einfache Bäume als MultiMesh, Shader `natur_fern.gdshader` blendet sie im Nahbereich aus.
+  Erze bewusst nicht – die kommen später vor allem in die Minen. Test: `--island --natur` (mit Fenster: misst auch die FPS).
+- Noch offen: Gegner außerhalb des Startgebiets, Regionsgrenzen auf der Karte, Erze in Minen.
 - Spielfigur, NPCs und Gegner aus fertigen Paketen (Quaternius/KayKit + Mixamo). Downloads macht der Nutzer selbst.
 - Danach M5 (Startgebiet, Tutorial, NPCs, Dialoge), M6 (Fraktionsregion, Händler), M7 (lebendige Welt).
 
