@@ -12,6 +12,27 @@ var log_lines: Array[String] = []
 
 func _ready() -> void:
 	player = get_tree().get_first_node_in_group("player")
+	# Mit --island: Blick über das Startgebiet der Insel (für Bilder mit --write-movie)
+	if Game.world_id == "insel":
+		phase = "island_view"
+		player.cam_yaw = PI # Richtung Dorf (Süden)
+		player.cam_pitch = -0.25
+		if OS.get_cmdline_user_args().has("--aerial"):
+			# Luftbild: eigene Kamera hoch über dem Startgebiet, Blick nach Norden über die Insel
+			var cam := Camera3D.new()
+			cam.far = 12000.0
+			get_tree().current_scene.add_child(cam)
+			cam.global_position = player.global_position + Vector3(0, 450, 900)
+			cam.look_at(player.global_position + Vector3(0, 0, -1200))
+			cam.current = true
+			var terrain = get_tree().current_scene.terrain
+			if terrain:
+				terrain.set_camera(cam)
+			for node in get_tree().current_scene.get_children():
+				if node is WorldEnvironment:
+					node.environment.fog_enabled = false
+			get_tree().current_scene.get_node("HUD").visible = false
+		return
 	player.global_position = Vector3(20, 0.5, -6)
 	player.message.connect(func(t: String) -> void: log_lines.append("Meldung: " + t))
 	# Mit --ui nur das Inventarfenster mit Testgegenständen anzeigen

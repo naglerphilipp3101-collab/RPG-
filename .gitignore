@@ -6,3 +6,6 @@ welt_daten/
 # Welt-Exporte des Weltgenerators (zu groß für GitHub, > 100 MB)
 Welt/
 *.zip
+
+# Plugin Terrain3D (aus der Godot-AssetLib bzw. GitHub, ca. 40 MB Programmdateien) – lokal installieren
+godot/addons/terrain_3d/

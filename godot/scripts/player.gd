@@ -537,6 +537,7 @@ func use_consumable(kind: String) -> void:
 func to_save() -> Dictionary:
 	var pos := spawn_point if state == State.DEAD else global_position
 	return {
+		"world": Game.world_id,
 		"position": [pos.x, pos.y, pos.z],
 		"cam_yaw": cam_yaw,
 		"health": health,
@@ -551,10 +552,12 @@ func to_save() -> Dictionary:
 
 
 func from_save(data: Dictionary) -> void:
-	var p: Array = data.get("position", [spawn_point.x, spawn_point.y, spawn_point.z])
-	global_position = Vector3(float(p[0]), float(p[1]) + 0.1, float(p[2])) # etwas höher, damit man nicht im Boden steckt
+	# Position nur übernehmen, wenn der Spielstand aus derselben Welt stammt (sonst am Startpunkt bleiben)
+	if data.get("world", "testwiese") == Game.world_id:
+		var p: Array = data.get("position", [spawn_point.x, spawn_point.y, spawn_point.z])
+		global_position = Vector3(float(p[0]), float(p[1]) + 0.1, float(p[2])) # etwas höher, damit man nicht im Boden steckt
+		cam_yaw = float(data.get("cam_yaw", 0.0))
 	velocity = Vector3.ZERO
-	cam_yaw = float(data.get("cam_yaw", 0.0))
 	camera_pivot.global_position = global_position + Vector3(0, 1.55, 0)
 	food_regen = float(data.get("food_regen", 0.0))
 	food_time = float(data.get("food_time", 0.0))
@@ -881,7 +884,7 @@ func _physics_process(delta: float) -> void:
 			_state_fish(delta, move_dir, captured)
 
 	move_and_slide()
-	if global_position.y < -30.0:
+	if global_position.y < -80.0: # tiefster Meeresboden der Insel liegt bei etwa −41 m
 		_respawn()
 
 
@@ -1346,8 +1349,7 @@ func _try_skill(index: int) -> void:
 			zone.ticks = int(skill.get("ticks", 5))
 			zone.interval = float(skill.get("interval", 0.4))
 			zone.hit_data = {"mult": float(skill.get("mult", 0.5)), "kb": 0.5, "stag": 0.2, "effects": skill.get("effects", {})}
-			var point := _aim_point()
-			zone.position = Vector3(point.x, 0.0, point.z)
+			zone.position = _aim_point()
 			get_tree().current_scene.add_child(zone)
 
 

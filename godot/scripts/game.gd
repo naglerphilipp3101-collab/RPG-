@@ -37,6 +37,8 @@ const AUTOSAVE_INTERVAL := 60.0
 
 ## Wird bei automatischen Tests abgeschaltet, damit der echte Spielstand unangetastet bleibt.
 var saving_enabled := true
+## Welche Welt geladen ist ("insel" oder "testwiese"); Positionen im Spielstand gelten nur für dieselbe Welt.
+var world_id := "testwiese"
 
 var weapons: Dictionary = {}
 var enemies: Dictionary = {}

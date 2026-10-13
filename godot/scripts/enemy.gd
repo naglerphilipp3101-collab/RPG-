@@ -249,6 +249,10 @@ func _physics_process(delta: float) -> void:
 	_update_bleed(delta)
 	if state == State.DEAD:
 		return
+	# Sicherung: ist der Gegner durch das Gelände gefallen (z. B. außerhalb der Kollision), zurück nach Hause
+	if global_position.y < home.y - 15.0:
+		global_position = home + Vector3(0, 1.0, 0)
+		velocity = Vector3.ZERO
 	attack_cooldown -= delta
 	state_timer -= delta
 
@@ -565,7 +569,7 @@ func _drop_loot() -> void:
 	var bag = LootBagScript.new()
 	bag.items = drops
 	var spot := global_position + _forward() * (radius + 0.6)
-	bag.position = Vector3(spot.x, 0.0, spot.z)
+	bag.position = Vector3(spot.x, global_position.y, spot.z)
 	get_tree().current_scene.add_child.call_deferred(bag)
 
 

@@ -37,7 +37,7 @@ static func shockwave(tree: SceneTree, pos: Vector3, radius: float, color: Color
 	mi.material_override = m
 	mi.scale = Vector3(0.2, 1.0, 0.2)
 	tree.current_scene.add_child(mi)
-	mi.global_position = Vector3(pos.x, 0.05, pos.z)
+	mi.global_position = pos + Vector3(0, 0.05, 0)
 	var tw := mi.create_tween().set_parallel(true)
 	tw.tween_property(mi, "scale", Vector3(radius, 1.0, radius), 0.25).set_ease(Tween.EASE_OUT)
 	tw.tween_property(m, "albedo_color:a", 0.0, 0.45)
