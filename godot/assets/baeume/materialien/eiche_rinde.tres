@@ -1,0 +1,11 @@
+[gd_resource type="StandardMaterial3D" load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="../texturen/eiche_rinde.png" id="1"]
+[ext_resource type="Texture2D" path="../texturen/eiche_rinde_normal.png" id="2"]
+
+[resource]
+albedo_texture = ExtResource("1")
+roughness = 0.95
+normal_enabled = true
+normal_scale = 1.4
+normal_texture = ExtResource("2")

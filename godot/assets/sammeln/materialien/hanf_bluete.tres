@@ -1,0 +1,15 @@
+[gd_resource type="ShaderMaterial" load_steps=3 format=3]
+
+[ext_resource type="Shader" path="pflanze.gdshader" id="1"]
+[ext_resource type="Texture2D" path="../texturen/hanf_bluete.png" id="2"]
+
+[resource]
+shader = ExtResource("1")
+shader_parameter/textur = ExtResource("2")
+shader_parameter/farbe = Color(1, 1, 1, 1)
+shader_parameter/alpha_schwelle = 0.4
+shader_parameter/durchleuchtung = Color(0.16, 0.22, 0.06, 1)
+shader_parameter/rauheit = 0.75
+shader_parameter/wind_staerke = 0.12
+shader_parameter/wind_tempo = 1.3
+shader_parameter/runde_normalen = 0.3

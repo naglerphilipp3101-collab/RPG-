@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weltgenerator</title>
+<style>
+:root { --bg:#141a22; --panel:#1d2530; --rand:#2c3746; --text:#e6ebf1; --leise:#93a1b3; --akzent:#d8a24a; --akzent2:#3d7bd8; }
+* { box-sizing: border-box; }
+html, body { margin:0; height:100%; background:var(--bg); color:var(--text); font:13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+#app { display:flex; height:100vh; }
+aside { width:300px; flex:none; overflow-y:auto; background:var(--panel); border-right:1px solid var(--rand); padding:12px 14px 40px; }
+h1 { font-size:17px; margin:2px 0 10px; letter-spacing:.3px; }
+h2 { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--leise); margin:18px 0 8px; border-top:1px solid var(--rand); padding-top:12px; }
+.regler { display:grid; grid-template-columns:1fr auto; gap:2px 8px; margin-bottom:8px; }
+.regler span { color:var(--text); } .regler output { color:var(--leise); font-variant-numeric:tabular-nums; }
+.regler input { grid-column:1 / -1; width:100%; accent-color:var(--akzent); }
+input[type=number] { background:#10151c; color:var(--text); border:1px solid var(--rand); border-radius:6px; padding:4px 6px; }
+button { background:#2a3442; color:var(--text); border:1px solid #3a4758; border-radius:7px; padding:7px 10px; cursor:pointer; font:inherit; }
+button:hover { background:#334054; } button.haupt { background:var(--akzent); color:#1a1408; border-color:var(--akzent); font-weight:600; }
+button.haupt:hover { filter:brightness(1.08); }
+.reihe { display:flex; gap:6px; flex-wrap:wrap; } .reihe > button { flex:1; }
+#werkzeuge { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; }
+.werkzeug { position:relative; padding:8px 4px; } .werkzeug.aktiv { background:var(--akzent2); border-color:var(--akzent2); }
+.werkzeug kbd { position:absolute; top:2px; right:4px; font-size:9px; color:var(--leise); }
+#biom-werkzeuge { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; }
+.werkzeug.biom { display:flex; align-items:center; gap:5px; padding:6px 5px; font-size:12px; text-align:left; }
+.werkzeug.biom i { width:12px; height:12px; border-radius:3px; flex:none; border:1px solid rgba(255,255,255,.35); }
+#marker-filter { width:100%; margin:10px 0 6px; background:#10151c; color:var(--text); border:1px solid var(--rand); border-radius:6px; padding:5px 7px; font:inherit; }
+#marker-liste { max-height:260px; overflow-y:auto; border:1px solid var(--rand); border-radius:7px; background:#161d27; }
+#marker-liste .hinweis { padding:6px 8px; }
+.ml-gruppe { display:flex; align-items:center; gap:6px; padding:5px 8px 3px; font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:var(--leise); position:sticky; top:0; background:#161d27; }
+.ml-gruppe i { width:10px; height:10px; border-radius:3px; } .ml-gruppe span { margin-left:auto; }
+.ml-zeile { display:flex; align-items:center; gap:6px; padding:3px 4px 3px 24px; cursor:pointer; }
+.ml-zeile:hover { background:#222c3a; } .ml-zeile.aktiv { background:var(--akzent2); }
+.ml-zeile span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ml-zeile button { padding:1px 6px; font-size:11px; background:transparent; border-color:transparent; color:var(--leise); }
+.ml-zeile button:hover { color:#ff8a80; border-color:#5a3434; }
+.marker-kopf { display:flex; justify-content:space-between; align-items:center; margin:4px 0 8px; }
+.marker-kopf button { padding:4px 8px; }
+.regler input[type=text], .regler select { grid-column:1 / -1; background:#10151c; color:var(--text); border:1px solid var(--rand); border-radius:6px; padding:5px 7px; font:inherit; }
+.werkzeug.biom i.auto { background:repeating-linear-gradient(45deg,#7a8 0 3px,#cb8 3px 6px); }
+.haken { display:flex; gap:6px; align-items:center; margin:4px 0; }
+.hinweis { color:var(--leise); font-size:11.5px; margin:6px 0 0; }
+main { flex:1; position:relative; display:flex; flex-direction:column; min-width:0; }
+#tabs { display:flex; gap:4px; padding:8px; border-bottom:1px solid var(--rand); background:var(--panel); }
+#tabs button.aktiv { background:var(--akzent2); border-color:var(--akzent2); }
+#flaeche { flex:1; position:relative; }
+#karte, #gl { position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+#karte { cursor:none; } body[data-tab=karte] #gl, body[data-tab="3d"] #karte { display:none; }
+#info { position:absolute; right:10px; top:10px; background:rgba(0,0,0,.55); padding:4px 8px; border-radius:6px; font-variant-numeric:tabular-nums; pointer-events:none; }
+body[data-tab="3d"] #info { display:none; }
+#status { display:flex; align-items:center; gap:10px; padding:6px 10px; border-top:1px solid var(--rand); background:var(--panel); }
+#status-spur { width:180px; height:6px; background:#10151c; border-radius:3px; overflow:hidden; }
+#status-balken { height:100%; width:0; background:var(--akzent); transition:width .15s; }
+body.beschaeftigt button { pointer-events:none; opacity:.6; }
+@media (max-width: 700px) { #app { flex-direction:column-reverse; } aside { width:auto; height:45vh; } }
+</style>
+</head>
+<body data-tab="karte">
+<div id="app">
+  <aside>
+    <h1>Weltgenerator</h1>
+    <div class="hinweis">Insel 2–8 km · Raster 4 m · Export 1–2 m für Godot / Terrain3D</div>
+
+    <h2>Generator</h2>
+    <div id="parameter"></div>
+    <div class="reihe"><button id="zufall">🎲 Zufällig</button><button id="generieren" class="haupt">Neu generieren</button></div>
+
+    <h2>Pinsel</h2>
+    <div id="werkzeuge"></div>
+    <label class="regler" style="margin-top:10px"><span>Größe</span><output></output><input id="p-groesse" type="range" min="20" max="1200" step="10" value="240"></label>
+    <label class="regler"><span>Stärke</span><output></output><input id="p-staerke" type="range" min="0.05" max="1" step="0.05" value="0.5"></label>
+    <div class="reihe"><button id="undo">↶ Rückgängig</button><button id="redo">↷ Wiederholen</button></div>
+    <div class="hinweis">Linke Maus: malen · Rechte Maus / Leertaste: verschieben · Mausrad: Zoom · [ ]: Pinselgröße · Strg+Z</div>
+
+    <h2>Biome</h2>
+    <div id="biom-parameter"></div>
+    <div class="hinweis" style="margin:0 0 8px">Biome werden automatisch aus Höhe, Hangneigung und Feuchtigkeit (Nähe zu Flüssen und Meer) berechnet. Mit dem Biom-Pinsel übermalst du sie.</div>
+    <div id="biom-werkzeuge"></div>
+    <div class="reihe" style="margin-top:6px"><button id="gemalt-loeschen">Alle gemalten Biome entfernen</button></div>
+
+    <h2>Marker</h2>
+    <div id="marker-werkzeuge" style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px"></div>
+    <div class="hinweis" id="marker-zahl" style="margin:8px 0"></div>
+    <div id="marker-panel"></div>
+    <input id="marker-filter" type="search" placeholder="Marker suchen …">
+    <div id="marker-liste"></div>
+    <div class="reihe" style="margin-top:6px"><button id="marker-alle-loeschen">Alle Marker löschen</button></div>
+    <div class="reihe" style="margin-top:8px"><button id="vorschlaege" title="Felder rund um Dörfer/Städte auf flachem Land und Minen an Felshängen vorschlagen">Felder &amp; Minen vorschlagen</button></div>
+
+    <h2>Ressourcen</h2>
+    <label class="regler"><span>Bäume</span><output></output><input id="p-baumdichte" type="range" min="0.1" max="2" step="0.05" value="1"></label>
+    <label class="regler"><span>Äste-Büsche</span><output></output><input id="p-buschdichte" type="range" min="0.1" max="2" step="0.05" value="1"></label>
+    <label class="regler"><span>Erze</span><output></output><input id="p-erzdichte" type="range" min="0.1" max="3" step="0.05" value="1"></label>
+    <label class="regler"><span>Sammelpflanzen</span><output></output><input id="p-pflanzendichte" type="range" min="0.1" max="2" step="0.05" value="1"></label>
+    <div class="reihe"><button id="ressourcen-verteilen" class="haupt">Ressourcen verteilen</button></div>
+    <div class="hinweis" id="res-info"></div>
+    <label class="haken"><input id="ressourcen-zeigen" type="checkbox" checked> Ressourcen auf der Karte zeigen</label>
+    <div class="hinweis">Bäume nach Biom (Nadelwald: Fichte/Kiefer, Laubwald: Eiche/Kiefer), Erze an Fels und Hängen (Tier steigt mit der Höhe), Hanf in Gruppen nahe Wasser, Beeren und Kräuter in Wiese und Wald. Rund um Städte, Dörfer und Felder bleibt alles frei.</div>
+
+    <h2>Wege &amp; Straßen</h2>
+    <label class="regler"><span>Straßen max. Steigung</span><output></output><input id="p-strasse_steigung" type="range" min="6" max="20" step="1" value="12"></label>
+    <label class="regler"><span>Wege max. Steigung</span><output></output><input id="p-weg_steigung" type="range" min="10" max="35" step="1" value="20"></label>
+    <label class="regler"><span>Brücken max. Länge</span><output></output><input id="p-bruecke_max" type="range" min="20" max="200" step="5" value="120"></label>
+    <label class="regler"><span>Zusätzliche Verbindungen</span><output></output><input id="p-extra" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+    <div class="reihe"><button id="wege-generieren" class="haupt">Wege generieren</button><button id="wege-entfernen" style="flex:0 0 auto">Entfernen</button></div>
+    <div class="hinweis" id="wege-info"></div>
+    <label class="haken"><input id="wege-zeigen" type="checkbox" checked> Wege auf der Karte zeigen</label>
+    <div class="hinweis">Straßen verbinden Städte und Dörfer, Wege führen zu Minen, Dungeons und POIs. Sie meiden Steigungen, Sumpf und Felder, nutzen vorhandene Straßen mit und bekommen Brücken über Flüsse und tiefe Senken (rot). Beliebig oft neu generierbar. Beim Export wird das Gelände unter den Wegen eingeebnet.</div>
+
+    <h2>Nachbearbeitung</h2>
+    <label class="regler"><span>Erosion (Tsd. Tropfen)</span><output></output><input id="p-erosion2" type="range" min="20" max="600" step="10" value="120"></label>
+    <div class="reihe"><button id="erosion-anwenden">Erosion anwenden</button></div>
+    <div class="reihe" style="margin-top:6px"><button id="flussbetten">Flussbetten einschneiden</button></div>
+    <div class="hinweis">Tipp: Nach dem Malen von Bergen einmal Erosion anwenden – das macht sie natürlich.</div>
+
+    <h2>Ansicht</h2>
+    <div class="reihe" style="margin-bottom:6px"><label class="haken"><input type="radio" name="modus" value="biome" checked> Biome</label><label class="haken"><input type="radio" name="modus" value="hoehe"> Höhenfarben</label></div>
+    <label class="haken"><input id="hoehenlinien" type="checkbox" checked> Höhenlinien (10 m / 50 m)</label>
+    <label class="haken"><input id="fluesse" type="checkbox" checked> Flüsse</label>
+    <label class="regler"><span>3D-Überhöhung</span><output></output><input id="p-ueberh" type="range" min="1" max="4" step="0.1" value="1.5"></label>
+
+    <h2>Datei</h2>
+    <div class="reihe"><button id="speichern">Projekt speichern</button><button id="laden">Projekt laden</button></div>
+    <input id="laden-datei" type="file" accept=".zip" hidden>
+    <label class="regler" style="margin-top:10px"><span>Feindetail beim Export (m)</span><output></output><input id="p-feindetail" type="range" min="0" max="2" step="0.1" value="0.6"></label>
+    <label class="regler"><span>Export-Auflösung</span><output></output>
+      <select id="p-exportgroesse" style="grid-column:1/-1;background:#10151c;color:var(--text);border:1px solid var(--rand);border-radius:6px;padding:4px">
+</select></label>
+    <div class="reihe"><button id="exportieren" class="haupt">Export für Godot</button></div>
+  </aside>
+  <main>
+    <div id="tabs"><button data-tab-knopf="karte">Karte</button><button data-tab-knopf="3d">3D</button></div>
+    <div id="flaeche"><canvas id="karte"></canvas><canvas id="gl"></canvas><div id="info"></div></div>
+    <div id="status"><div id="status-spur"><div id="status-balken"></div></div><span id="status-text">Bereit</span></div>
+  </main>
+</div>
+<script id="kern-src" type="text/plain">/*KERN*/</script>
+<script>/*KERN*/</script>
+<script>/*ZIP*/</script>
+<script>/*GL*/</script>
+<script>/*MARKER*/</script>
+<script>/*APP*/</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+[gd_resource type="ShaderMaterial" load_steps=3 format=3]
+
+[ext_resource type="Shader" path="nadeln.gdshader" id="1"]
+[ext_resource type="Texture2D" path="../texturen/eiche_laub.png" id="2"]
+
+[resource]
+shader = ExtResource("1")
+shader_parameter/textur = ExtResource("2")
+shader_parameter/farbe = Color(0.55, 0.6, 0.5, 1)
+shader_parameter/alpha_schwelle = 0.3
+shader_parameter/durchleuchtung = Color(0.05, 0.08, 0.04, 1)
+shader_parameter/rauheit = 0.95
+shader_parameter/wind_staerke = 0.02
+shader_parameter/wind_tempo = 1.1
+shader_parameter/runde_normalen = 0.8

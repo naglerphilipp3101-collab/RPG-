@@ -1,0 +1,432 @@
+@tool
+class_name WeltImport
+extends Node3D
+## Importiert einen Export aus dem Weltgenerator (welt.json + hoehe_*.r32 + farbe_1024.png) in Terrain3D.
+## Benötigt das Plugin Terrain3D (Godot Asset Library) – aktiviert unter Projekt > Projekteinstellungen > Plugins.
+##
+## 1. welt_export.zip in einen Ordner im Projekt entpacken, z. B. res://welt_daten/
+## 2. diesen Ordner unten bei "daten_ordner" eintragen
+## 3. Knopf "Welt importieren" drücken, danach die Szene speichern (Strg+S)
+
+## Ordner mit welt.json, hoehe_*.r32 und farbe_1024.png
+@export_dir var daten_ordner: String = "res://welt_daten"
+## Statt Bodentexturen die flache Farbkarte des Generators zeigen (zum Vergleich mit dem Editor)
+@export var farbkarte_anzeigen: bool = false:
+	set(v):
+		farbkarte_anzeigen = v
+		var t := get_node_or_null("Terrain3D")
+		if t:
+			t.set("show_colormap", v)
+## Meeresfläche auf Höhe 0
+@export var meer_anzeigen: bool = true:
+	set(v):
+		meer_anzeigen = v
+		var m := get_node_or_null("Meer")
+		if m:
+			m.visible = v
+
+## Kachelgröße der Bodentexturen in Metern (Biom-Reihenfolge wie im Generator)
+const BODEN := [
+	["sand", 4.0], ["wiese", 3.0], ["laubboden", 3.0], ["nadelboden", 3.0],
+	["sumpf", 4.0], ["steppe", 3.0], ["fels", 8.0], ["schnee", 6.0], ["weg", 3.0],
+]
+
+## Platzhalter (farbige Säulen, Namen, Feldflächen) für die Marker anzeigen
+@export var marker_platzhalter: bool = true:
+	set(v):
+		marker_platzhalter = v
+		var m := get_node_or_null("Marker")
+		if m:
+			for k in m.get_children():
+				for c in k.get_children():
+					c.visible = v
+
+@export_tool_button("Welt importieren", "Load") var _knopf_import := importieren
+
+## Seitenlänge der importierten Welt in Metern (z. B. 4096 oder 8192)
+var welt_groesse := 0.0
+var _hoehe_bild: Image
+var _mpp := 1.0
+
+
+func importieren() -> void:
+	if not ClassDB.class_exists("Terrain3D"):
+		push_error("Weltimport: Terrain3D ist nicht installiert oder nicht aktiviert.")
+		return
+	var meta_pfad := daten_ordner.path_join("welt.json")
+	if not FileAccess.file_exists(meta_pfad):
+		push_error("Weltimport: %s nicht gefunden." % meta_pfad)
+		return
+	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(meta_pfad))
+	var n: int = int(meta["aufloesung"])
+	var mpp: float = float(meta["meter_pro_pixel"])
+
+	# Höhen: float32, Meter
+	var bytes := FileAccess.get_file_as_bytes(daten_ordner.path_join(meta["hoehe"]["datei"]))
+	if bytes.size() != n * n * 4:
+		push_error("Weltimport: Höhendatei hat die falsche Größe (%d statt %d Bytes)." % [bytes.size(), n * n * 4])
+		return
+	var hoehe := Image.create_from_data(n, n, false, Image.FORMAT_RF, bytes)
+	_hoehe_bild = hoehe
+	_mpp = mpp
+
+	# Farbkarte auf Höhenkarten-Größe bringen
+	var farbe: Image = null
+	var farb_pfad := daten_ordner.path_join(meta["farbe"]["datei"])
+	var welt_m: float = float(meta.get("welt_m", n * mpp))
+	if FileAccess.file_exists(farb_pfad):
+		farbe = Image.load_from_file(ProjectSettings.globalize_path(farb_pfad))
+		farbe.convert(Image.FORMAT_RGBA8)
+		farbe.resize(n, n, Image.INTERPOLATE_BILINEAR)
+
+	# Biom-Steuerkarte (Terrain3D-Format, uint32 je Pixel)
+	var steuer: Image = null
+	if meta.has("steuerung"):
+		var sb := FileAccess.get_file_as_bytes(daten_ordner.path_join(meta["steuerung"]["datei"]))
+		if sb.size() == n * n * 4:
+			steuer = Image.create_from_data(n, n, false, Image.FORMAT_RF, sb)
+		else:
+			push_warning("Weltimport: Steuerkarte hat falsche Größe, Biome werden übersprungen.")
+
+	var terrain: Node3D = get_node_or_null("Terrain3D")
+	if terrain == null:
+		terrain = ClassDB.instantiate("Terrain3D")
+		terrain.name = "Terrain3D"
+		add_child(terrain)
+		_besitzer(terrain)
+	var datenordner := daten_ordner.path_join("terrain3d")
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(datenordner))
+	terrain.set("data_directory", datenordner)
+	# Große Welten: größere Regionen (Terrain3D erlaubt max. 32 x 32 Regionen)
+	var region := 256
+	while n / region > 16 and region < 2048:
+		region *= 2
+	if int(terrain.get("region_size")) != region:
+		terrain.call("change_region_size", region)
+	terrain.set("vertex_spacing", mpp)
+	# Welt zentriert um den Ursprung: x/z von -Größe/2 bis +Größe/2
+	var groesse := welt_m
+	welt_groesse = groesse
+	_texturen_einrichten(terrain)
+	terrain.get("data").import_images([hoehe, steuer, farbe], Vector3(-groesse / 2.0, 0, -groesse / 2.0), 0.0, 1.0)
+	terrain.set("show_colormap", farbkarte_anzeigen or steuer == null)
+	# außerhalb der Insel keine Terrain3D-Grundfläche (sonst flackert sie mit dem Meer)
+	terrain.get("material").set("world_background", 0)
+
+	var meer: MeshInstance3D = get_node_or_null("Meer")
+	if meer == null:
+		meer = MeshInstance3D.new()
+		meer.name = "Meer"
+		add_child(meer)
+		_besitzer(meer)
+	var ebene := PlaneMesh.new()
+	ebene.size = Vector2(groesse * 3, groesse * 3)
+	meer.mesh = ebene
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.12, 0.32, 0.5, 0.85)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.roughness = 0.08
+	mat.metallic_specular = 0.8
+	meer.material_override = mat
+	meer.visible = meer_anzeigen
+
+	# Meeresboden außerhalb der 4 x 4 km auf Höhe des tiefsten Punkts -> keine sichtbare Kante unter Wasser
+	var boden: MeshInstance3D = get_node_or_null("Meeresboden")
+	if boden == null:
+		boden = MeshInstance3D.new()
+		boden.name = "Meeresboden"
+		add_child(boden)
+		_besitzer(boden)
+	var bebene := PlaneMesh.new()
+	bebene.size = Vector2(groesse * 3, groesse * 3)
+	boden.mesh = bebene
+	boden.position.y = float(meta["hoehe"]["min"]) + 0.3
+	var bmat := StandardMaterial3D.new()
+	bmat.albedo_color = Color(0.32, 0.3, 0.24)
+	bmat.roughness = 1.0
+	boden.material_override = bmat
+
+	_marker_importieren()
+	_wege_importieren()
+	if Engine.is_editor_hint():
+		terrain.get("data").save_directory(datenordner)
+	print("Weltimport: %d x %d Pixel, %.1f m/Pixel, Höhen %.1f … %.1f m" % [n, n, mpp, meta["hoehe"]["min"], meta["hoehe"]["max"]])
+
+
+func _texturen_einrichten(terrain: Node3D) -> void:
+	var basis: String = (get_script() as Script).resource_path.get_base_dir()
+	var assets = terrain.get("assets")
+	if assets == null:
+		assets = ClassDB.instantiate("Terrain3DAssets")
+		terrain.set("assets", assets)
+	for id in BODEN.size():
+		var name_: String = BODEN[id][0]
+		var t = ClassDB.instantiate("Terrain3DTextureAsset")
+		t.set("name", name_.capitalize())
+		t.set("albedo_texture", load(basis.path_join("texturen/%s_albedo_hoehe.png" % name_)))
+		t.set("normal_texture", load(basis.path_join("texturen/%s_normal_rauheit.png" % name_)))
+		t.set("uv_scale", 1.0 / BODEN[id][1])
+		t.set("detiling_rotation", 0.3)
+		t.set("detiling_shift", 0.2)
+		# Terrain3D 1.0.x: set_texture · neuere Versionen: set_texture_asset
+		if assets.has_method("set_texture_asset"):
+			assets.call("set_texture_asset", id, t)
+		else:
+			assets.call("set_texture", id, t)
+	assets.call("update_texture_list")
+
+
+const MARKER_FARBEN := {"stadt": Color(0.91, 0.69, 0.29), "dorf": Color(0.9, 0.83, 0.54), "dungeon": Color(0.75, 0.31, 0.3),
+	"mine": Color(0.6, 0.64, 0.69), "poi": Color(0.44, 0.72, 0.91), "feld": Color(0.85, 0.76, 0.35)}
+
+## Marker aus marker.json als Knoten unter "Marker/<Typ>" anlegen.
+## Jeder Marker ist ein Marker3D mit Metadaten (typ, name, radius bzw. art/breite/laenge) – darauf baust du Städte, Dungeons usw. auf.
+func _marker_importieren() -> void:
+	var pfad := daten_ordner.path_join("marker.json")
+	if not FileAccess.file_exists(pfad):
+		return
+	var liste: Array = JSON.parse_string(FileAccess.get_file_as_string(pfad))
+	var alt := get_node_or_null("Marker")
+	if alt:
+		remove_child(alt)
+		alt.free()
+	var wurzel := Node3D.new()
+	wurzel.name = "Marker"
+	add_child(wurzel)
+	_besitzer(wurzel)
+	var gruppen := {}
+	for m in liste:
+		var typ: String = m["typ"]
+		if not gruppen.has(typ):
+			var g := Node3D.new()
+			g.name = typ.capitalize()
+			wurzel.add_child(g)
+			_besitzer(g)
+			gruppen[typ] = g
+		var mk := Marker3D.new()
+		var name_: String = m.get("name", "")
+		mk.name = name_.validate_node_name() if name_ != "" else "%s_%d" % [typ, gruppen[typ].get_child_count() + 1]
+		mk.position = Vector3(m["x"], m["hoehe"], m["z"])
+		for k in m.keys():
+			mk.set_meta(k, m[k])
+		mk.add_to_group("welt_marker", true)
+		mk.add_to_group("marker_" + typ, true)
+		gruppen[typ].add_child(mk)
+		_besitzer(mk)
+		_platzhalter(mk, m)
+
+
+## Wege aus wege.json: je Strecke ein Path3D (für NPC-Routen, Wagen, Wegweiser …) unter "Wege/Strassen" bzw. "Wege/Wege",
+## Brücken als einfache Holzbrücken-Modelle unter "Wege/Bruecken". Das Gelände selbst ist beim Export schon eingeebnet.
+func _wege_importieren() -> void:
+	var pfad := daten_ordner.path_join("wege.json")
+	var alt := get_node_or_null("Wege")
+	if alt:
+		remove_child(alt)
+		alt.free()
+	if not FileAccess.file_exists(pfad):
+		return
+	var liste: Array = JSON.parse_string(FileAccess.get_file_as_string(pfad))
+	var wurzel := Node3D.new()
+	wurzel.name = "Wege"
+	add_child(wurzel)
+	_besitzer(wurzel)
+	var gruppen := {}
+	for name_ in ["Strassen", "Wege", "Bruecken"]:
+		var g := Node3D.new()
+		g.name = name_
+		wurzel.add_child(g)
+		_besitzer(g)
+		gruppen[name_] = g
+	var nr := 0
+	var gebaut: Array[Vector3] = []   # Brückenmitten – gemeinsam genutzte Brücken nur einmal bauen
+	for w in liste:
+		nr += 1
+		var typ: String = w["typ"]
+		var punkte: Array = w["punkte"]
+		var br: Array = w["bruecke"]
+		var pf := Path3D.new()
+		pf.name = "%s_%d" % [typ.capitalize(), nr]
+		pf.curve = Curve3D.new()
+		for q in punkte:
+			pf.curve.add_point(Vector3(q[0], q[1] + 0.1, q[2]))
+		pf.set_meta("typ", typ)
+		pf.set_meta("breite", w["breite"])
+		pf.add_to_group("welt_wege", true)
+		gruppen["Strassen" if typ == "strasse" else "Wege"].add_child(pf)
+		_besitzer(pf)
+		# zusammenhängende Brückenabschnitte zu je einem Modell
+		var k := 1
+		while k < punkte.size():
+			if int(br[k]) == 1:
+				var e := k
+				while e + 1 < punkte.size() and int(br[e + 1]) == 1:
+					e += 1
+				var ab := punkte.slice(k - 1, e + 1)
+				var m := (Vector3(ab[0][0], 0, ab[0][2]) + Vector3(ab[-1][0], 0, ab[-1][2])) / 2.0
+				var doppelt := false
+				for g in gebaut:
+					if g.distance_to(m) < 8.0:
+						doppelt = true
+				if not doppelt:
+					gebaut.append(m)
+					var bruecke := _bruecke_bauen(ab, float(w["breite"]))
+					bruecke.name = "Bruecke_%d" % gebaut.size()
+					gruppen["Bruecken"].add_child(bruecke)
+					_besitzer_rekursiv(bruecke)
+				k = e + 1
+			else:
+				k += 1
+
+
+## Einfache Holzbrücke: Fahrbahn aus Planken, Geländer, Stützpfeiler bis zum Boden
+func _bruecke_bauen(punkte: Array, breite: float) -> Node3D:
+	var a := Vector3(punkte[0][0], punkte[0][1], punkte[0][2])
+	var b := Vector3(punkte[-1][0], punkte[-1][1], punkte[-1][2])
+	var mitte := (a + b) / 2.0
+	var richtung := b - a
+	var laenge := Vector2(richtung.x, richtung.z).length() + 6.0   # 3 m Auflage je Seite
+	var knoten := StaticBody3D.new()
+	knoten.position = mitte
+	knoten.rotation.y = atan2(-richtung.z, richtung.x)
+	var neigung := atan2(richtung.y, Vector2(richtung.x, richtung.z).length())
+	var holz := StandardMaterial3D.new()
+	holz.albedo_color = Color(0.42, 0.29, 0.18)
+	holz.roughness = 0.9
+	var dunkel := StandardMaterial3D.new()
+	dunkel.albedo_color = Color(0.3, 0.2, 0.12)
+	dunkel.roughness = 0.9
+	var b_breite := breite + 1.0
+	var deck := Node3D.new()
+	deck.rotation.z = neigung
+	knoten.add_child(deck)
+	# Fahrbahn
+	_kiste(deck, Vector3(laenge, 0.35, b_breite), Vector3(0, -0.05, 0), holz)
+	# Querbalken sichtbar unter der Fahrbahn
+	var x := -laenge / 2.0 + 0.6
+	while x < laenge / 2.0:
+		_kiste(deck, Vector3(0.3, 0.3, b_breite + 0.4), Vector3(x, -0.35, 0), dunkel)
+		x += 1.6
+	# Geländer
+	for seite in [-1.0, 1.0]:
+		_kiste(deck, Vector3(laenge, 0.15, 0.15), Vector3(0, 1.0, seite * b_breite / 2.0), holz)
+		x = -laenge / 2.0 + 0.3
+		while x <= laenge / 2.0:
+			_kiste(deck, Vector3(0.2, 1.1, 0.2), Vector3(x, 0.5, seite * b_breite / 2.0), dunkel)
+			x += 2.5
+	# Stützpfeiler alle ~8 m bis zum Boden
+	var anzahl := int(laenge / 8.0)
+	for i in range(1, anzahl + 1):
+		var t := float(i) / float(anzahl + 1)
+		var welt_pos := a.lerp(b, t)
+		var boden := hoehe_bei(welt_pos)
+		var h := welt_pos.y - 0.4 - boden + 1.0
+		if h < 1.0:
+			continue
+		var lokal_x := (t - 0.5) * (laenge - 6.0)
+		for seite in [-1.0, 1.0]:
+			var p := MeshInstance3D.new()
+			var zyl := CylinderMesh.new()
+			zyl.top_radius = 0.22
+			zyl.bottom_radius = 0.28
+			zyl.height = h
+			p.mesh = zyl
+			p.material_override = dunkel
+			p.position = Vector3(lokal_x, -0.4 - h / 2.0 + (welt_pos.y - mitte.y), seite * (b_breite / 2.0 - 0.3))
+			knoten.add_child(p)
+	# Kollision: Fahrbahn
+	var form := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(laenge, 0.4, b_breite)
+	form.shape = box
+	form.rotation.z = neigung
+	knoten.add_child(form)
+	return knoten
+
+
+func _kiste(eltern: Node3D, groesse: Vector3, pos: Vector3, mat: Material) -> void:
+	var m := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = groesse
+	m.mesh = box
+	m.material_override = mat
+	m.position = pos
+	eltern.add_child(m)
+
+
+func _besitzer_rekursiv(n: Node) -> void:
+	_besitzer(n)
+	for c in n.get_children():
+		_besitzer_rekursiv(c)
+
+
+func _platzhalter(mk: Marker3D, m: Dictionary) -> void:
+	var farbe: Color = MARKER_FARBEN.get(m["typ"], Color.WHITE)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = farbe
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var vis := MeshInstance3D.new()
+	vis.name = "Platzhalter"
+	if m["typ"] == "feld":
+		var ebene := PlaneMesh.new()
+		ebene.size = Vector2(m["breite"], m["laenge"])
+		vis.mesh = ebene
+		mat.albedo_color = Color(0.89, 0.77, 0.36, 0.55) if m.get("art", "") == "weizen" else Color(0.47, 0.67, 0.27, 0.55)
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		vis.position.y = 0.3
+		vis.rotation.y = -float(m["winkel"])
+	else:
+		var saeule := CylinderMesh.new()
+		saeule.top_radius = 1.5
+		saeule.bottom_radius = 1.5
+		saeule.height = 40.0
+		vis.mesh = saeule
+		vis.position.y = 20.0
+		var schild := Label3D.new()
+		schild.name = "Name"
+		schild.text = "%s\n%s" % [m.get("name", ""), String(m["typ"]).capitalize()]
+		schild.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		schild.font_size = 160
+		schild.pixel_size = 0.05
+		schild.position.y = 46.0
+		schild.modulate = farbe
+		schild.outline_size = 24
+		schild.no_depth_test = true
+		mk.add_child(schild)
+		_besitzer(schild)
+		schild.visible = marker_platzhalter
+	vis.material_override = mat
+	mk.add_child(vis)
+	_besitzer(vis)
+	vis.visible = marker_platzhalter
+
+
+## Geländehöhe in Metern an einer Weltposition (x/z), direkt aus den importierten Höhendaten.
+## Praktisch zum Platzieren von Spielern, Ressourcen usw. Lädt die Höhendaten beim ersten Aufruf nach.
+func hoehe_bei(pos: Vector3) -> float:
+	if _hoehe_bild == null:
+		_hoehe_laden()
+	if _hoehe_bild == null:
+		return 0.0
+	var n := _hoehe_bild.get_width()
+	var x := clampi(int(pos.x / _mpp + n / 2.0), 0, n - 1)
+	var y := clampi(int(pos.z / _mpp + n / 2.0), 0, n - 1)
+	return _hoehe_bild.get_pixel(x, y).r
+
+
+func _hoehe_laden() -> void:
+	var meta_pfad := daten_ordner.path_join("welt.json")
+	if not FileAccess.file_exists(meta_pfad):
+		return
+	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(meta_pfad))
+	var n: int = int(meta["aufloesung"])
+	var bytes := FileAccess.get_file_as_bytes(daten_ordner.path_join(meta["hoehe"]["datei"]))
+	if bytes.size() == n * n * 4:
+		_hoehe_bild = Image.create_from_data(n, n, false, Image.FORMAT_RF, bytes)
+		_mpp = float(meta["meter_pro_pixel"])
+
+
+func _besitzer(knoten: Node) -> void:
+	# damit neue Knoten in der Szene gespeichert werden
+	if Engine.is_editor_hint() and get_tree() and get_tree().edited_scene_root:
+		knoten.owner = get_tree().edited_scene_root

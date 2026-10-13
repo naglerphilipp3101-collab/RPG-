@@ -1,0 +1,26 @@
+[gd_resource type="ShaderMaterial" load_steps=4 format=3]
+
+[ext_resource type="Shader" path="erz.gdshader" id="1"]
+[ext_resource type="Texture2D" path="noise_fbm.tres" id="2"]
+[ext_resource type="Texture2D" path="noise_zellen.tres" id="3"]
+
+[resource]
+shader = ExtResource("1")
+shader_parameter/gestein_dunkel = Color(0.9063, 0.7354, 0.3811, 1)
+shader_parameter/gestein_hell = Color(1.0000, 0.8808, 0.5838, 1)
+shader_parameter/gestein_metall = 1.0
+shader_parameter/gestein_rauheit = 0.25
+shader_parameter/muster = 1
+shader_parameter/menge = 0.44999999999999996
+shader_parameter/weichheit = 0.06
+shader_parameter/aderbreite = 0.038400000000000004
+shader_parameter/mit_rand = false
+shader_parameter/rand_farbe = Color(0.0000, 0.0000, 0.0000, 1)
+shader_parameter/erz_farbe = Color(0.9547, 0.3811, 0.0999, 1)
+shader_parameter/erz_metall = 0.3
+shader_parameter/erz_rauheit = 0.4
+shader_parameter/leucht_farbe = Color(1.0000, 0.4845, 0.0999, 1)
+shader_parameter/leucht_staerke = 2.5
+shader_parameter/muster_skalierung = 3.5
+shader_parameter/noise_fbm = ExtResource("2")
+shader_parameter/noise_zellen = ExtResource("3")
