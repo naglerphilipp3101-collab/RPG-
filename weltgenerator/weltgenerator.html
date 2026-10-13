@@ -651,9 +651,10 @@ function vorschlaege(H, E, N, zelle, marker, seed) {
       gesetzt++;
     }
   }
-  // Minen: steile Hänge in Fels-Nähe, mit Abstand zueinander
+  // Minen: steile Hänge in Fels-Nähe, mit Abstand zueinander (6 je 8-km-Welt, bei größeren Welten mehr)
+  const flaeche = (N * zelle / 8192) ** 2, maxMinen = Math.max(6, Math.round(6 * flaeche));
   const kand = [];
-  for (let k = 0; k < 4000; k++) {
+  for (let k = 0; k < 4000 * Math.max(1, flaeche); k++) {
     const x = 2 + Math.floor(rnd() * (N - 4)), y = 2 + Math.floor(rnd() * (N - 4)), i = y * N + x;
     if (E[i] !== 6 || H[i] < 40) continue;
     const st = Math.hypot(H[i + 1] - H[i - 1], H[i + N] - H[i - N]) / (2 * zelle);
@@ -661,8 +662,8 @@ function vorschlaege(H, E, N, zelle, marker, seed) {
   }
   kand.sort((a, b) => a[2] - b[2]);
   for (const [x, y] of kand) {
-    if (neu.filter((m) => m.typ === "mine").length >= 6) break;
-    if (belegt(x, y, 120)) continue;
+    if (neu.filter((m) => m.typ === "mine").length >= maxMinen) break;
+    if (belegt(x, y, 480 / zelle)) continue;   // mind. 480 m zu anderen Markern
     neu.push({ typ: "mine", x, y, radius: 30, name: "" });
   }
   return neu;
@@ -1554,9 +1555,10 @@ function vorschlaege(H, E, N, zelle, marker, seed) {
       gesetzt++;
     }
   }
-  // Minen: steile Hänge in Fels-Nähe, mit Abstand zueinander
+  // Minen: steile Hänge in Fels-Nähe, mit Abstand zueinander (6 je 8-km-Welt, bei größeren Welten mehr)
+  const flaeche = (N * zelle / 8192) ** 2, maxMinen = Math.max(6, Math.round(6 * flaeche));
   const kand = [];
-  for (let k = 0; k < 4000; k++) {
+  for (let k = 0; k < 4000 * Math.max(1, flaeche); k++) {
     const x = 2 + Math.floor(rnd() * (N - 4)), y = 2 + Math.floor(rnd() * (N - 4)), i = y * N + x;
     if (E[i] !== 6 || H[i] < 40) continue;
     const st = Math.hypot(H[i + 1] - H[i - 1], H[i + N] - H[i - N]) / (2 * zelle);
@@ -1564,8 +1566,8 @@ function vorschlaege(H, E, N, zelle, marker, seed) {
   }
   kand.sort((a, b) => a[2] - b[2]);
   for (const [x, y] of kand) {
-    if (neu.filter((m) => m.typ === "mine").length >= 6) break;
-    if (belegt(x, y, 120)) continue;
+    if (neu.filter((m) => m.typ === "mine").length >= maxMinen) break;
+    if (belegt(x, y, 480 / zelle)) continue;   // mind. 480 m zu anderen Markern
     neu.push({ typ: "mine", x, y, radius: 30, name: "" });
   }
   return neu;
@@ -2434,8 +2436,15 @@ function ressourcenInfo() {
     (markerZustand.ressourcenAlt ? `<br><b style="color:var(--akzent)">Karte geändert – neu verteilen?</b>` : "");
 }
 
+// Höhen-Kopie, in der Seen als Wasser gelten (unter 0 m): keine Felder, Bäume oder Straßen im See, Brücken nur über schmale Stellen
+function hoeheMitSeen() {
+  const H = zustand.H.slice(), SEE = regionenZustand.SEE;
+  if (SEE) for (let i = 0; i < H.length; i++) if (SEE[i]) H[i] = -2;
+  return H;
+}
+
 async function vorschlaegeMachen() {
-  const neu = vorschlaege(zustand.H, effektiveBiome(), N, ZELLE, markerZustand.liste, params().seed + markerZustand.liste.length);
+  const neu = vorschlaege(hoeheMitSeen(), effektiveBiome(), N, ZELLE, markerZustand.liste, params().seed + markerZustand.liste.length);
   for (const m of neu) if (m.typ !== "feld" && !m.name) m.name = `${MARKER_TYPEN[m.typ].name} ${markerZustand.liste.filter((q) => q.typ === m.typ).length + 1}`, markerZustand.liste.push(m);
   markerZustand.liste.push(...neu.filter((m) => m.typ === "feld"));
   markerGeaendert();
@@ -2446,7 +2455,7 @@ async function ressourcenVerteilenStarten() {
   beschaeftigt(true);
   const rp = { seed: params().seed, wege: wegeZustand.liste || [] };
   for (const k of ["baumdichte", "buschdichte", "erzdichte", "pflanzendichte"]) rp[k] = parseFloat($("p-" + k).value);
-  const r = await auftrag({ auftrag: "ressourcen", H: zustand.H.slice(), E: effektiveBiome(), N, zelle: ZELLE, marker: markerZustand.liste, rp, schwelle: FLUSS_SCHWELLE });
+  const r = await auftrag({ auftrag: "ressourcen", H: hoeheMitSeen(), E: effektiveBiome(), N, zelle: ZELLE, marker: markerZustand.liste, rp, schwelle: FLUSS_SCHWELLE });
   markerZustand.ressourcen = r.r; markerZustand.ressourcenAlt = false;
   ressourcenInfo(); ansicht.zeichne(); status("Ressourcen verteilt"); beschaeftigt(false);
 }
@@ -2536,7 +2545,7 @@ async function wegeGenerierenStarten() {
   beschaeftigt(true);
   const wp = {};
   for (const k of ["strasse_steigung", "weg_steigung", "bruecke_max", "extra"]) wp[k] = parseFloat($("p-" + k).value);
-  const r = await auftrag({ auftrag: "wege", H: zustand.H.slice(), E: effektiveBiome(), N, zelle: ZELLE, marker: markerZustand.liste, wp, schwelle: FLUSS_SCHWELLE });
+  const r = await auftrag({ auftrag: "wege", H: hoeheMitSeen(), E: effektiveBiome(), N, zelle: ZELLE, marker: markerZustand.liste, wp, schwelle: FLUSS_SCHWELLE });
   wegeZustand.liste = r.w; wegeZustand.alt = false;
   ressourcenAufWegenEntfernen();
   wegeInfo(); ansicht.zeichne(); dreiDVeraltet(); status("Wege generiert"); beschaeftigt(false);

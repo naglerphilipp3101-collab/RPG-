@@ -230,8 +230,15 @@ function ressourcenInfo() {
     (markerZustand.ressourcenAlt ? `<br><b style="color:var(--akzent)">Karte geändert – neu verteilen?</b>` : "");
 }
 
+// Höhen-Kopie, in der Seen als Wasser gelten (unter 0 m): keine Felder, Bäume oder Straßen im See, Brücken nur über schmale Stellen
+function hoeheMitSeen() {
+  const H = zustand.H.slice(), SEE = regionenZustand.SEE;
+  if (SEE) for (let i = 0; i < H.length; i++) if (SEE[i]) H[i] = -2;
+  return H;
+}
+
 async function vorschlaegeMachen() {
-  const neu = vorschlaege(zustand.H, effektiveBiome(), N, ZELLE, markerZustand.liste, params().seed + markerZustand.liste.length);
+  const neu = vorschlaege(hoeheMitSeen(), effektiveBiome(), N, ZELLE, markerZustand.liste, params().seed + markerZustand.liste.length);
   for (const m of neu) if (m.typ !== "feld" && !m.name) m.name = `${MARKER_TYPEN[m.typ].name} ${markerZustand.liste.filter((q) => q.typ === m.typ).length + 1}`, markerZustand.liste.push(m);
   markerZustand.liste.push(...neu.filter((m) => m.typ === "feld"));
   markerGeaendert();
@@ -242,7 +249,7 @@ async function ressourcenVerteilenStarten() {
   beschaeftigt(true);
   const rp = { seed: params().seed, wege: wegeZustand.liste || [] };
   for (const k of ["baumdichte", "buschdichte", "erzdichte", "pflanzendichte"]) rp[k] = parseFloat($("p-" + k).value);
-  const r = await auftrag({ auftrag: "ressourcen", H: zustand.H.slice(), E: effektiveBiome(), N, zelle: ZELLE, marker: markerZustand.liste, rp, schwelle: FLUSS_SCHWELLE });
+  const r = await auftrag({ auftrag: "ressourcen", H: hoeheMitSeen(), E: effektiveBiome(), N, zelle: ZELLE, marker: markerZustand.liste, rp, schwelle: FLUSS_SCHWELLE });
   markerZustand.ressourcen = r.r; markerZustand.ressourcenAlt = false;
   ressourcenInfo(); ansicht.zeichne(); status("Ressourcen verteilt"); beschaeftigt(false);
 }
@@ -332,7 +339,7 @@ async function wegeGenerierenStarten() {
   beschaeftigt(true);
   const wp = {};
   for (const k of ["strasse_steigung", "weg_steigung", "bruecke_max", "extra"]) wp[k] = parseFloat($("p-" + k).value);
-  const r = await auftrag({ auftrag: "wege", H: zustand.H.slice(), E: effektiveBiome(), N, zelle: ZELLE, marker: markerZustand.liste, wp, schwelle: FLUSS_SCHWELLE });
+  const r = await auftrag({ auftrag: "wege", H: hoeheMitSeen(), E: effektiveBiome(), N, zelle: ZELLE, marker: markerZustand.liste, wp, schwelle: FLUSS_SCHWELLE });
   wegeZustand.liste = r.w; wegeZustand.alt = false;
   ressourcenAufWegenEntfernen();
   wegeInfo(); ansicht.zeichne(); dreiDVeraltet(); status("Wege generiert"); beschaeftigt(false);

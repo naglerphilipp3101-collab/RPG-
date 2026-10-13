@@ -487,9 +487,10 @@ function vorschlaege(H, E, N, zelle, marker, seed) {
       gesetzt++;
     }
   }
-  // Minen: steile Hänge in Fels-Nähe, mit Abstand zueinander
+  // Minen: steile Hänge in Fels-Nähe, mit Abstand zueinander (6 je 8-km-Welt, bei größeren Welten mehr)
+  const flaeche = (N * zelle / 8192) ** 2, maxMinen = Math.max(6, Math.round(6 * flaeche));
   const kand = [];
-  for (let k = 0; k < 4000; k++) {
+  for (let k = 0; k < 4000 * Math.max(1, flaeche); k++) {
     const x = 2 + Math.floor(rnd() * (N - 4)), y = 2 + Math.floor(rnd() * (N - 4)), i = y * N + x;
     if (E[i] !== 6 || H[i] < 40) continue;
     const st = Math.hypot(H[i + 1] - H[i - 1], H[i + N] - H[i - N]) / (2 * zelle);
@@ -497,8 +498,8 @@ function vorschlaege(H, E, N, zelle, marker, seed) {
   }
   kand.sort((a, b) => a[2] - b[2]);
   for (const [x, y] of kand) {
-    if (neu.filter((m) => m.typ === "mine").length >= 6) break;
-    if (belegt(x, y, 120)) continue;
+    if (neu.filter((m) => m.typ === "mine").length >= maxMinen) break;
+    if (belegt(x, y, 480 / zelle)) continue;   // mind. 480 m zu anderen Markern
     neu.push({ typ: "mine", x, y, radius: 30, name: "" });
   }
   return neu;
