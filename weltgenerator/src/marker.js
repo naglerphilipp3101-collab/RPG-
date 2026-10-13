@@ -339,6 +339,11 @@ async function wegeGenerierenStarten() {
   beschaeftigt(true);
   const wp = {};
   for (const k of ["strasse_steigung", "weg_steigung", "bruecke_max", "extra"]) wp[k] = parseFloat($("p-" + k).value);
+  // Zentralberg (Region 250) frei von Wegen halten
+  if ($("wege-ohne-berg").checked && regionenZustand.REG) {
+    wp.sperre = new Uint8Array(N * N);
+    for (let i = 0; i < N * N; i++) if (regionenZustand.REG[i] === REGION_BERG) wp.sperre[i] = 1;
+  }
   const r = await auftrag({ auftrag: "wege", H: hoeheMitSeen(), E: effektiveBiome(), N, zelle: ZELLE, marker: markerZustand.liste, wp, schwelle: FLUSS_SCHWELLE });
   wegeZustand.liste = r.w; wegeZustand.alt = false;
   ressourcenAufWegenEntfernen();

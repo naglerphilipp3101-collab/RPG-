@@ -248,7 +248,9 @@ func _physics_process(delta: float) -> void:
 				print("AUTOTEST Flug: %.0f m in 2 s (Ziel: ~720 m), Richtung x %.0f / y %.0f / z %.0f, Leben %d, Kollision aus: %s" % [
 					weg.length(), weg.x, weg.y, weg.z, player.health, player.collision_mask == 0])
 			elif time > 2.5 and time < 2.55:
-				get_tree().current_scene.get_node("HUD").set_world_map_open(true)
+				var hud = get_tree().current_scene.get_node("HUD")
+				hud.minimap.big_zoom = 4.0 # große Karte mit Zoom um den Spieler
+				hud.set_world_map_open(true)
 		"showcase":
 			player.health = player.max_health
 			if time < 2.0:

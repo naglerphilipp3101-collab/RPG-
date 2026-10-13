@@ -509,8 +509,9 @@ function vorschlaege(H, E, N, zelle, marker, seed) {
 // Ergebnis: [{ typ: "strasse"|"weg", breite, punkte: [[x, y, h], …] (Zellen, Höhe m), bruecke: [bool je Punkt-Segment] }]
 const WEG_BREITE = { strasse: 6, weg: 3 };
 
+// p.sperre (optional): Uint8Array je Zelle, 1 = hier keine Wege (z. B. Zentralberg); Ziele darin bekommen keinen Weg
 function wegeGenerieren(H, A, E, N, zelle, marker, p, schwelle, fortschritt) {
-  const n = N * N;
+  const n = N * N, sperre = p.sperre || null;
   const fluss = new Uint8Array(n);
   for (let i = 0; i < n; i++) if (A[i] > schwelle && H[i] > 0) fluss[i] = 1;
   // Kostenfaktor je Zelle (Biom, Felder)
@@ -562,7 +563,7 @@ function wegeGenerieren(H, A, E, N, zelle, marker, p, schwelle, fortschritt) {
         const [dx, dy] = DIRS[d], bx = ax + dx, by = ay + dy;
         if (bx < 1 || by < 1 || bx >= N - 1 || by >= N - 1) continue;
         const b = by * N + bx;
-        if (zu[b] || H[b] < 0.4) continue;
+        if (zu[b] || H[b] < 0.4 || (sperre && sperre[b])) continue;
         // Diagonale/Springer-Züge dürfen nicht zwischen Flusszellen "hindurchschlüpfen":
         // alle Zellen im Rechteck zwischen a und b prüfen
         if (d >= 4) {
@@ -602,7 +603,7 @@ function wegeGenerieren(H, A, E, N, zelle, marker, p, schwelle, fortschritt) {
           if (H[zw] < -1.5) break;                                  // nicht übers Meer
           tiefMin = Math.min(tiefMin, H[zw]); ueberFluss = ueberFluss || fluss[zw] === 1;
           const b = by * N + bx;
-          if (zu[b] || H[b] < 0.4 || fluss[b]) continue;
+          if (zu[b] || H[b] < 0.4 || fluss[b] || (sperre && sperre[b])) continue;
           const len = L * Math.hypot(dx, dy) * zelle;
           if (Math.abs(H[b] - ha) > Math.max(2, len * maxS * 0.6)) continue;
           const deck = Math.min(ha, H[b]);
@@ -643,7 +644,7 @@ function wegeGenerieren(H, A, E, N, zelle, marker, p, schwelle, fortschritt) {
 
   const idx = (m) => Math.round(m.y) * N + Math.round(m.x);
   const siedlungen = marker.filter((m) => m.typ === "stadt" || m.typ === "dorf");
-  const ziele = marker.filter((m) => m.typ === "mine" || m.typ === "dungeon" || m.typ === "poi");
+  const ziele = marker.filter((m) => (m.typ === "mine" || m.typ === "dungeon" || m.typ === "poi") && !(sperre && sperre[idx(m)]));
   // Verbindungen: minimaler Spannbaum über Siedlungen + Abkürzungen, wo der Umweg groß ist
   const kanten = [];
   if (siedlungen.length > 1) {
