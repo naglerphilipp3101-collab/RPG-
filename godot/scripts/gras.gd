@@ -1,29 +1,39 @@
 extends Node3D
-## Gras rund um den Spieler: Büschel als MultiMesh in 16-m-Kacheln bis RADIUS (ferner trägt die Wiesentextur).
-## Dichte und Farbton nach Biom (Wiese satt grün, Steppe gelblich, Wald licht), nicht auf Wegen, in Seen,
-## auf Fels/Schnee und an Steilhängen. Nutzt die Biom- und Sperrdaten von scripts/natur.gd.
+## Bodenbewuchs rund um den Spieler: Gras, Farne, Kräuter/kleine Sträucher und Blumen als MultiMeshes in
+## 16-m-Kacheln bis RADIUS (ferner trägt die Bodentextur). Mischung, Dichte und Farbton nach Biom:
+## im Wald vor allem Farne und Kräuter, auf Wiesen Gras mit Blumenflecken, in der Steppe trockenes Gras.
+## Nicht auf Wegen, in Feldern, Seen und Flüssen, auf Fels/Schnee und an Steilhängen. Nutzt die Daten von scripts/natur.gd.
 
 const GrasShader := preload("res://scripts/gras.gdshader")
 
 const KACHEL := 16.0
 const RADIUS := 35.0
-const ABSTAND := 0.55            # Raster der Büschel in Metern (bei voller Dichte)
+const ABSTAND := 0.55            # Raster der Stellen in Metern (bei voller Dichte)
 const BUDGET_US := 3000          # Zeit je Frame für neue Kacheln
-const NAH := 15.0                # bis hier volle Dichte, dahinter halb so viele (etwas größere) Büschel
+const NAH := 15.0                # bis hier volle Dichte, dahinter halb so viel (etwas größer)
 
-## Dichte (0..1) und Farbton je Biom: Strand, Wiese, Laubwald, Nadelwald, Sumpf, Steppe, Fels, Schnee
-const DICHTE := [0.06, 1.0, 0.35, 0.15, 0.7, 0.8, 0.04, 0.0]
+enum { GRAS, FARN, KRAUT, BLUME }
+## Wahrscheinlichkeit je Stelle und Art, je Biom: Strand, Wiese, Laubwald, Nadelwald, Sumpf, Steppe, Fels, Schnee
+const ANTEIL := [
+	[0.06, 0.8, 0.32, 0.18, 0.6, 0.8, 0.04, 0.0],    # Gras
+	[0.0, 0.004, 0.1, 0.13, 0.06, 0.0, 0.01, 0.0],   # Farn
+	[0.01, 0.05, 0.2, 0.12, 0.12, 0.03, 0.02, 0.0],  # Kraut
+	[0.0, 0.07, 0.05, 0.015, 0.04, 0.02, 0.0, 0.0],  # Blume (in Flecken gehäuft)
+]
+## Blattfarbe je Biom (Gras) und Grundton für Farn/Kraut
 const FARBE := [Color(0.62, 0.62, 0.38), Color(0.4, 0.58, 0.2), Color(0.34, 0.48, 0.18), Color(0.32, 0.42, 0.2),
 	Color(0.38, 0.48, 0.22), Color(0.72, 0.64, 0.34), Color(0.45, 0.5, 0.3), Color(0.6, 0.6, 0.6)]
+const FARN_FARBE := Color(0.26, 0.42, 0.16)
+const KRAUT_FARBE := Color(0.3, 0.44, 0.2)
 
 var natur                         # scripts/natur.gd
 var ziel: Node3D
-var frei: Array = []              # zusätzliche grasfreie Kreise [Vector2 Mitte, Radius] (Dorfplatz, Lager)
-var _kacheln := {}                # Vector2i -> MultiMeshInstance3D
+var frei: Array = []              # zusätzliche freie Kreise [Vector2 Mitte, Radius] (Dorfplatz, Lager)
+var _kacheln := {}                # Vector2i -> Node3D (je Art ein MultiMeshInstance3D)
 var _offen: Array = []
 var _mitte := Vector2(INF, INF)
 var _material := ShaderMaterial.new()
-var _mesh: ArrayMesh
+var _meshes: Array = []
 
 
 func setup(natur_node, spieler: Node3D) -> void:
@@ -31,7 +41,7 @@ func setup(natur_node, spieler: Node3D) -> void:
 	ziel = spieler
 	_material.shader = GrasShader
 	_material.set_shader_parameter("radius", RADIUS)
-	_mesh = _bueschel_mesh()
+	_meshes = [_gras_mesh(), _farn_mesh(), _kraut_mesh(), _blumen_mesh()]
 
 
 func _process(_delta: float) -> void:
@@ -90,13 +100,13 @@ func _kachel_bauen(k: Vector2i, voll: bool) -> Node3D:
 			hs[j * 9 + i] = natur._hoehe(x0 + i * 2.0, z0 + j * 2.0)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(Vector3i(k.x, k.y, 77))
-	# Wege/Felder/freie Kreise nur prüfen, wenn die Kachel überhaupt welche berührt
+	# Wege/Flüsse/Felder/freie Kreise nur prüfen, wenn die Kachel überhaupt welche berührt
 	var pruefen: bool = natur.sperr.has(Vector2i(floori(x0 / 32.0), floori(z0 / 32.0)))
 	for f in frei:
 		if Rect2(x0, z0, KACHEL, KACHEL).grow(f[1]).has_point(f[0]):
 			pruefen = true
-	var transforms: Array[Transform3D] = []
-	var farben: Array[Color] = []
+	var listen: Array = [[], [], [], []]   # je Art [Transform3D, Color]
+	var faktor := 1.0 if voll else 0.45
 	var n := int(KACHEL / ABSTAND)
 	for gz in n:
 		for gx in n:
@@ -105,10 +115,22 @@ func _kachel_bauen(k: Vector2i, voll: bool) -> Node3D:
 			var r := rng.randf()
 			var dreh := rng.randf() * TAU
 			var groesse := rng.randf_range(0.7, 1.3)
+			var farbwahl := rng.randf()
 			var x := x0 + lx
 			var z := z0 + lz
 			var b: int = natur._biom(x, z)
-			if b < 0 or r > DICHTE[b] * (1.0 if voll else 0.45):
+			if b < 0:
+				continue
+			# Art auswählen; Blumen wachsen in Flecken (Rauschen)
+			var flecken: float = clampf(natur.rauschen.get_noise_2d(x * 4.0, z * 4.0) * 2.5 + 0.4, 0.1, 2.5)
+			var art := -1
+			var summe := 0.0
+			for a in 4:
+				summe += ANTEIL[a][b] * faktor * (flecken if a == BLUME else 1.0)
+				if r < summe:
+					art = a
+					break
+			if art < 0:
 				continue
 			if not voll:
 				groesse *= 1.3
@@ -129,24 +151,39 @@ func _kachel_bauen(k: Vector2i, voll: bool) -> Node3D:
 			if pruefen and (natur._auf_weg(x, z) or natur._im_feld(x, z) or _im_freien_kreis(x, z)):
 				continue
 			var basis := Basis(Vector3.UP, dreh).scaled(Vector3(groesse, groesse * (1.1 if b == WIESE_ID else 0.9), groesse))
-			transforms.append(Transform3D(basis, Vector3(x, h - 0.03, z)))
-			var c: Color = FARBE[b]
-			farben.append(c.lerp(Color(c.r * 1.25, c.g * 1.15, c.b * 0.9), rng.randf()))
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_custom_data = true # Farbton je Büschel (im Shader INSTANCE_CUSTOM)
-	mm.mesh = _mesh
-	mm.instance_count = transforms.size()
-	for i in transforms.size():
-		mm.set_instance_transform(i, transforms[i])
-		mm.set_instance_custom_data(i, farben[i])
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	mmi.material_override = _material
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mmi.set_meta("voll", voll)
-	add_child(mmi)
-	return mmi
+			var c: Color
+			match art:
+				GRAS:
+					c = FARBE[b]
+				FARN:
+					c = FARN_FARBE
+				_:
+					c = KRAUT_FARBE.lerp(FARBE[b], 0.4)
+			c = c.lerp(Color(c.r * 1.25, c.g * 1.15, c.b * 0.9), rng.randf())
+			# Blütenfarbe im Alpha: meist lila, sonst weiß, gelb, rosa
+			c.a = 0.0 if farbwahl < 0.45 else (0.33 if farbwahl < 0.7 else (0.66 if farbwahl < 0.88 else 1.0))
+			listen[art].append([Transform3D(basis, Vector3(x, h - 0.03, z)), c])
+	var knoten := Node3D.new()
+	knoten.set_meta("voll", voll)
+	for art in 4:
+		var liste: Array = listen[art]
+		if liste.is_empty():
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_custom_data = true # Farbton und Blütenfarbe (im Shader INSTANCE_CUSTOM)
+		mm.mesh = _meshes[art]
+		mm.instance_count = liste.size()
+		for i in liste.size():
+			mm.set_instance_transform(i, liste[i][0])
+			mm.set_instance_custom_data(i, liste[i][1])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = _material
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		knoten.add_child(mmi)
+	add_child(knoten)
+	return knoten
 
 const WIESE_ID := 1
 
@@ -158,29 +195,128 @@ func _im_freien_kreis(x: float, z: float) -> bool:
 	return false
 
 
-## Büschel aus 10 schmalen, leicht gebogenen Halmen (UV.y = Höhe im Halm)
-func _bueschel_mesh() -> ArrayMesh:
+# --- Formen (UV.y = Höhe für den Wind, UV.x > 0.9 = Blüte) -----------------
+
+func _dreieck(st: SurfaceTool, v: Array, uv: Array) -> void:
+	for i in 3:
+		st.set_uv(uv[i])
+		st.add_vertex(v[i])
+
+
+## Band aus Segmenten entlang punkte (je Punkt eine Breite), UV.y = Höhenanteil
+func _band(st: SurfaceTool, punkte: Array, breiten: Array, quer_richtung: Vector3, max_h: float, uv_x := 0.5) -> void:
+	for i in range(1, punkte.size()):
+		var a: Vector3 = punkte[i - 1]
+		var b: Vector3 = punkte[i]
+		var qa: Vector3 = quer_richtung * float(breiten[i - 1])
+		var qb: Vector3 = quer_richtung * float(breiten[i])
+		var ua := Vector2(uv_x, clampf(a.y / max_h, 0.0, 1.0))
+		var ub := Vector2(uv_x, clampf(b.y / max_h, 0.0, 1.0))
+		_dreieck(st, [a - qa, a + qa, b - qb], [ua, ua, ub])
+		_dreieck(st, [a + qa, b + qb, b - qb], [ua, ub, ub])
+
+
+## Grasbüschel: 10 schmale, leicht gebogene Halme
+func _gras_mesh() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 12345
 	for b in 10:
 		var a := rng.randf() * TAU
-		var fuss := Vector3(cos(a), 0, sin(a)) * rng.randf_range(0.0, 0.2)
-		var neigung := Vector3(cos(a), 0, sin(a)) * rng.randf_range(0.04, 0.16)
-		var hoehe := rng.randf_range(0.22, 0.5)
+		var aus := Vector3(cos(a), 0, sin(a))
+		var fuss := aus * rng.randf_range(0.0, 0.2)
+		var neigung := aus * rng.randf_range(0.04, 0.16)
+		var hoehe := rng.randf_range(0.22, 0.55)
 		var breite := rng.randf_range(0.016, 0.028)
-		var quer := Vector3(-sin(a + 1.2), 0, cos(a + 1.2)) * breite
-		# zwei Segmente: unten breit, oben spitz
-		var p0 := fuss
-		var p1 := fuss + neigung * 0.35 + Vector3(0, hoehe * 0.55, 0)
-		var p2 := fuss + neigung + Vector3(0, hoehe, 0)
-		var v := [p0 - quer, p0 + quer, p1 - quer * 0.6, p1 + quer * 0.6, p2]
-		var uv := [0.0, 0.0, 0.55, 0.55, 1.0]
-		for tri in [[0, 1, 2], [1, 3, 2], [2, 3, 4]]:
-			for idx in tri:
-				st.set_uv(Vector2(0.5, uv[idx]))
-				st.set_color(Color.WHITE)
-				st.add_vertex(v[idx])
+		var quer := Vector3(-sin(a + 1.2), 0, cos(a + 1.2))
+		_band(st, [fuss, fuss + neigung * 0.35 + Vector3(0, hoehe * 0.55, 0), fuss + neigung + Vector3(0, hoehe, 0)],
+			[breite, breite * 0.6, 0.0], quer, 0.55)
+	st.generate_normals()
+	return st.commit()
+
+
+## Farn: 7 Wedel, die sich nach außen biegen und an den Spitzen absinken
+func _farn_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 777
+	for w in 7:
+		var a := TAU * w / 7.0 + rng.randf_range(-0.3, 0.3)
+		var aus := Vector3(cos(a), 0, sin(a))
+		var laenge := rng.randf_range(0.5, 0.8)
+		var hoch := rng.randf_range(0.3, 0.45)
+		var punkte := []
+		var breiten := []
+		for s in 6:
+			var t := s / 5.0
+			# Bogen: steigt bis zur Mitte, sinkt zur Spitze
+			punkte.append(aus * laenge * t + Vector3(0, hoch * sin(t * PI * 0.8) + 0.02, 0))
+			breiten.append(0.11 * sin(t * PI) + 0.01)
+		var quer := Vector3(-aus.z, 0, aus.x)
+		_band(st, punkte, breiten, quer, 0.45)
+		# Fiederblättchen: kleine Querblätter entlang des Wedels
+		for s in range(1, 5):
+			var p: Vector3 = punkte[s]
+			for seite: float in [-1.0, 1.0]:
+				var spitze: Vector3 = p + quer * seite * 0.16 + aus * 0.05 - Vector3(0, 0.03, 0)
+				var uv := Vector2(0.5, clampf(p.y / 0.45, 0.0, 1.0))
+				_dreieck(st, [p - aus * 0.04, p + aus * 0.05, spitze], [uv, uv, uv])
+	st.generate_normals()
+	return st.commit()
+
+
+## Kraut / kleiner Strauch: 12 rautenförmige Blätter in verschiedenen Höhen
+func _kraut_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	for b in 12:
+		var a := rng.randf() * TAU
+		var aus := Vector3(cos(a), 0, sin(a))
+		var h := rng.randf_range(0.04, 0.38)
+		var basis := aus * rng.randf_range(0.0, 0.1) + Vector3(0, h, 0)
+		var laenge := rng.randf_range(0.12, 0.22)
+		var spitze := basis + aus * laenge + Vector3(0, laenge * rng.randf_range(-0.2, 0.5), 0)
+		var mitte := basis.lerp(spitze, 0.5)
+		var quer := Vector3(-aus.z, 0, aus.x) * laenge * 0.35
+		var uv_b := Vector2(0.5, h / 0.45)
+		var uv_s := Vector2(0.5, clampf(spitze.y / 0.45, 0.0, 1.0))
+		_dreieck(st, [basis, mitte + quer, spitze], [uv_b, uv_s, uv_s])
+		_dreieck(st, [basis, spitze, mitte - quer], [uv_b, uv_s, uv_s])
+		# Stängel zum Boden
+		_band(st, [aus * 0.02, basis], [0.008, 0.006], Vector3(-aus.z, 0, aus.x), 0.45)
+	st.generate_normals()
+	return st.commit()
+
+
+## Blumen: 5 dünne Stängel mit kleinen Blütenköpfen (UV.x = 1) und zwei Blättern am Fuß
+func _blumen_mesh() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 999
+	for b in 5:
+		var a := rng.randf() * TAU
+		var aus := Vector3(cos(a), 0, sin(a))
+		var fuss := aus * rng.randf_range(0.0, 0.15)
+		var hoehe := rng.randf_range(0.25, 0.5)
+		var kopf := fuss + aus * 0.04 + Vector3(0, hoehe, 0)
+		var quer := Vector3(-aus.z, 0, aus.x)
+		_band(st, [fuss, fuss + Vector3(0, hoehe * 0.5, 0), kopf], [0.007, 0.006, 0.005], quer, 0.5)
+		# Blütenkopf: drei gekreuzte kleine Rauten
+		var uv := Vector2(1.0, 1.0)
+		for k in 3:
+			var r := Vector3(cos(a + k * PI / 3.0), 0, sin(a + k * PI / 3.0)) * 0.04
+			var o := Vector3(0, 0.035, 0)
+			_dreieck(st, [kopf - r, kopf + o, kopf + r], [uv, uv, uv])
+			_dreieck(st, [kopf - r, kopf + r, kopf - o * 0.5], [uv, uv, uv])
+		# Blätter am Fuß
+		for seite: float in [-1.0, 1.0]:
+			var s: Vector3 = fuss + quer * seite * 0.1 + Vector3(0, 0.06, 0)
+			var uv_b := Vector2(0.5, 0.15)
+			_dreieck(st, [fuss, s + aus * 0.03, s - aus * 0.03], [uv_b, uv_b, uv_b])
 	st.generate_normals()
 	return st.commit()

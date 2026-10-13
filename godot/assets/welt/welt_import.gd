@@ -28,8 +28,8 @@ extends Node3D
 ## Kachelgröße der Bodentexturen in Metern (Biom-Reihenfolge wie im Generator)
 ## dazu ein Farbton, mit dem die Textur im Spiel multipliziert wird (Wiese gedämpfter, Waldböden etwas grüner)
 const BODEN := [
-	["sand", 4.0, Color(1.0, 0.98, 0.95)], ["wiese", 3.0, Color(0.6, 0.64, 0.82)], ["laubboden", 3.0, Color(0.8, 0.88, 0.76)],
-	["nadelboden", 3.0, Color(0.9, 0.95, 0.85)], ["sumpf", 4.0, Color.WHITE], ["steppe", 3.0, Color(0.92, 0.9, 0.88)],
+	["sand", 4.0, Color(1.0, 0.98, 0.95)], ["wiese", 3.0, Color(0.6, 0.64, 0.82)], ["laubboden", 3.0, Color(0.6, 0.72, 0.52)],
+	["nadelboden", 3.0, Color(0.72, 0.8, 0.64)], ["sumpf", 4.0, Color.WHITE], ["steppe", 3.0, Color(0.92, 0.9, 0.88)],
 	["fels", 8.0, Color.WHITE], ["schnee", 6.0, Color.WHITE], ["weg", 3.0, Color.WHITE],
 ]
 

@@ -4,7 +4,7 @@ extends Node3D
 ## Wo etwas wächst, wird aus der Biomkarte des Weltgenerators, dem Gelände und Rauschen berechnet – in Kacheln
 ## von 64 m, jede mit eigenem festen Zufall. Dadurch steht bei jedem Laden alles an derselben Stelle, ohne dass
 ## Millionen Objekte gespeichert werden müssen. Frei bleiben Meer, Seen, steile Hänge, Siedlungen, Felder, Wege
-## und das Startgebiet.
+## sowie Dorfplatz und Lager des Startgebiets.
 ##
 ## Nah (NAH_RADIUS): echte Blender-Modelle, die man fällen/ernten kann (scripts/natur_quelle.gd).
 ## Fern (bis FERN_RADIUS): nur Bäume, als einfache Formen in MultiMeshes je 256-m-Kachel.
@@ -22,7 +22,6 @@ const NAH_RADIUS := 110.0
 const FERN_RADIUS := 950.0
 const NEU_ZENTRIEREN := 8.0      # Meter Bewegung, ab der der Nahbereich neu sortiert wird
 const BUDGET_US := 4000          # Zeit je Frame für neue Nah-Objekte (ein Modell braucht ~2 ms)
-const START_FREI := 170.0        # Radius um das Startgebiet (hat eigene Rohstoffe)
 
 # Biome des Weltgenerators
 enum { STRAND, WIESE, LAUBWALD, NADELWALD, SUMPF, STEPPE, FELS, SCHNEE }
@@ -39,7 +38,7 @@ var zelle := 4.0
 var welt_seed := 0
 var biome := PackedByteArray()
 var seen := PackedByteArray()
-var start_mitte := Vector2.ZERO
+var frei: Array = []              # freie Kreise im Startgebiet [Vector2 Mitte, Radius] (Dorfplatz, Lager), von main.gd
 var sperr := {}                   # Vector2i (32-m-Feld) -> Array von Sperrflächen, die das Feld berühren:
                                   #   ["k", Mitte, Radius] · ["f", Mitte, halbe Größe, Winkel] · ["w", a, b, halbe Breite]
 var rauschen := FastNoiseLite.new()
@@ -59,7 +58,6 @@ var _wurzel_nah: Node3D
 func setup(main, spieler: Node3D, daten_ordner: String) -> void:
 	terrain = main.terrain
 	ziel = spieler
-	start_mitte = Vector2(main.area.position.x, main.area.position.z)
 	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(daten_ordner.path_join("welt.json")))
 	welt_m = float(meta["welt_m"])
 	raster = int(meta["raster"])
@@ -148,8 +146,9 @@ func _biom(x: float, z: float) -> int:
 
 func _gesperrt(x: float, z: float) -> bool:
 	var p := Vector2(x, z)
-	if p.distance_to(start_mitte) < START_FREI:
-		return true
+	for f in frei:
+		if p.distance_to(f[0]) < f[1]:
+			return true
 	var feld := Vector2i(floori(x / 32.0), floori(z / 32.0))
 	if not sperr.has(feld):
 		return false

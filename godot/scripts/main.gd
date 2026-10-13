@@ -90,22 +90,26 @@ func _ready() -> void:
 	add_child(player)
 	if terrain:
 		terrain.set_camera(player.camera)
+	# Dorfplatz und Lager des Startgebiets bleiben frei von Bäumen, Steinen, Pflanzen und Gras
+	var frei: Array = []
+	var platz := area.position + VILLAGE_CENTER
+	frei.append([Vector2(platz.x, platz.z), VILLAGE_RADIUS + 3.5])
+	for camp in camps:
+		var c: Vector3 = area.position + Vector3(camp["pos"])
+		frei.append([Vector2(c.x, c.z), 10.5 if camp["style"] == "lair" else 7.5])
 	if island:
-		# Bäume, Büsche und Sammelpflanzen auf der ganzen Insel (rund um den Spieler nachgeladen)
+		# Bäume, Büsche, Steine und Sammelpflanzen auf der ganzen Insel (rund um den Spieler nachgeladen)
 		natur = NaturScript.new()
 		natur.name = "Natur"
 		natur.setup(self, player, ISLAND_DATA)
+		natur.frei = frei.duplicate()
+		natur.frei.append([Vector2(player.position.x, player.position.z), 4.0]) # nicht im Startpunkt
 		add_child(natur)
 	if island and not args.has("--ohne-gras"): # Schalter für Leistungsvergleiche
 		var gras = GrasScript.new()
 		gras.name = "Gras"
 		gras.setup(natur, player)
-		# kein Gras auf dem Dorfplatz und in den Lagern des Startgebiets
-		var platz := area.position + VILLAGE_CENTER
-		gras.frei.append([Vector2(platz.x, platz.z), VILLAGE_RADIUS + 3.5])
-		for camp in camps:
-			var c: Vector3 = area.position + Vector3(camp["pos"])
-			gras.frei.append([Vector2(c.x, c.z), 10.5 if camp["style"] == "lair" else 7.5])
+		gras.frei = frei
 		add_child(gras)
 
 	var hud = HudScript.new()
@@ -201,6 +205,11 @@ func _build_island() -> void:
 	var seabed := MeshUtil.part(self, sea, MeshUtil.mat(Color(0.32, 0.3, 0.24), 0.0, 1.0))
 	seabed.position.y = float(meta["hoehe"]["min"]) + 0.3
 	welt._marker_importieren()
+	# Am Startdorf steht das echte Dorf – dort keine Platzhaltersäule mitten im Startpunkt
+	for m in get_tree().get_nodes_in_group("marker_dorf"):
+		if m.get_meta("name", "") == "Startdorf":
+			for c in m.get_children():
+				c.visible = false
 	welt._seen_importieren(Wasser.material("see"))
 	welt._fluesse_importieren(Wasser.material("fluss"))
 	welt._wege_importieren() # Wegverläufe und Brücken (das Gelände unter den Wegen ist schon eingeebnet)
@@ -327,6 +336,10 @@ func _add_resource(id: String, pos: Vector3, scale_factor := 1.0, rock_size := V
 
 
 func _scatter_nature() -> void:
+	# Auf der Insel wachsen Bäume, Steine und Pflanzen aus scripts/natur.gd; hier nur die Erzadern
+	if island:
+		_scatter_ore()
+		return
 	# Tier 1 überall im Süden, Tier 2 im Norden hinter dem Oger (z < NORTH_ZONE_Z)
 	for i in 230:
 		_add_resource("pine", _random_spot(10.0, NORTH_ZONE_Z + 5.0), rng.randf_range(0.8, 1.5))
@@ -338,12 +351,7 @@ func _scatter_nature() -> void:
 	for i in 70:
 		var size := Vector3(rng.randf_range(0.8, 2.6), rng.randf_range(0.6, 1.8), rng.randf_range(0.8, 2.6))
 		_add_resource("stone", _random_spot(8.0) + Vector3(0, size.y * 0.35, 0), 1.0, size)
-	for i in 28:
-		var size := Vector3(rng.randf_range(1.2, 2.0), rng.randf_range(0.9, 1.4), rng.randf_range(1.2, 2.0))
-		_add_resource("copper_vein", _random_spot(8.0, NORTH_ZONE_Z + 5.0) + Vector3(0, size.y * 0.35, 0), 1.0, size)
-	for i in 18:
-		var size := Vector3(rng.randf_range(1.2, 2.0), rng.randf_range(0.9, 1.4), rng.randf_range(1.2, 2.0))
-		_add_resource("iron_vein", _random_spot(8.0, -INF, NORTH_ZONE_Z) + Vector3(0, size.y * 0.35, 0), 1.0, size)
+	_scatter_ore()
 
 	for i in 55:
 		_add_resource("hemp", _random_spot(6.0, NORTH_ZONE_Z + 5.0))
@@ -359,6 +367,16 @@ func _scatter_nature() -> void:
 	for i in 200:
 		var bush := MeshUtil.part(area, bush_mesh, bush_mat, _g(_random_spot(5.0) + Vector3(0, 0.3, 0)))
 		bush.scale = Vector3.ONE * rng.randf_range(0.6, 1.4)
+
+
+## Kupfer im Süden, Eisen im Norden des Startgebiets
+func _scatter_ore() -> void:
+	for i in 28:
+		var size := Vector3(rng.randf_range(1.2, 2.0), rng.randf_range(0.9, 1.4), rng.randf_range(1.2, 2.0))
+		_add_resource("copper_vein", _random_spot(8.0, NORTH_ZONE_Z + 5.0) + Vector3(0, size.y * 0.35, 0), 1.0, size)
+	for i in 18:
+		var size := Vector3(rng.randf_range(1.2, 2.0), rng.randf_range(0.9, 1.4), rng.randf_range(1.2, 2.0))
+		_add_resource("iron_vein", _random_spot(8.0, -INF, NORTH_ZONE_Z) + Vector3(0, size.y * 0.35, 0), 1.0, size)
 
 
 ## Handwerksdorf: alle Werkstätten im Halbkreis um einen Platz, offen Richtung Startpunkt.
