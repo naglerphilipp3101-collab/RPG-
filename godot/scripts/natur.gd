@@ -156,6 +156,34 @@ func _gesperrt(x: float, z: float) -> bool:
 	return false
 
 
+## Liegt der Punkt in einem Feld (für das Gras)?
+func _im_feld(x: float, z: float) -> bool:
+	var feld := Vector2i(floori(x / 32.0), floori(z / 32.0))
+	if not sperr.has(feld):
+		return false
+	var p := Vector2(x, z)
+	for s in sperr[feld]:
+		if s[0] == "f":
+			var d: Vector2 = p - s[1]
+			var c := cos(float(s[3]))
+			var sn := sin(float(s[3]))
+			if absf(d.x * c + d.y * sn) <= s[2].x - 2.0 and absf(-d.x * sn + d.y * c) <= s[2].y - 2.0:
+				return true
+	return false
+
+
+## Liegt der Punkt auf einer Straße / einem Weg (für das Gras)?
+func _auf_weg(x: float, z: float) -> bool:
+	var feld := Vector2i(floori(x / 32.0), floori(z / 32.0))
+	if not sperr.has(feld):
+		return false
+	var p := Vector2(x, z)
+	for s in sperr[feld]:
+		if s[0] == "w" and Geometry2D.get_closest_point_to_segment(p, s[1], s[2]).distance_to(p) < float(s[3]) - 1.5:
+			return true
+	return false
+
+
 func _hoehe(x: float, z: float) -> float:
 	var h: float = terrain.get("data").get_height(Vector3(x, 0, z))
 	return -100.0 if is_nan(h) else h

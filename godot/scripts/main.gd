@@ -14,6 +14,7 @@ const StationScript := preload("res://scripts/crafting_station.gd")
 const SaveGame := preload("res://scripts/save_game.gd")
 const NaturScript := preload("res://scripts/natur.gd")
 const Wasser := preload("res://scripts/wasser.gd")
+const GrasScript := preload("res://scripts/gras.gd")
 
 const ISLAND_DATA := "res://welt_daten"
 const ISLAND_TERRAIN := "res://welt_daten/terrain3d"
@@ -95,6 +96,17 @@ func _ready() -> void:
 		natur.name = "Natur"
 		natur.setup(self, player, ISLAND_DATA)
 		add_child(natur)
+	if island and not args.has("--ohne-gras"): # Schalter für Leistungsvergleiche
+		var gras = GrasScript.new()
+		gras.name = "Gras"
+		gras.setup(natur, player)
+		# kein Gras auf dem Dorfplatz und in den Lagern des Startgebiets
+		var platz := area.position + VILLAGE_CENTER
+		gras.frei.append([Vector2(platz.x, platz.z), VILLAGE_RADIUS + 3.5])
+		for camp in camps:
+			var c: Vector3 = area.position + Vector3(camp["pos"])
+			gras.frei.append([Vector2(c.x, c.z), 10.5 if camp["style"] == "lair" else 7.5])
+		add_child(gras)
 
 	var hud = HudScript.new()
 	hud.name = "HUD"
