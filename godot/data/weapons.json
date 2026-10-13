@@ -1,0 +1,428 @@
+{
+	"sword_1h": {
+		"name": "Einhandschwert", "class": "melee", "hands": 1, "allows_shield": true, "model": "sword",
+		"rest": [20, 15, 0], "range": 2.3, "arc": 130, "block": 1.5, "move_speed": 1.0,
+		"light": [
+			{"style": "h_right", "mult": 0.9, "dur": 0.5, "hit": 0.2, "kb": 1.5, "stag": 0.3},
+			{"style": "h_left", "mult": 0.9, "dur": 0.5, "hit": 0.2, "kb": 1.5, "stag": 0.3},
+			{"style": "overhead", "mult": 1.4, "dur": 0.62, "hit": 0.28, "kb": 4, "stag": 0.6}
+		],
+		"heavy": {"style": "big_overhead", "mult": 2.25, "dur": 0.85, "hit": 0.45, "kb": 6, "stag": 1.0, "range": 2.6, "arc": 100},
+		"items": [
+			{"id": "copper_sword", "name": "Kupferschwert", "tier": 1, "ingredients": {"copper_ingot": 4, "timber": 2, "coarse_leather": 1}},
+			{"id": "iron_sword", "name": "Eisenschwert", "tier": 2, "ingredients": {"iron_ingot": 5, "lumber": 2, "coarse_leather": 2}}
+		],
+		"tree": [
+			{"name": "Klingentänzer", "nodes": [
+				{"id": "sw_whirl", "type": "active", "name": "Wirbelklinge", "desc": "Rundumschlag um dich herum.",
+					"skill": {"template": "strike", "spin": true, "mult": 1.6, "range": 3.2, "arc": 360, "windup": 0.3, "duration": 0.6, "kb": 4, "stag": 0.6, "cooldown": 8}},
+				{"id": "sw_p1", "type": "passive", "stats": {"damage_pct": 0.1}},
+				{"id": "sw_p2", "type": "passive", "stats": {"crit": 0.05}},
+				{"id": "sw_storm", "type": "active", "name": "Sturmhieb", "desc": "Sprung nach vorn mit wuchtigem Hieb. Gegner nehmen danach 15 % mehr Schaden.",
+					"skill": {"template": "strike", "style": "big_overhead", "dash": 3, "mult": 1.8, "range": 2.6, "arc": 100, "windup": 0.3, "duration": 0.65, "kb": 5, "stag": 0.8, "effects": {"expose": [0.15, 5]}, "cooldown": 10}},
+				{"id": "sw_p3", "type": "passive", "stats": {"attack_speed": 0.1}},
+				{"id": "sw_u", "type": "passive", "cost": 2, "name": "Klingenmeister", "stats": {"bleed": 0.1, "damage_pct": 0.1}}
+			]},
+			{"name": "Bollwerk", "nodes": [
+				{"id": "sw_rush", "type": "active", "name": "Schildansturm", "desc": "Stürmt vorwärts und wirft Gegner zurück.",
+					"skill": {"template": "dash", "distance": 7, "time": 0.35, "mult": 1.1, "kb": 9, "stag": 1.2, "cooldown": 12}},
+				{"id": "sw_p4", "type": "passive", "stats": {"block_pct": 0.2}},
+				{"id": "sw_p5", "type": "passive", "stats": {"damage_reduction": 0.05}},
+				{"id": "sw_stance", "type": "active", "name": "Standhaft", "desc": "6 s lang 50 % weniger Schaden und kein Taumeln.",
+					"skill": {"template": "buff", "duration": 6, "buffs": {"damage_reduction": 0.5, "stagger_immune": 1}, "cooldown": 20}},
+				{"id": "sw_p6", "type": "passive", "stats": {"health": 20}},
+				{"id": "sw_u2", "type": "passive", "cost": 2, "name": "Unerschütterlich", "stats": {"damage_reduction": 0.1, "stamina_regen_pct": 0.2}}
+			]}
+		]
+	},
+
+	"axe_1h": {
+		"name": "Beil", "class": "melee", "hands": 1, "allows_shield": true, "model": "axe",
+		"rest": [25, 15, 0], "range": 2.2, "arc": 120, "block": 1.6, "move_speed": 1.0,
+		"light": [
+			{"style": "diag", "mult": 1.0, "dur": 0.55, "hit": 0.24, "kb": 1.5, "stag": 0.35},
+			{"style": "h_left", "mult": 1.0, "dur": 0.55, "hit": 0.24, "kb": 1.5, "stag": 0.35},
+			{"style": "overhead", "mult": 1.5, "dur": 0.7, "hit": 0.32, "kb": 4, "stag": 0.7}
+		],
+		"heavy": {"style": "big_overhead", "mult": 2.4, "dur": 0.9, "hit": 0.48, "kb": 6, "stag": 1.0},
+		"items": [
+			{"id": "copper_hatchet", "name": "Kupferbeil", "tier": 1, "ingredients": {"copper_ingot": 3, "timber": 3, "coarse_leather": 1}},
+			{"id": "iron_hatchet", "name": "Eisenbeil", "tier": 2, "ingredients": {"iron_ingot": 4, "lumber": 3, "coarse_leather": 1}}
+		],
+		"tree": [
+			{"name": "Schlächter", "nodes": [
+				{"id": "ax_notch", "type": "active", "name": "Kerbschlag", "desc": "Tiefer Hieb, der garantiert Blutung verursacht.",
+					"skill": {"template": "strike", "style": "diag", "mult": 1.5, "range": 2.3, "arc": 120, "windup": 0.25, "duration": 0.55, "kb": 2, "stag": 0.5, "effects": {"bleed": 5}, "cooldown": 9}},
+				{"id": "ax_p1", "type": "passive", "stats": {"bleed": 0.1}},
+				{"id": "ax_p2", "type": "passive", "stats": {"damage_pct": 0.1}},
+				{"id": "ax_frenzy", "type": "active", "name": "Raserei", "desc": "6 s lang 30 % schnellere Angriffe und 10 % mehr Schaden.",
+					"skill": {"template": "buff", "duration": 6, "buffs": {"attack_speed": 0.3, "damage_pct": 0.1}, "cooldown": 18}},
+				{"id": "ax_p3", "type": "passive", "stats": {"crit": 0.05}},
+				{"id": "ax_u", "type": "passive", "cost": 2, "name": "Blutdurst", "stats": {"heavy": 0.3, "bleed": 0.1}}
+			]},
+			{"name": "Wilder", "nodes": [
+				{"id": "ax_throw", "type": "active", "name": "Wurfbeil", "desc": "Wirft ein Beil auf das Ziel im Fadenkreuz.",
+					"skill": {"template": "shot", "mult": 1.3, "speed": 35, "gravity": 8, "projectile": "axe", "cooldown": 8}},
+				{"id": "ax_p4", "type": "passive", "stats": {"move_speed_pct": 0.1}},
+				{"id": "ax_p5", "type": "passive", "stats": {"health": 20}},
+				{"id": "ax_storm", "type": "active", "name": "Wirbelsturm", "desc": "Drei schnelle Rundumschläge.",
+					"skill": {"template": "strike", "spin": true, "hits": 3, "interval": 0.2, "mult": 0.8, "range": 2.8, "arc": 360, "windup": 0.1, "duration": 0.8, "kb": 2, "stag": 0.4, "cooldown": 12}},
+				{"id": "ax_p6", "type": "passive", "stats": {"damage_reduction": 0.05}},
+				{"id": "ax_u2", "type": "passive", "cost": 2, "name": "Ungezähmt", "stats": {"damage_reduction": 0.08, "damage_pct": 0.1}}
+			]}
+		]
+	},
+
+	"mace_1h": {
+		"name": "Streitkolben", "class": "melee", "hands": 1, "allows_shield": true, "model": "mace",
+		"rest": [25, 15, 0], "range": 2.2, "arc": 110, "block": 1.5, "move_speed": 1.0,
+		"light": [
+			{"style": "overhead", "mult": 1.05, "dur": 0.6, "hit": 0.26, "kb": 2, "stag": 0.5},
+			{"style": "h_right", "mult": 1.05, "dur": 0.6, "hit": 0.26, "kb": 2, "stag": 0.5}
+		],
+		"heavy": {"style": "big_overhead", "mult": 2.6, "dur": 0.95, "hit": 0.5, "kb": 5, "stag": 1.3},
+		"items": [
+			{"id": "copper_mace", "name": "Kupferstreitkolben", "tier": 1, "ingredients": {"copper_ingot": 5, "timber": 1, "coarse_leather": 1}},
+			{"id": "iron_morningstar", "name": "Eiserner Morgenstern", "tier": 2, "ingredients": {"iron_ingot": 6, "lumber": 1, "coarse_leather": 1}}
+		],
+		"tree": [
+			{"name": "Zertrümmerer", "nodes": [
+				{"id": "mc_skull", "type": "active", "name": "Schädelbrecher", "desc": "Schwerer Schlag, der Gegner lange taumeln lässt.",
+					"skill": {"template": "strike", "style": "big_overhead", "mult": 1.8, "range": 2.3, "arc": 90, "windup": 0.35, "duration": 0.7, "kb": 3, "stag": 1.4, "cooldown": 10}},
+				{"id": "mc_p1", "type": "passive", "stats": {"heavy": 0.2}},
+				{"id": "mc_p2", "type": "passive", "stats": {"damage_pct": 0.1}},
+				{"id": "mc_quake", "type": "active", "name": "Bodenstampfer", "desc": "Erschüttert den Boden um dich und verlangsamt Gegner.",
+					"skill": {"template": "strike", "style": "big_overhead", "mult": 1.2, "range": 3.5, "arc": 360, "windup": 0.4, "duration": 0.75, "kb": 4, "stag": 1.0, "shockwave": true, "effects": {"slow": [0.4, 3]}, "cooldown": 14}},
+				{"id": "mc_p3", "type": "passive", "stats": {"crit": 0.05}},
+				{"id": "mc_u", "type": "passive", "cost": 2, "name": "Erschütterung", "stats": {"heavy": 0.3, "damage_pct": 0.1}}
+			]},
+			{"name": "Kreuzritter", "nodes": [
+				{"id": "mc_break", "type": "active", "name": "Rüstungsbrecher", "desc": "Gegner nehmen 6 s lang 25 % mehr Schaden.",
+					"skill": {"template": "strike", "style": "overhead", "mult": 1.3, "range": 2.3, "arc": 100, "windup": 0.25, "duration": 0.6, "kb": 2, "stag": 0.6, "effects": {"expose": [0.25, 6]}, "cooldown": 10}},
+				{"id": "mc_p4", "type": "passive", "stats": {"health": 25}},
+				{"id": "mc_p5", "type": "passive", "stats": {"damage_reduction": 0.05}},
+				{"id": "mc_bless", "type": "active", "name": "Segen", "desc": "Heilt 20 % Leben und gibt 6 s lang 20 % Schadensreduktion.",
+					"skill": {"template": "buff", "duration": 6, "heal_pct": 0.2, "buffs": {"damage_reduction": 0.2}, "cooldown": 20}},
+				{"id": "mc_p6", "type": "passive", "stats": {"stamina_regen_pct": 0.2}},
+				{"id": "mc_u2", "type": "passive", "cost": 2, "name": "Glaubensschild", "stats": {"block_pct": 0.25, "health": 25}}
+			]}
+		]
+	},
+
+	"sword_2h": {
+		"name": "Zweihänder", "class": "melee", "hands": 2, "allows_shield": false, "model": "greatsword",
+		"rest": [35, 10, 0], "range": 3.0, "arc": 170, "block": 1.3, "move_speed": 0.95,
+		"light": [
+			{"style": "h_right", "mult": 1.3, "dur": 0.75, "hit": 0.32, "kb": 3, "stag": 0.5},
+			{"style": "h_left", "mult": 1.3, "dur": 0.75, "hit": 0.32, "kb": 3, "stag": 0.5},
+			{"style": "overhead", "mult": 1.9, "dur": 0.9, "hit": 0.4, "kb": 5, "stag": 0.9, "arc": 100}
+		],
+		"heavy": {"style": "big_overhead", "mult": 3.0, "dur": 1.15, "hit": 0.6, "kb": 7, "stag": 1.2, "arc": 110},
+		"items": [
+			{"id": "copper_greatsword", "name": "Kupfer-Zweihänder", "tier": 1, "ingredients": {"copper_ingot": 7, "timber": 3, "coarse_leather": 2}},
+			{"id": "iron_greatsword", "name": "Eisen-Zweihänder", "tier": 2, "ingredients": {"iron_ingot": 8, "lumber": 3, "coarse_leather": 2}}
+		],
+		"tree": [
+			{"name": "Klingensturm", "nodes": [
+				{"id": "gs_wide", "type": "active", "name": "Weiter Schnitt", "desc": "Breiter Schwung mit großer Reichweite.",
+					"skill": {"template": "strike", "style": "h_right", "mult": 2.0, "range": 3.4, "arc": 200, "windup": 0.35, "duration": 0.8, "kb": 5, "stag": 0.8, "cooldown": 9}},
+				{"id": "gs_p1", "type": "passive", "stats": {"damage_pct": 0.1}},
+				{"id": "gs_p2", "type": "passive", "stats": {"crit": 0.05}},
+				{"id": "gs_whirl", "type": "active", "name": "Wirbelwind", "desc": "Vier Rundumschläge hintereinander.",
+					"skill": {"template": "strike", "spin": true, "hits": 4, "interval": 0.2, "mult": 0.7, "range": 3.2, "arc": 360, "windup": 0.15, "duration": 1.0, "kb": 2, "stag": 0.4, "cooldown": 14}},
+				{"id": "gs_p3", "type": "passive", "stats": {"attack_speed": 0.1}},
+				{"id": "gs_u", "type": "passive", "cost": 2, "name": "Klingenfürst", "stats": {"damage_pct": 0.15, "crit": 0.05}}
+			]},
+			{"name": "Kriegsherr", "nodes": [
+				{"id": "gs_break", "type": "active", "name": "Durchbruch", "desc": "Stürmt durch Gegner hindurch.",
+					"skill": {"template": "dash", "distance": 8, "time": 0.4, "mult": 1.4, "kb": 8, "stag": 1.0, "cooldown": 12}},
+				{"id": "gs_p4", "type": "passive", "stats": {"damage_reduction": 0.05}},
+				{"id": "gs_p5", "type": "passive", "stats": {"health": 25}},
+				{"id": "gs_shout", "type": "active", "name": "Kampfschrei", "desc": "8 s lang 25 % mehr Schaden und kein Taumeln.",
+					"skill": {"template": "buff", "duration": 8, "buffs": {"damage_pct": 0.25, "stagger_immune": 1}, "cooldown": 22}},
+				{"id": "gs_p6", "type": "passive", "stats": {"stamina_regen_pct": 0.2}},
+				{"id": "gs_u2", "type": "passive", "cost": 2, "name": "Feldherr", "stats": {"damage_reduction": 0.1, "heavy": 0.3}}
+			]}
+		]
+	},
+
+	"axe_2h": {
+		"name": "Kriegsaxt", "class": "melee", "hands": 2, "allows_shield": false, "model": "greataxe",
+		"rest": [35, 10, 0], "range": 2.8, "arc": 140, "block": 1.35, "move_speed": 0.95,
+		"light": [
+			{"style": "diag", "mult": 1.4, "dur": 0.8, "hit": 0.35, "kb": 3, "stag": 0.6},
+			{"style": "h_left", "mult": 1.4, "dur": 0.8, "hit": 0.35, "kb": 3, "stag": 0.6}
+		],
+		"heavy": {"style": "big_overhead", "mult": 3.2, "dur": 1.2, "hit": 0.62, "kb": 7, "stag": 1.2},
+		"items": [
+			{"id": "copper_greataxe", "name": "Kupfer-Kriegsaxt", "tier": 1, "ingredients": {"copper_ingot": 6, "timber": 4, "coarse_leather": 2}},
+			{"id": "iron_greataxe", "name": "Eisen-Kriegsaxt", "tier": 2, "ingredients": {"iron_ingot": 7, "lumber": 4, "coarse_leather": 2}}
+		],
+		"tree": [
+			{"name": "Berserker", "nodes": [
+				{"id": "ga_split", "type": "active", "name": "Spaltschlag", "desc": "Gewaltiger Hieb mit garantierter Blutung.",
+					"skill": {"template": "strike", "style": "big_overhead", "mult": 2.4, "range": 2.9, "arc": 100, "windup": 0.45, "duration": 0.9, "kb": 5, "stag": 1.0, "effects": {"bleed": 5}, "cooldown": 10}},
+				{"id": "ga_p1", "type": "passive", "stats": {"bleed": 0.1}},
+				{"id": "ga_p2", "type": "passive", "stats": {"heavy": 0.25}},
+				{"id": "ga_rage", "type": "active", "name": "Blutrausch", "desc": "8 s lang 25 % schnellere Angriffe und 15 % mehr Schaden.",
+					"skill": {"template": "buff", "duration": 8, "buffs": {"attack_speed": 0.25, "damage_pct": 0.15}, "cooldown": 20}},
+				{"id": "ga_p3", "type": "passive", "stats": {"crit": 0.05}},
+				{"id": "ga_u", "type": "passive", "cost": 2, "name": "Schlachtenwut", "stats": {"damage_pct": 0.15, "bleed": 0.1}}
+			]},
+			{"name": "Henker", "nodes": [
+				{"id": "ga_maelstrom", "type": "active", "name": "Mahlstrom", "desc": "Drei schwere Rundumschläge.",
+					"skill": {"template": "strike", "spin": true, "hits": 3, "interval": 0.25, "mult": 0.9, "range": 3.0, "arc": 360, "windup": 0.15, "duration": 0.95, "kb": 3, "stag": 0.5, "cooldown": 13}},
+				{"id": "ga_p4", "type": "passive", "stats": {"move_speed_pct": 0.1}},
+				{"id": "ga_p5", "type": "passive", "stats": {"health": 25}},
+				{"id": "ga_charge", "type": "active", "name": "Sturmangriff", "desc": "Springt nach vorn und schlägt beim Aufprall zu.",
+					"skill": {"template": "leap", "distance": 7, "time": 0.6, "mult": 1.8, "radius": 3, "kb": 6, "stag": 1.0, "cooldown": 14}},
+				{"id": "ga_p6", "type": "passive", "stats": {"damage_reduction": 0.05}},
+				{"id": "ga_u2", "type": "passive", "cost": 2, "name": "Scharfrichter", "stats": {"heavy": 0.3, "damage_reduction": 0.08}}
+			]}
+		]
+	},
+
+	"mace_2h": {
+		"name": "Kriegshammer", "class": "melee", "hands": 2, "allows_shield": false, "model": "warhammer",
+		"rest": [35, 10, 0], "range": 2.8, "arc": 120, "block": 1.3, "move_speed": 0.92,
+		"light": [
+			{"style": "overhead", "mult": 1.6, "dur": 0.95, "hit": 0.45, "kb": 4, "stag": 0.8},
+			{"style": "h_right", "mult": 1.5, "dur": 0.9, "hit": 0.42, "kb": 4, "stag": 0.7}
+		],
+		"heavy": {"style": "big_overhead", "mult": 3.6, "dur": 1.35, "hit": 0.72, "kb": 8, "stag": 1.5},
+		"items": [
+			{"id": "copper_warhammer", "name": "Kupfer-Kriegshammer", "tier": 1, "ingredients": {"copper_ingot": 8, "timber": 2, "coarse_leather": 2}},
+			{"id": "iron_warhammer", "name": "Eisen-Kriegshammer", "tier": 2, "ingredients": {"iron_ingot": 9, "lumber": 2, "coarse_leather": 2}}
+		],
+		"tree": [
+			{"name": "Erdbrecher", "nodes": [
+				{"id": "wh_wave", "type": "active", "name": "Schockwelle", "desc": "Erschüttert den Boden weit um dich und verlangsamt Gegner.",
+					"skill": {"template": "strike", "style": "big_overhead", "mult": 1.5, "range": 4.0, "arc": 360, "windup": 0.5, "duration": 0.9, "kb": 5, "stag": 1.2, "shockwave": true, "effects": {"slow": [0.5, 3]}, "cooldown": 12}},
+				{"id": "wh_p1", "type": "passive", "stats": {"heavy": 0.25}},
+				{"id": "wh_p2", "type": "passive", "stats": {"damage_pct": 0.1}},
+				{"id": "wh_meteor", "type": "active", "name": "Meteorschlag", "desc": "Springt hoch und schlägt mit voller Wucht auf.",
+					"skill": {"template": "leap", "distance": 6, "time": 0.7, "mult": 2.4, "radius": 3.5, "kb": 7, "stag": 1.5, "cooldown": 15}},
+				{"id": "wh_p3", "type": "passive", "stats": {"crit": 0.05}},
+				{"id": "wh_u", "type": "passive", "cost": 2, "name": "Titanenkraft", "stats": {"heavy": 0.3, "damage_pct": 0.1}}
+			]},
+			{"name": "Vollstrecker", "nodes": [
+				{"id": "wh_break", "type": "active", "name": "Panzerknacker", "desc": "Gegner nehmen 6 s lang 30 % mehr Schaden.",
+					"skill": {"template": "strike", "style": "overhead", "mult": 1.6, "range": 2.8, "arc": 110, "windup": 0.4, "duration": 0.8, "kb": 4, "stag": 1.2, "effects": {"expose": [0.3, 6]}, "cooldown": 10}},
+				{"id": "wh_p4", "type": "passive", "stats": {"health": 30}},
+				{"id": "wh_p5", "type": "passive", "stats": {"damage_reduction": 0.06}},
+				{"id": "wh_skin", "type": "active", "name": "Eiserne Haut", "desc": "6 s lang 40 % weniger Schaden und kein Taumeln.",
+					"skill": {"template": "buff", "duration": 6, "buffs": {"damage_reduction": 0.4, "stagger_immune": 1}, "cooldown": 22}},
+				{"id": "wh_p6", "type": "passive", "stats": {"block_pct": 0.2}},
+				{"id": "wh_u2", "type": "passive", "cost": 2, "name": "Unbezwingbar", "stats": {"damage_reduction": 0.1, "health": 30}}
+			]}
+		]
+	},
+
+	"spear": {
+		"name": "Speer", "class": "melee", "hands": 2, "allows_shield": false, "model": "spear",
+		"rest": [10, 5, 0], "range": 3.4, "arc": 50, "block": 1.4, "move_speed": 1.0,
+		"light": [
+			{"style": "thrust", "mult": 0.95, "dur": 0.5, "hit": 0.2, "kb": 2, "stag": 0.3},
+			{"style": "thrust", "mult": 0.95, "dur": 0.5, "hit": 0.2, "kb": 2, "stag": 0.3},
+			{"style": "h_right", "mult": 1.2, "dur": 0.65, "hit": 0.28, "kb": 4, "stag": 0.6, "range": 3.0, "arc": 150}
+		],
+		"heavy": {"style": "thrust", "mult": 2.2, "dur": 0.85, "hit": 0.45, "kb": 6, "stag": 1.0, "lunge": 6, "range": 3.8},
+		"items": [
+			{"id": "copper_spear", "name": "Kupferspeer", "tier": 1, "ingredients": {"copper_ingot": 2, "timber": 5, "coarse_leather": 1}},
+			{"id": "iron_spear", "name": "Eisenspeer", "tier": 2, "ingredients": {"iron_ingot": 3, "lumber": 5, "coarse_leather": 1}}
+		],
+		"tree": [
+			{"name": "Pfähler", "nodes": [
+				{"id": "sp_pierce", "type": "active", "name": "Durchbohren", "desc": "Weiter Stoß nach vorn mit garantierter Blutung.",
+					"skill": {"template": "strike", "style": "thrust", "dash": 2, "mult": 1.8, "range": 4.2, "arc": 40, "windup": 0.25, "duration": 0.6, "kb": 4, "stag": 0.7, "effects": {"bleed": 5}, "cooldown": 9}},
+				{"id": "sp_p1", "type": "passive", "stats": {"crit": 0.05}},
+				{"id": "sp_p2", "type": "passive", "stats": {"damage_pct": 0.1}},
+				{"id": "sp_flurry", "type": "active", "name": "Speersturm", "desc": "Vier schnelle Stöße.",
+					"skill": {"template": "strike", "style": "thrust", "hits": 4, "interval": 0.15, "mult": 0.6, "range": 3.8, "arc": 50, "windup": 0.15, "duration": 0.85, "kb": 1, "stag": 0.3, "cooldown": 12}},
+				{"id": "sp_p3", "type": "passive", "stats": {"attack_speed": 0.1}},
+				{"id": "sp_u", "type": "passive", "cost": 2, "name": "Lanzenmeister", "stats": {"crit": 0.1, "bleed": 0.1}}
+			]},
+			{"name": "Wächter", "nodes": [
+				{"id": "sp_sweep", "type": "active", "name": "Fegen", "desc": "Weiter Schwung, der Gegner zurückwirft und verlangsamt.",
+					"skill": {"template": "strike", "style": "h_right", "mult": 1.2, "range": 3.6, "arc": 220, "windup": 0.25, "duration": 0.65, "kb": 6, "stag": 1.0, "effects": {"slow": [0.4, 3]}, "cooldown": 10}},
+				{"id": "sp_p4", "type": "passive", "stats": {"move_speed_pct": 0.1}},
+				{"id": "sp_p5", "type": "passive", "stats": {"dodge_cost_pct": 0.2}},
+				{"id": "sp_vault", "type": "active", "name": "Sprungangriff", "desc": "Springt weit nach vorn und trifft beim Aufprall.",
+					"skill": {"template": "leap", "distance": 8, "time": 0.55, "mult": 1.6, "radius": 2.5, "kb": 5, "stag": 0.8, "cooldown": 14}},
+				{"id": "sp_p6", "type": "passive", "stats": {"damage_reduction": 0.05}},
+				{"id": "sp_u2", "type": "passive", "cost": 2, "name": "Wachsamkeit", "stats": {"damage_pct": 0.15, "move_speed_pct": 0.05}}
+			]}
+		]
+	},
+
+	"rapier": {
+		"name": "Degen", "class": "melee", "hands": 1, "allows_shield": false, "model": "rapier",
+		"rest": [15, 10, 0], "range": 2.6, "arc": 60, "block": 1.8, "move_speed": 1.05,
+		"light": [
+			{"style": "thrust", "mult": 0.7, "dur": 0.35, "hit": 0.14, "kb": 1, "stag": 0.2},
+			{"style": "thrust", "mult": 0.7, "dur": 0.35, "hit": 0.14, "kb": 1, "stag": 0.2},
+			{"style": "thrust", "mult": 1.0, "dur": 0.45, "hit": 0.18, "kb": 2, "stag": 0.4}
+		],
+		"heavy": {"style": "thrust", "mult": 1.8, "dur": 0.7, "hit": 0.38, "kb": 4, "stag": 0.8, "lunge": 7},
+		"items": [
+			{"id": "copper_rapier", "name": "Kupferdegen", "tier": 1, "ingredients": {"copper_ingot": 4, "coarse_leather": 2, "linen": 1}},
+			{"id": "iron_rapier", "name": "Eisendegen", "tier": 2, "ingredients": {"iron_ingot": 5, "coarse_leather": 2, "linen": 1}}
+		],
+		"tree": [
+			{"name": "Fechter", "nodes": [
+				{"id": "ra_riposte", "type": "active", "name": "Riposte", "desc": "Weicht zurück (unverwundbar) und erhält 3 s lang +50 % Krit.",
+					"skill": {"template": "evade", "distance": 4, "time": 0.3, "iframes": 0.5, "back": true, "duration": 3, "buffs": {"crit": 0.5}, "cooldown": 10}},
+				{"id": "ra_p1", "type": "passive", "stats": {"crit": 0.08}},
+				{"id": "ra_p2", "type": "passive", "stats": {"attack_speed": 0.1}},
+				{"id": "ra_hail", "type": "active", "name": "Hagel der Stiche", "desc": "Fünf blitzschnelle Stiche.",
+					"skill": {"template": "strike", "style": "thrust", "hits": 5, "interval": 0.1, "mult": 0.45, "range": 2.8, "arc": 60, "windup": 0.1, "duration": 0.7, "kb": 0.5, "stag": 0.2, "cooldown": 11}},
+				{"id": "ra_p3", "type": "passive", "stats": {"crit_damage": 0.25}},
+				{"id": "ra_u", "type": "passive", "cost": 2, "name": "Meisterfechter", "stats": {"crit": 0.1, "crit_damage": 0.25}}
+			]},
+			{"name": "Duellant", "nodes": [
+				{"id": "ra_fleche", "type": "active", "name": "Flèche", "desc": "Blitzschneller Vorstoß, der Blutung verursacht.",
+					"skill": {"template": "dash", "distance": 8, "time": 0.3, "mult": 1.4, "kb": 3, "stag": 0.6, "effects": {"bleed": 4}, "cooldown": 12}},
+				{"id": "ra_p4", "type": "passive", "stats": {"bleed": 0.1}},
+				{"id": "ra_p5", "type": "passive", "stats": {"dodge_cost_pct": 0.2}},
+				{"id": "ra_lunge", "type": "active", "name": "Ausfallschritt", "desc": "5 s lang 30 % schneller laufen und 20 % schneller angreifen.",
+					"skill": {"template": "buff", "duration": 5, "buffs": {"move_speed_pct": 0.3, "attack_speed": 0.2}, "cooldown": 18}},
+				{"id": "ra_p6", "type": "passive", "stats": {"damage_pct": 0.1}},
+				{"id": "ra_u2", "type": "passive", "cost": 2, "name": "Tänzer", "stats": {"bleed": 0.15, "damage_pct": 0.1}}
+			]}
+		]
+	},
+
+	"daggers": {
+		"name": "Dolche", "class": "melee", "hands": 2, "allows_shield": false, "model": "dagger", "dual": true,
+		"rest": [15, 0, 0], "range": 1.9, "arc": 120, "block": 1.8, "move_speed": 1.08,
+		"light": [
+			{"style": "h_right", "mult": 0.55, "dur": 0.3, "hit": 0.12, "kb": 0.5, "stag": 0.15},
+			{"style": "h_left", "mult": 0.55, "dur": 0.3, "hit": 0.12, "kb": 0.5, "stag": 0.15},
+			{"style": "h_right", "mult": 0.55, "dur": 0.3, "hit": 0.12, "kb": 0.5, "stag": 0.15},
+			{"style": "thrust", "mult": 0.9, "dur": 0.45, "hit": 0.18, "kb": 2, "stag": 0.4}
+		],
+		"heavy": {"style": "thrust", "mult": 1.6, "dur": 0.6, "hit": 0.3, "kb": 3, "stag": 0.6, "lunge": 5},
+		"items": [
+			{"id": "copper_daggers", "name": "Kupferdolche", "tier": 1, "ingredients": {"copper_ingot": 4, "coarse_leather": 2}},
+			{"id": "iron_daggers", "name": "Eisendolche", "tier": 2, "ingredients": {"iron_ingot": 5, "coarse_leather": 2}}
+		],
+		"tree": [
+			{"name": "Assassine", "nodes": [
+				{"id": "dg_backstab", "type": "active", "name": "Meucheln", "desc": "Schneller Sprung mit tödlichem Stich. Gegner nehmen 4 s lang 20 % mehr Schaden.",
+					"skill": {"template": "strike", "style": "thrust", "dash": 3, "mult": 2.2, "range": 2.0, "arc": 60, "windup": 0.2, "duration": 0.5, "kb": 2, "stag": 0.5, "effects": {"expose": [0.2, 4]}, "cooldown": 9}},
+				{"id": "dg_p1", "type": "passive", "stats": {"crit": 0.08}},
+				{"id": "dg_p2", "type": "passive", "stats": {"crit_damage": 0.25}},
+				{"id": "dg_shadow", "type": "active", "name": "Schattenschritt", "desc": "Huscht unverwundbar nach vorn und macht 3 s lang 30 % mehr Schaden.",
+					"skill": {"template": "evade", "distance": 6, "time": 0.25, "iframes": 0.4, "duration": 3, "buffs": {"damage_pct": 0.3}, "cooldown": 12}},
+				{"id": "dg_p3", "type": "passive", "stats": {"attack_speed": 0.1}},
+				{"id": "dg_u", "type": "passive", "cost": 2, "name": "Todesstoß", "stats": {"crit": 0.1, "crit_damage": 0.3}}
+			]},
+			{"name": "Klingenwirbel", "nodes": [
+				{"id": "dg_whirl", "type": "active", "name": "Klingenwirbel", "desc": "Vier schnelle Drehungen mit Blutung.",
+					"skill": {"template": "strike", "spin": true, "hits": 4, "interval": 0.12, "mult": 0.5, "range": 2.4, "arc": 360, "windup": 0.1, "duration": 0.7, "kb": 1, "stag": 0.2, "effects": {"bleed": 4}, "cooldown": 10}},
+				{"id": "dg_p4", "type": "passive", "stats": {"bleed": 0.12}},
+				{"id": "dg_p5", "type": "passive", "stats": {"dodge_cost_pct": 0.25}},
+				{"id": "dg_poison", "type": "active", "name": "Giftklingen", "desc": "6 s lang verursacht jeder Treffer mit 50 % Chance Blutung.",
+					"skill": {"template": "buff", "duration": 6, "buffs": {"bleed": 0.5}, "cooldown": 18}},
+				{"id": "dg_p6", "type": "passive", "stats": {"move_speed_pct": 0.1}},
+				{"id": "dg_u2", "type": "passive", "cost": 2, "name": "Tausend Schnitte", "stats": {"bleed": 0.15, "attack_speed": 0.1}}
+			]}
+		]
+	},
+
+	"bow": {
+		"name": "Bogen", "class": "ranged", "hands": 2, "allows_shield": false, "model": "bow",
+		"rest": [0, 0, 0], "move_speed": 1.0,
+		"ranged": {"kind": "bow", "mult": 1.4, "draw_time": 0.9, "speed": 60, "gravity": 6, "reload": 0.25, "projectile": "arrow"},
+		"items": [
+			{"id": "pine_bow", "name": "Kiefernbogen", "tier": 1, "ingredients": {"timber": 5, "linen": 2, "coarse_leather": 1}},
+			{"id": "oak_bow", "name": "Eichenbogen", "tier": 2, "ingredients": {"lumber": 5, "fine_linen": 1, "coarse_leather": 1}}
+		],
+		"tree": [
+			{"name": "Scharfschütze", "nodes": [
+				{"id": "bw_aimed", "type": "active", "name": "Gezielter Schuss", "desc": "Durchschlagender Pfeil mit hohem Schaden.",
+					"skill": {"template": "shot", "mult": 2.5, "speed": 90, "gravity": 2, "pierce": true, "projectile": "arrow", "cooldown": 10}},
+				{"id": "bw_p1", "type": "passive", "stats": {"crit": 0.05}},
+				{"id": "bw_p2", "type": "passive", "stats": {"damage_pct": 0.1}},
+				{"id": "bw_rain", "type": "active", "name": "Pfeilhagel", "desc": "Lässt Pfeile auf das Ziel im Fadenkreuz regnen.",
+					"skill": {"template": "zone", "radius": 4, "mult": 0.45, "ticks": 6, "interval": 0.35, "cooldown": 16}},
+				{"id": "bw_p3", "type": "passive", "stats": {"reload_pct": 0.15}},
+				{"id": "bw_u", "type": "passive", "cost": 2, "name": "Adlerauge", "stats": {"crit": 0.1, "damage_pct": 0.1}}
+			]},
+			{"name": "Waldläufer", "nodes": [
+				{"id": "bw_fan", "type": "active", "name": "Fächerschuss", "desc": "Fünf Pfeile in einem Fächer.",
+					"skill": {"template": "shot", "count": 5, "spread": 25, "mult": 0.8, "speed": 60, "gravity": 6, "projectile": "arrow", "cooldown": 10}},
+				{"id": "bw_p4", "type": "passive", "stats": {"move_speed_pct": 0.1}},
+				{"id": "bw_p5", "type": "passive", "stats": {"dodge_cost_pct": 0.2}},
+				{"id": "bw_evade", "type": "active", "name": "Rückzug", "desc": "Springt zurück (unverwundbar) und macht 3 s lang 30 % mehr Schaden.",
+					"skill": {"template": "evade", "distance": 5, "time": 0.3, "iframes": 0.4, "back": true, "duration": 3, "buffs": {"damage_pct": 0.3}, "cooldown": 12}},
+				{"id": "bw_p6", "type": "passive", "stats": {"bleed": 0.1}},
+				{"id": "bw_u2", "type": "passive", "cost": 2, "name": "Jagdinstinkt", "stats": {"damage_pct": 0.15, "reload_pct": 0.15}}
+			]}
+		]
+	},
+
+	"musket": {
+		"name": "Flinte", "class": "ranged", "hands": 2, "allows_shield": false, "model": "musket",
+		"rest": [0, 0, 0], "move_speed": 0.95,
+		"ranged": {"kind": "musket", "mult": 2.6, "speed": 160, "gravity": 0, "reload": 1.8, "projectile": "bullet", "kb": 4, "stag": 0.8},
+		"items": [
+			{"id": "copper_musket", "name": "Kupferflinte", "tier": 1, "ingredients": {"copper_ingot": 5, "timber": 3, "flint": 2}},
+			{"id": "iron_musket", "name": "Eisenflinte", "tier": 2, "ingredients": {"iron_ingot": 6, "lumber": 3, "flint": 3}}
+		],
+		"tree": [
+			{"name": "Schütze", "nodes": [
+				{"id": "mu_power", "type": "active", "name": "Kraftschuss", "desc": "Durchschlagender Schuss, der Gegner zurückwirft.",
+					"skill": {"template": "shot", "mult": 3.5, "speed": 200, "pierce": true, "projectile": "bullet", "kb": 8, "stag": 1.2, "cooldown": 12}},
+				{"id": "mu_p1", "type": "passive", "stats": {"damage_pct": 0.1}},
+				{"id": "mu_p2", "type": "passive", "stats": {"crit": 0.05}},
+				{"id": "mu_explosive", "type": "active", "name": "Explosivgeschoss", "desc": "Geschoss explodiert beim Aufprall.",
+					"skill": {"template": "shot", "mult": 1.5, "speed": 120, "explode": 3.5, "projectile": "bullet", "kb": 5, "stag": 1.0, "cooldown": 14}},
+				{"id": "mu_p3", "type": "passive", "stats": {"reload_pct": 0.15}},
+				{"id": "mu_u", "type": "passive", "cost": 2, "name": "Meisterschütze", "stats": {"crit": 0.1, "crit_damage": 0.3}}
+			]},
+			{"name": "Fallensteller", "nodes": [
+				{"id": "mu_scatter", "type": "active", "name": "Splitterschuss", "desc": "Sechs Splitter auf kurze Distanz.",
+					"skill": {"template": "shot", "count": 6, "spread": 20, "mult": 0.55, "speed": 120, "projectile": "bullet", "cooldown": 10}},
+				{"id": "mu_p4", "type": "passive", "stats": {"damage_reduction": 0.05}},
+				{"id": "mu_p5", "type": "passive", "stats": {"health": 20}},
+				{"id": "mu_smoke", "type": "active", "name": "Rauchbombe", "desc": "Springt zurück und ist kurz unverwundbar.",
+					"skill": {"template": "evade", "distance": 6, "time": 0.3, "iframes": 0.6, "back": true, "duration": 0, "buffs": {}, "cooldown": 14}},
+				{"id": "mu_p6", "type": "passive", "stats": {"move_speed_pct": 0.1}},
+				{"id": "mu_u2", "type": "passive", "cost": 2, "name": "Schnellladen", "stats": {"reload_pct": 0.2, "damage_pct": 0.1}}
+			]}
+		]
+	},
+
+	"crossbow": {
+		"name": "Armbrust", "class": "ranged", "hands": 2, "allows_shield": false, "model": "crossbow",
+		"rest": [0, 0, 0], "move_speed": 1.0,
+		"ranged": {"kind": "crossbow", "mult": 1.6, "speed": 90, "gravity": 2, "reload": 1.0, "projectile": "bolt", "kb": 2, "stag": 0.4},
+		"items": [
+			{"id": "pine_crossbow", "name": "Kiefernarmbrust", "tier": 1, "ingredients": {"copper_ingot": 2, "timber": 4, "linen": 2}},
+			{"id": "oak_crossbow", "name": "Eichenarmbrust", "tier": 2, "ingredients": {"iron_ingot": 3, "lumber": 4, "fine_linen": 1}}
+		],
+		"tree": [
+			{"name": "Bolzenmeister", "nodes": [
+				{"id": "cb_pierce", "type": "active", "name": "Durchschlagbolzen", "desc": "Bolzen, der durch mehrere Gegner fliegt.",
+					"skill": {"template": "shot", "mult": 2.2, "speed": 110, "gravity": 1, "pierce": true, "projectile": "bolt", "cooldown": 9}},
+				{"id": "cb_p1", "type": "passive", "stats": {"damage_pct": 0.1}},
+				{"id": "cb_p2", "type": "passive", "stats": {"reload_pct": 0.15}},
+				{"id": "cb_barrage", "type": "active", "name": "Sperrfeuer", "desc": "Drei Bolzen auf einmal.",
+					"skill": {"template": "shot", "count": 3, "spread": 6, "mult": 1.0, "speed": 90, "gravity": 2, "projectile": "bolt", "cooldown": 11}},
+				{"id": "cb_p3", "type": "passive", "stats": {"crit": 0.05}},
+				{"id": "cb_u", "type": "passive", "cost": 2, "name": "Belagerer", "stats": {"damage_pct": 0.15, "reload_pct": 0.15}}
+			]},
+			{"name": "Jäger", "nodes": [
+				{"id": "cb_rain", "type": "active", "name": "Bolzenregen", "desc": "Lässt Bolzen auf das Ziel im Fadenkreuz regnen.",
+					"skill": {"template": "zone", "radius": 3.5, "mult": 0.5, "ticks": 5, "interval": 0.4, "cooldown": 15}},
+				{"id": "cb_p4", "type": "passive", "stats": {"move_speed_pct": 0.1}},
+				{"id": "cb_p5", "type": "passive", "stats": {"bleed": 0.1}},
+				{"id": "cb_snare", "type": "active", "name": "Fangbolzen", "desc": "Verlangsamt das Ziel 4 s lang um 60 %.",
+					"skill": {"template": "shot", "mult": 1.0, "speed": 90, "gravity": 2, "projectile": "bolt", "effects": {"slow": [0.6, 4]}, "cooldown": 10}},
+				{"id": "cb_p6", "type": "passive", "stats": {"dodge_cost_pct": 0.2}},
+				{"id": "cb_u2", "type": "passive", "cost": 2, "name": "Fährtenleser", "stats": {"bleed": 0.15, "crit": 0.05}}
+			]}
+		]
+	}
+}

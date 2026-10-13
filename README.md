@@ -1,7 +1,20 @@
-# RPG – Assets & Weltgenerator
+# RPG – Spiel, Assets & Weltgenerator
 
-Godot-4-Projektbausteine für ein RPG im Stil von New World: abbaubare Ressourcen (6 Tiers) und ein Editor für eine Insel-Spielwelt (2–8 km).
-Alles ist mit Godot 4.4.1 (Forward+) getestet. Die Modelle und Texturen sind per Skript erzeugt – die Skripte liegen jeweils bei.
+Einzelspieler-RPG im Stil von New World in Godot 4 – mit abbaubaren Ressourcen (6 Tiers) und einem Editor für eine Insel-Spielwelt (2–8 km).
+Die Modelle und Texturen sind per Skript erzeugt – die Skripte liegen jeweils bei.
+
+## Das Spiel (`godot/`)
+
+`godot/` ist ein komplettes Godot-Projekt (getestet mit Godot 4.7.2). Starten: `godot/project.godot` im Godot-Editor öffnen und F5 drücken.
+
+- Third-Person-Kampf mit 12 Waffentypen (Nah- und Fernkampf), Skillbäumen und Waffenmeisterschaft
+- 5 Sammelberufe, 11 Werkstätten, Ausrüstung mit Zufallswerten und Zusatzmaterialien
+- Inventar, Tränke & Essen, Speichern mit Autosave
+- Spielkonzept: [godot/KONZEPT.md](godot/KONZEPT.md)
+
+Die Grafik im Spiel besteht noch aus Platzhaltern – die Assets unten werden als Nächstes eingebunden.
+
+## Assets & Weltgenerator
 
 ## Inhalt
 ```

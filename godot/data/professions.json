@@ -1,0 +1,20 @@
+{
+	"woodcutting": {"name": "Holzfällen", "type": "gathering", "tool": "axe", "tool_name": "Axt"},
+	"mining": {"name": "Bergbau", "type": "gathering", "tool": "pickaxe", "tool_name": "Spitzhacke"},
+	"harvesting": {"name": "Sammeln", "type": "gathering", "tool": "sickle", "tool_name": "Sichel"},
+	"skinning": {"name": "Häuten", "type": "gathering", "tool": "knife", "tool_name": "Häutemesser"},
+	"fishing": {"name": "Fischen", "type": "gathering", "tool": "rod", "tool_name": "Angel"},
+
+	"smelting": {"name": "Schmelzen", "type": "refining"},
+	"woodworking": {"name": "Tischlern", "type": "refining"},
+	"leatherworking": {"name": "Gerben", "type": "refining"},
+	"weaving": {"name": "Weben", "type": "refining"},
+	"stonecutting": {"name": "Steinmetz", "type": "refining"},
+
+	"weaponsmithing": {"name": "Waffenschmied", "type": "crafting"},
+	"armoring": {"name": "Rüstungsschmied", "type": "crafting"},
+	"engineering": {"name": "Ingenieur", "type": "crafting"},
+	"jewelcrafting": {"name": "Juwelier", "type": "crafting"},
+	"arcana": {"name": "Arkana", "type": "crafting"},
+	"cooking": {"name": "Kochen", "type": "crafting"}
+}

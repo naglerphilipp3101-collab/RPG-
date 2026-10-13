@@ -1,0 +1,14 @@
+{
+	"smelter": {"name": "Schmelze", "profession": "smelting", "visual": "furnace"},
+	"woodshop": {"name": "Tischlerei", "profession": "woodworking", "visual": "saw"},
+	"tannery": {"name": "Gerberei", "profession": "leatherworking", "visual": "rack"},
+	"loom": {"name": "Weberei", "profession": "weaving", "visual": "loom"},
+	"stonecutter": {"name": "Steinmetz", "profession": "stonecutting", "visual": "stone"},
+	"weaponsmith": {"name": "Waffenschmiede", "profession": "weaponsmithing", "visual": "anvil"},
+	"armorer": {"name": "Rüstungsschmiede", "profession": "armoring", "visual": "armor"},
+	"engineer": {"name": "Ingenieurswerkstatt", "profession": "engineering", "visual": "gears"},
+	"jeweler": {"name": "Juwelier", "profession": "jewelcrafting", "visual": "gem"},
+	"arcana": {"name": "Arkana-Labor", "profession": "arcana", "visual": "cauldron"},
+	"kitchen": {"name": "Küche", "profession": "cooking", "visual": "kitchen"},
+	"armory": {"name": "Übungswaffenständer", "profession": "weaponsmithing", "visual": "weapon_rack"}
+}
