@@ -13,6 +13,7 @@ const QuelleScript := preload("res://scripts/natur_quelle.gd")
 const BaumSzene := preload("res://assets/baeume/baum.tscn")
 const BuschSzene := preload("res://assets/baeume/aeste_busch.tscn")
 const PflanzeSzene := preload("res://assets/sammeln/sammelpflanze.tscn")
+const SteinSzene := preload("res://assets/erz/felsbrocken.tscn")
 const FernShader := preload("res://scripts/natur_fern.gdshader")
 
 const KACHEL := 64.0
@@ -25,7 +26,7 @@ const START_FREI := 170.0        # Radius um das Startgebiet (hat eigene Rohstof
 
 # Biome des Weltgenerators
 enum { STRAND, WIESE, LAUBWALD, NADELWALD, SUMPF, STEPPE, FELS, SCHNEE }
-enum { BAUM, BUSCH, PFLANZE }
+enum { BAUM, BUSCH, PFLANZE, STEIN }
 ## Baum-Arten wie in assets/baeume/baum.gd: 0 Fichte, 1 Kiefer, 2 Eiche · Größe (Breite, Höhe) je Alter [jung, alt]
 const BAUM_GROESSE := [[Vector2(2.7, 5.8), Vector2(5.0, 12.9)], [Vector2(2.9, 5.2), Vector2(6.8, 11.8)], [Vector2(2.9, 5.0), Vector2(7.5, 10.7)]]
 const BAUM_ID := ["fichte", "kiefer", "eiche"]
@@ -172,7 +173,7 @@ func _boden(x: float, z: float, max_steigung: float) -> float:
 # --- Kacheln erzeugen -------------------------------------------------------
 
 ## Einträge einer 64-m-Kachel: [Art (BAUM/BUSCH/PFLANZE), x, y, z, a, b, Drehung]
-## Bäume: a = Baumart, b = Alter · Pflanzen: a = Art (Hanf/Beeren/Kraut), b = Farbe
+## Bäume: a = Baumart, b = Alter · Pflanzen: a = Art (Hanf/Beeren/Kraut), b = Farbe · Steine: a = Größe 1–5
 func _kachel(k: Vector2i) -> Array:
 	if _daten.has(k):
 		return _daten[k]
@@ -269,6 +270,40 @@ func _kachel(k: Vector2i) -> Array:
 				var h := _boden(x, z, 0.5)
 				if not is_nan(h):
 					out.append([PFLANZE, x, h, z, 2, [4, 3, 5, 0][r_farbe], 0.0]) # Kräuter: weiß/gelb/lila/rot
+	# Felsbrocken (Stein, Feuerstein): 16-m-Raster, vor allem auf Fels und an Hängen, sonst vereinzelt
+	for gz in n:
+		for gx in n:
+			var x := x0 + (gx + 0.1 + 0.8 * rng.randf()) * s
+			var z := z0 + (gz + 0.1 + 0.8 * rng.randf()) * s
+			var r := rng.randf()
+			var r_groesse := rng.randf()
+			var b := _biom(x, z)
+			var chance := 0.0
+			match b:
+				FELS:
+					chance = 0.3
+				SCHNEE:
+					chance = 0.06
+				STEPPE:
+					chance = 0.07
+				WIESE, LAUBWALD, NADELWALD:
+					chance = 0.025
+				STRAND, SUMPF:
+					chance = 0.012
+			if r > chance * 2.0 or _gesperrt(x, z):
+				continue
+			var h := _hoehe(x, z)
+			if h < 0.6:
+				continue
+			var st := maxf(absf(_hoehe(x + 2.0, z) - h), absf(_hoehe(x, z + 2.0) - h)) / 2.0
+			# an Hängen doppelt so viele Brocken, an Steilwänden keine
+			if st > 1.2 or r > chance * (1.0 + minf(st / 0.4, 1.0)):
+				continue
+			# meist mittelgroß, große vor allem auf Fels, ganz kleine selten
+			var groesse := 2 + int(r_groesse * r_groesse * (4.0 if b == FELS else 2.5))
+			if r_groesse < 0.08:
+				groesse = 1
+			out.append([STEIN, x, h, z, mini(groesse, 5), 0, 0.0])
 	_daten[k] = out
 	return out
 
@@ -354,6 +389,11 @@ func _nah_erzeugen(e: Array) -> Node3D:
 		BUSCH:
 			modell = BuschSzene.instantiate()
 			q.setup("aeste_busch", modell, 1.5)
+		STEIN:
+			modell = SteinSzene.instantiate()
+			var g := int(e[4])
+			modell.set("groesse", g)
+			q.setup(["felsbrocken_klein", "felsbrocken_klein", "felsbrocken", "felsbrocken_gross", "felsbrocken_gross"][g - 1], modell, 1.3 + 0.55 * g)
 		_:
 			modell = PflanzeSzene.instantiate()
 			modell.set("art", int(e[4]))

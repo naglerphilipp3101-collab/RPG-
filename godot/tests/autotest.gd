@@ -267,10 +267,11 @@ func _natur_test() -> void:
 	var natur = get_tree().current_scene.natur
 	var start := Vector2(player.global_position.x, player.global_position.z)
 	var ort := Vector2.INF
-	for r in range(260, 2000, 20):
+	var biome: Array = [natur.FELS] if OS.get_cmdline_user_args().has("--fels") else [natur.LAUBWALD, natur.NADELWALD]
+	for r in range(260, 4000, 20):
 		for i in 24:
 			var p := start + Vector2.from_angle(TAU * i / 24.0) * r
-			if natur._biom(p.x, p.y) in [natur.LAUBWALD, natur.NADELWALD] and not natur._gesperrt(p.x, p.y):
+			if natur._biom(p.x, p.y) in biome and not natur._gesperrt(p.x, p.y):
 				ort = p
 				break
 		if ort != Vector2.INF:
@@ -290,7 +291,7 @@ func _natur_test() -> void:
 	print("AUTOTEST Natur: Ort %s (Höhe %.0f m), %d Objekte im Nahbereich in %d ms, Fernkachel in %d ms" % [ort.round(), h, natur._nah.size(), t_nah, t_fern])
 	print("AUTOTEST Natur Arten: ", zahl)
 	# nächsten Baum und nächste Pflanze ernten
-	for gruppe in [["fichte", "kiefer", "eiche"], ["hanf", "beeren", "kraut"]]:
+	for gruppe in [["fichte", "kiefer", "eiche"], ["hanf", "beeren", "kraut"], ["felsbrocken"]]:
 		var best = null
 		var best_d := INF
 		for n in natur._nah.values():
@@ -305,6 +306,28 @@ func _natur_test() -> void:
 	print("AUTOTEST Natur Inventar: ", player.inventory.items)
 	player.cam_yaw = 0.3
 	player.cam_pitch = -0.12
+	if OS.get_cmdline_user_args().has("--fels"):
+		# vor den nächsten noch stehenden Felsbrocken stellen und hinsehen
+		var stein = null
+		for n in natur._nah.values():
+			if String(n.node_id).begins_with("felsbrocken") and n.is_interactable() \
+					and (stein == null or n.global_position.distance_to(player.global_position) < stein.global_position.distance_to(player.global_position)):
+				stein = n
+		if stein:
+			# Richtung mit dem geringsten Höhenunterschied (sonst drückt der Hang die Kamera weg)
+			var best_dir := Vector3.FORWARD
+			var best_dh := INF
+			for i in 12:
+				var d := Vector3(cos(TAU * i / 12.0), 0, sin(TAU * i / 12.0))
+				var q: Vector3 = stein.global_position + d * 6.0
+				var dh := absf(natur._hoehe(q.x, q.z) - stein.global_position.y)
+				if dh < best_dh:
+					best_dh = dh
+					best_dir = d
+			var p: Vector3 = stein.global_position + best_dir * 6.0
+			player.global_position = Vector3(p.x, natur._hoehe(p.x, p.z) + 1.0, p.z)
+			player.cam_yaw = atan2(best_dir.x, best_dir.z)
+			player.cam_pitch = -0.35
 	phase = "natur"
 
 

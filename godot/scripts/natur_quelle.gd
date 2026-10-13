@@ -1,5 +1,5 @@
 extends Node3D
-## Verbindet ein Blender-Modell aus assets/ (Baum, AesteBusch, Sammelpflanze) mit dem Sammelsystem des Spielers.
+## Verbindet ein Blender-Modell aus assets/ (Baum, AesteBusch, Sammelpflanze, Felsbrocken) mit dem Sammelsystem des Spielers.
 ## Werte (Name, Beruf, Lebenspunkte, Beute, Nachwachszeit) kommen aus data/gathering.json.
 ## Das Modell kümmert sich um Aussehen, Stumpf/abgeerntet und das Nachwachsen.
 
@@ -28,10 +28,11 @@ func _ready() -> void:
 
 
 func is_interactable() -> bool:
-	var weg = modell.get("ist_gefaellt")
-	if weg == null:
-		weg = modell.get("ist_geerntet")
-	return not bool(weg)
+	for zustand in ["ist_gefaellt", "ist_geerntet", "ist_abgebaut"]:
+		var weg = modell.get(zustand)
+		if weg != null:
+			return not bool(weg)
+	return true
 
 
 func is_fishing() -> bool:
@@ -65,7 +66,7 @@ func harvest(player) -> void:
 		drops[first] = int(drops[first]) + 1
 	player.receive_items(drops)
 	player.add_profession_xp(profession, int(data.get("xp", 10)))
-	for methode in ["faellen", "ernten", "sammeln"]:
+	for methode in ["faellen", "ernten", "sammeln", "abbauen"]:
 		if modell.has_method(methode):
 			modell.call(methode)
 			break
