@@ -11,7 +11,8 @@ uniform vec3 schaum_farbe : source_color = vec3(0.9, 0.95, 0.97);
 uniform float schaum_breite = 0.3;    // Meter Wassertiefe, in denen Schaum entsteht
 uniform float wellen_skala = 0.045;   // Wiederholungen je Meter
 uniform float wellen_staerke = 0.55;
-uniform vec2 stroemung = vec2(0.0);   // zusätzliche Fließrichtung (Flüsse), Meter je Sekunde
+uniform vec2 stroemung = vec2(0.0);   // zusätzliche Fließrichtung (Meer/See), Meter je Sekunde
+uniform float fliessen = 0.0;         // Flüsse: Tempo entlang UV.y (UV in Metern: x quer, y flussabwärts)
 uniform sampler2D wellen1 : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D wellen2 : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D schaum_muster : filter_linear_mipmap, repeat_enable;
@@ -24,7 +25,7 @@ void vertex() {
 }
 
 void fragment() {
-	vec2 p = welt_pos.xz - stroemung * TIME;
+	vec2 p = fliessen > 0.0 ? vec2(UV.x, UV.y - TIME * fliessen) : welt_pos.xz - stroemung * TIME;
 	vec3 n1 = texture(wellen1, p * wellen_skala + TIME * vec2(0.013, 0.008)).rgb;
 	vec3 n2 = texture(wellen2, p * wellen_skala * 1.9 + TIME * vec2(-0.011, 0.015)).rgb;
 	NORMAL_MAP = normalize(n1 + n2 - 1.0);

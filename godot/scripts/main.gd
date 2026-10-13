@@ -202,6 +202,7 @@ func _build_island() -> void:
 	seabed.position.y = float(meta["hoehe"]["min"]) + 0.3
 	welt._marker_importieren()
 	welt._seen_importieren(Wasser.material("see"))
+	welt._fluesse_importieren(Wasser.material("fluss"))
 	welt._wege_importieren() # Wegverläufe und Brücken (das Gelände unter den Wegen ist schon eingeebnet)
 	welt._hoehe_bild = null # Höhendaten wurden nur für die Brückenpfeiler gebraucht
 

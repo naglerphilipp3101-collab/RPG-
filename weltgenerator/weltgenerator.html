@@ -387,6 +387,47 @@ function fluesse(H, N) {
   return A;
 }
 
+// Flussnetz als Linienzüge für den Export: von jeder Quelle (Zelle über der Schwelle ohne Zufluss über der Schwelle)
+// flussabwärts bis ins Meer, in einen See (seeMaske) oder bis zur Mündung in einen schon verfolgten Fluss.
+// Ergebnis: [{ punkte: [[x, y, A], …] (Zellen, A = Einzugsgebiet in Zellen) }]
+function flussNetz(H, N, schwelle, seeMaske) {
+  const n = N * N;
+  // Abflussrichtung wie in fluesse(): Priority-Flood über gefüllte Höhen
+  const F = new Float32Array(H), fertig = new Uint8Array(n), ziel = new Int32Array(n).fill(-1), reihenfolge = new Int32Array(n);
+  const heap = new Int32Array(n); let hs = 0, rk = 0;
+  const push = (i) => { let k = hs++; heap[k] = i; while (k > 0) { const p = (k - 1) >> 1; if (F[heap[p]] <= F[heap[k]]) break; const t = heap[p]; heap[p] = heap[k]; heap[k] = t; k = p; } };
+  const pop = () => { const top = heap[0]; heap[0] = heap[--hs]; let k = 0;
+    for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < hs && F[heap[l]] < F[heap[m]]) m = l; if (r < hs && F[heap[r]] < F[heap[m]]) m = r; if (m === k) break; const t = heap[m]; heap[m] = heap[k]; heap[k] = t; k = m; }
+    return top; };
+  for (let i = 0; i < N; i++) for (const c of [i, (N - 1) * N + i, i * N, i * N + N - 1]) if (!fertig[c]) { fertig[c] = 1; push(c); }
+  const nb = [1, -1, N, -N, N + 1, N - 1, -N + 1, -N - 1];
+  while (hs > 0) {
+    const c = pop(); reihenfolge[rk++] = c; const cx = c % N;
+    for (const o of nb) { const q = c + o; if (q < 0 || q >= n || fertig[q] || Math.abs((q % N) - cx) > 1) continue;
+      fertig[q] = 1; if (F[q] <= F[c]) F[q] = F[c] + 1e-3; ziel[q] = c; push(q); }
+  }
+  const A = new Float32Array(n);
+  for (let k = n - 1; k >= 0; k--) { const c = reihenfolge[k]; if (H[c] > 0) A[c] += 1; if (ziel[c] >= 0) A[ziel[c]] += A[c]; }
+  // Quellen: Fluss-Zellen, in die kein anderer Fluss mündet
+  const zufluss = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (A[i] > schwelle && ziel[i] >= 0) zufluss[ziel[i]] = 1;
+  const besucht = new Uint8Array(n), netz = [];
+  const quellen = [];
+  for (let i = 0; i < n; i++) if (A[i] > schwelle && !zufluss[i] && H[i] > 0) quellen.push(i);
+  quellen.sort((a, b) => H[b] - H[a]);
+  for (const q of quellen) {
+    const punkte = []; let c = q;
+    while (c >= 0) {
+      punkte.push([c % N, (c / N) | 0, A[c]]);
+      if (H[c] <= 0 || (seeMaske && seeMaske[c])) break;   // Meer oder See erreicht
+      if (besucht[c] && punkte.length > 1) break;           // Mündung in einen schon verfolgten Fluss
+      besucht[c] = 1; c = ziel[c];
+    }
+    if (punkte.length > 2) netz.push({ punkte });
+  }
+  return netz;
+}
+
 // Flussbetten einschneiden: Tiefe wächst mit Einzugsgebiet
 function flussbetten(H, N, A, schwelle) {
   const tief = new Float32Array(H.length);
@@ -1290,6 +1331,47 @@ function fluesse(H, N) {
     if (ziel[c] >= 0) A[ziel[c]] += A[c];
   }
   return A;
+}
+
+// Flussnetz als Linienzüge für den Export: von jeder Quelle (Zelle über der Schwelle ohne Zufluss über der Schwelle)
+// flussabwärts bis ins Meer, in einen See (seeMaske) oder bis zur Mündung in einen schon verfolgten Fluss.
+// Ergebnis: [{ punkte: [[x, y, A], …] (Zellen, A = Einzugsgebiet in Zellen) }]
+function flussNetz(H, N, schwelle, seeMaske) {
+  const n = N * N;
+  // Abflussrichtung wie in fluesse(): Priority-Flood über gefüllte Höhen
+  const F = new Float32Array(H), fertig = new Uint8Array(n), ziel = new Int32Array(n).fill(-1), reihenfolge = new Int32Array(n);
+  const heap = new Int32Array(n); let hs = 0, rk = 0;
+  const push = (i) => { let k = hs++; heap[k] = i; while (k > 0) { const p = (k - 1) >> 1; if (F[heap[p]] <= F[heap[k]]) break; const t = heap[p]; heap[p] = heap[k]; heap[k] = t; k = p; } };
+  const pop = () => { const top = heap[0]; heap[0] = heap[--hs]; let k = 0;
+    for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < hs && F[heap[l]] < F[heap[m]]) m = l; if (r < hs && F[heap[r]] < F[heap[m]]) m = r; if (m === k) break; const t = heap[m]; heap[m] = heap[k]; heap[k] = t; k = m; }
+    return top; };
+  for (let i = 0; i < N; i++) for (const c of [i, (N - 1) * N + i, i * N, i * N + N - 1]) if (!fertig[c]) { fertig[c] = 1; push(c); }
+  const nb = [1, -1, N, -N, N + 1, N - 1, -N + 1, -N - 1];
+  while (hs > 0) {
+    const c = pop(); reihenfolge[rk++] = c; const cx = c % N;
+    for (const o of nb) { const q = c + o; if (q < 0 || q >= n || fertig[q] || Math.abs((q % N) - cx) > 1) continue;
+      fertig[q] = 1; if (F[q] <= F[c]) F[q] = F[c] + 1e-3; ziel[q] = c; push(q); }
+  }
+  const A = new Float32Array(n);
+  for (let k = n - 1; k >= 0; k--) { const c = reihenfolge[k]; if (H[c] > 0) A[c] += 1; if (ziel[c] >= 0) A[ziel[c]] += A[c]; }
+  // Quellen: Fluss-Zellen, in die kein anderer Fluss mündet
+  const zufluss = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (A[i] > schwelle && ziel[i] >= 0) zufluss[ziel[i]] = 1;
+  const besucht = new Uint8Array(n), netz = [];
+  const quellen = [];
+  for (let i = 0; i < n; i++) if (A[i] > schwelle && !zufluss[i] && H[i] > 0) quellen.push(i);
+  quellen.sort((a, b) => H[b] - H[a]);
+  for (const q of quellen) {
+    const punkte = []; let c = q;
+    while (c >= 0) {
+      punkte.push([c % N, (c / N) | 0, A[c]]);
+      if (H[c] <= 0 || (seeMaske && seeMaske[c])) break;   // Meer oder See erreicht
+      if (besucht[c] && punkte.length > 1) break;           // Mündung in einen schon verfolgten Fluss
+      besucht[c] = 1; c = ziel[c];
+    }
+    if (punkte.length > 2) netz.push({ punkte });
+  }
+  return netz;
 }
 
 // Flussbetten einschneiden: Tiefe wächst mit Einzugsgebiet
@@ -3566,6 +3648,7 @@ async function generieren() {
   const r = await auftrag({ auftrag: "generieren", p: params(), ...analyseArgs() });
   if (zustand.version > 0 && !neu) undoPunkt();
   seenZuruecksetzen();
+  flussZustand.liste = null;
   zustand.H = r.H; zustand.A = r.A; zustand.B = r.B; zustand.version++;
   $("p-weltgroesse").dispatchEvent(new Event("input"));
   zeichneAlles(); status("Fertig"); beschaeftigt(false);
@@ -3579,12 +3662,37 @@ async function erosionAnwenden(saat) {
   zustand.H = r.H; zustand.A = r.A; zustand.B = r.B; zustand.version++;
   zeichneAlles(); status("Erosion angewendet"); beschaeftigt(false);
 }
+// Flussverläufe für den Export (Wasserflächen in Godot): vor dem Einschneiden berechnet. Wasserspiegel auf halber
+// Bett-Tiefe (wie flussbetten() einschneidet: 1–4 m je nach Einzugsgebiet), flussabwärts nie steigend.
+// Punkte [x, y, Wasserspiegel, Einzugsgebiet] in Zellen.
+const flussZustand = { liste: null };
+function flussverlaeufeBerechnen() {
+  const netz = flussNetz(zustand.H, N, FLUSS_SCHWELLE, regionenZustand.SEE);
+  flussZustand.liste = netz.map((f) => {
+    let spiegel = Infinity;
+    return { punkte: f.punkte.map(([x, y, a]) => {
+      const tief = Math.min(4, 0.8 * Math.log2(Math.max(1, a / FLUSS_SCHWELLE)) + 1);
+      spiegel = Math.min(spiegel, zustand.H[y * N + x] - tief * 0.5);
+      return [x, y, spiegel, a];
+    }) };
+  });
+  return flussZustand.liste.length;
+}
+function fluesseExport() {
+  const h = WELT / 2;
+  return flussZustand.liste.map((f) => ({
+    punkte: f.punkte.map(([x, y, s, a]) => [+(x * ZELLE - h + ZELLE / 2).toFixed(1), +s.toFixed(2), +(y * ZELLE - h + ZELLE / 2).toFixed(1),
+      +Math.min(24, 10 + 3 * Math.log2(Math.max(1, a / FLUSS_SCHWELLE))).toFixed(1)]),
+  }));
+}
+
 async function flussbettenEinschneiden() {
   beschaeftigt(true); undoPunkt();
+  const anzahl = flussverlaeufeBerechnen();
   const H = zustand.H.slice();
   const r = await auftrag({ auftrag: "flussbetten", H, ...analyseArgs() }, [H.buffer]);
   zustand.H = r.H; zustand.A = r.A; zustand.B = r.B; zustand.version++;
-  zeichneAlles(); status("Flussbetten eingeschnitten"); beschaeftigt(false);
+  zeichneAlles(); status(`Flussbetten eingeschnitten (${anzahl} Flussläufe für den Export)`); beschaeftigt(false);
 }
 
 function herunterladen(blob, name) {
@@ -3611,6 +3719,7 @@ async function projektSpeichern() {
     ...(markerZustand.ressourcen ? [{ name: "ressourcen.json", daten: textBytes(JSON.stringify(markerZustand.ressourcen)) }] : []),
     ...(wegeZustand.liste ? [{ name: "wege.json", daten: textBytes(JSON.stringify(wegeExport())) }] : []),
     ...(wegeZustand.liste ? [{ name: "wege.json", daten: textBytes(JSON.stringify(wegeZustand.liste)) }] : []),
+    ...(flussZustand.liste ? [{ name: "fluesse.json", daten: textBytes(JSON.stringify(flussZustand.liste)) }] : []),
   ]), `welt_projekt_${meta.params.seed}.zip`);
   status("Projekt gespeichert");
 }
@@ -3632,6 +3741,7 @@ async function projektLaden(datei) {
     markerZustand.liste = lies("marker.json") || []; markerZustand.auswahl = -1;
     markerZustand.ressourcen = lies("ressourcen.json"); markerZustand.ressourcenAlt = false;
     wegeZustand.liste = lies("wege.json"); wegeZustand.alt = false;
+    flussZustand.liste = lies("fluesse.json");
     regionenLaden(z["regionen.u8"], meta.regionen);
     seenLaden(z["seen.u8"], meta.seen);
     markerPanel(); ressourcenInfo(); wegeInfo();
@@ -3667,6 +3777,7 @@ async function exportieren() {
     meeresspiegel: 0, params: params(), biom_params: biomParams(),
     regionen: regionenExportMeta(),
     seen: seenExportMeta(),
+    fluesse: flussZustand.liste ? { datei: "fluesse.json", format: "Liste {punkte [[x, Wasserspiegel, z, Breite]]} in Metern, von der Quelle flussabwärts" } : null,
   };
   herunterladen(zipErstellen([
     { name: "welt.json", daten: textBytes(JSON.stringify(meta, null, 2)) },
@@ -3679,6 +3790,7 @@ async function exportieren() {
     { name: "marker.json", daten: textBytes(JSON.stringify(markerExport(), null, 1)) },
     ...(markerZustand.ressourcen ? [{ name: "ressourcen.json", daten: textBytes(JSON.stringify(markerZustand.ressourcen)) }] : []),
     ...(wegeZustand.liste ? [{ name: "wege.json", daten: textBytes(JSON.stringify(wegeExport())) }] : []),
+    ...(flussZustand.liste ? [{ name: "fluesse.json", daten: textBytes(JSON.stringify(fluesseExport())) }] : []),
     { name: "uebersicht.png", daten: await canvasPng(basis) },
   ]), "welt_export.zip");
   status(`Export fertig: ${M} × ${M}, Höhen ${mn.toFixed(1)} … ${mx.toFixed(1)} m`);
@@ -3778,7 +3890,7 @@ function waehle(id) {
 
 // für automatische Tests
 window.WELT_API = { weltgroesseSetzen, wegeZustand, wegeGenerierenStarten, markerZustand, markerNeu, vorschlaegeMachen, ressourcenVerteilenStarten, zustand, effektiveBiome, generieren, erosionAnwenden, flussbettenEinschneiden, exportieren, projektSpeichern, pinsel, waehle, tab, ansicht, N, params,
-  regionenZustand, nebeninselFormen, zentralbergFormen, seeFormen, regionenBerechnen, siedlungenVorschlagen, variantenErzeugen, varianteLaden, varianten,
+  flussZustand, flussverlaeufeBerechnen, regionenZustand, nebeninselFormen, zentralbergFormen, seeFormen, regionenBerechnen, siedlungenVorschlagen, variantenErzeugen, varianteLaden, varianten,
   strichTest(werkzeug, punkte, dt = 0.05) { waehle(werkzeug); undoPunkt(); strich = { ziel: zustand.H[Math.round(punkte[0][1]) * N + Math.round(punkte[0][0])] };
     for (const [x, y] of punkte) pinsel(x, y, dt); strich = null; nachAenderung(true); } };
 aufbauen();

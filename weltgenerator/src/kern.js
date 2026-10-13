@@ -222,6 +222,47 @@ function fluesse(H, N) {
   return A;
 }
 
+// Flussnetz als Linienzüge für den Export: von jeder Quelle (Zelle über der Schwelle ohne Zufluss über der Schwelle)
+// flussabwärts bis ins Meer, in einen See (seeMaske) oder bis zur Mündung in einen schon verfolgten Fluss.
+// Ergebnis: [{ punkte: [[x, y, A], …] (Zellen, A = Einzugsgebiet in Zellen) }]
+function flussNetz(H, N, schwelle, seeMaske) {
+  const n = N * N;
+  // Abflussrichtung wie in fluesse(): Priority-Flood über gefüllte Höhen
+  const F = new Float32Array(H), fertig = new Uint8Array(n), ziel = new Int32Array(n).fill(-1), reihenfolge = new Int32Array(n);
+  const heap = new Int32Array(n); let hs = 0, rk = 0;
+  const push = (i) => { let k = hs++; heap[k] = i; while (k > 0) { const p = (k - 1) >> 1; if (F[heap[p]] <= F[heap[k]]) break; const t = heap[p]; heap[p] = heap[k]; heap[k] = t; k = p; } };
+  const pop = () => { const top = heap[0]; heap[0] = heap[--hs]; let k = 0;
+    for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < hs && F[heap[l]] < F[heap[m]]) m = l; if (r < hs && F[heap[r]] < F[heap[m]]) m = r; if (m === k) break; const t = heap[m]; heap[m] = heap[k]; heap[k] = t; k = m; }
+    return top; };
+  for (let i = 0; i < N; i++) for (const c of [i, (N - 1) * N + i, i * N, i * N + N - 1]) if (!fertig[c]) { fertig[c] = 1; push(c); }
+  const nb = [1, -1, N, -N, N + 1, N - 1, -N + 1, -N - 1];
+  while (hs > 0) {
+    const c = pop(); reihenfolge[rk++] = c; const cx = c % N;
+    for (const o of nb) { const q = c + o; if (q < 0 || q >= n || fertig[q] || Math.abs((q % N) - cx) > 1) continue;
+      fertig[q] = 1; if (F[q] <= F[c]) F[q] = F[c] + 1e-3; ziel[q] = c; push(q); }
+  }
+  const A = new Float32Array(n);
+  for (let k = n - 1; k >= 0; k--) { const c = reihenfolge[k]; if (H[c] > 0) A[c] += 1; if (ziel[c] >= 0) A[ziel[c]] += A[c]; }
+  // Quellen: Fluss-Zellen, in die kein anderer Fluss mündet
+  const zufluss = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (A[i] > schwelle && ziel[i] >= 0) zufluss[ziel[i]] = 1;
+  const besucht = new Uint8Array(n), netz = [];
+  const quellen = [];
+  for (let i = 0; i < n; i++) if (A[i] > schwelle && !zufluss[i] && H[i] > 0) quellen.push(i);
+  quellen.sort((a, b) => H[b] - H[a]);
+  for (const q of quellen) {
+    const punkte = []; let c = q;
+    while (c >= 0) {
+      punkte.push([c % N, (c / N) | 0, A[c]]);
+      if (H[c] <= 0 || (seeMaske && seeMaske[c])) break;   // Meer oder See erreicht
+      if (besucht[c] && punkte.length > 1) break;           // Mündung in einen schon verfolgten Fluss
+      besucht[c] = 1; c = ziel[c];
+    }
+    if (punkte.length > 2) netz.push({ punkte });
+  }
+  return netz;
+}
+
 // Flussbetten einschneiden: Tiefe wächst mit Einzugsgebiet
 function flussbetten(H, N, A, schwelle) {
   const tief = new Float32Array(H.length);

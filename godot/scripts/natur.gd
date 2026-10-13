@@ -70,6 +70,7 @@ func setup(main, spieler: Node3D, daten_ordner: String) -> void:
 		seen = FileAccess.get_file_as_bytes(daten_ordner.path_join(meta["seen"]["datei"]))
 	_marker_laden(daten_ordner.path_join("marker.json"))
 	_wege_laden(daten_ordner.path_join("wege.json"))
+	_fluesse_laden(daten_ordner.path_join("fluesse.json"))
 	rauschen.seed = welt_seed
 	rauschen.frequency = 1.0 / 230.0
 	rauschen.fractal_octaves = 3
@@ -105,6 +106,19 @@ func _wege_laden(pfad: String) -> void:
 		for i in range(1, punkte.size()):
 			var a := Vector2(float(punkte[i - 1][0]), float(punkte[i - 1][2]))
 			var b := Vector2(float(punkte[i][0]), float(punkte[i][2]))
+			_sperre_eintragen(["w", a, b, halb], a.min(b) - Vector2(halb, halb), a.max(b) + Vector2(halb, halb))
+
+
+## Flussläufe wie Wege sperren (kein Baum, keine Pflanze, kein Gras im Flussbett)
+func _fluesse_laden(pfad: String) -> void:
+	if not FileAccess.file_exists(pfad):
+		return
+	for f in JSON.parse_string(FileAccess.get_file_as_string(pfad)):
+		var punkte: Array = f["punkte"]
+		for i in range(1, punkte.size()):
+			var a := Vector2(float(punkte[i - 1][0]), float(punkte[i - 1][2]))
+			var b := Vector2(float(punkte[i][0]), float(punkte[i][2]))
+			var halb: float = float(punkte[i][3]) / 2.0 + 1.0
 			_sperre_eintragen(["w", a, b, halb], a.min(b) - Vector2(halb, halb), a.max(b) + Vector2(halb, halb))
 
 

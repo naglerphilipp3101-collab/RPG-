@@ -394,6 +394,7 @@ async function generieren() {
   const r = await auftrag({ auftrag: "generieren", p: params(), ...analyseArgs() });
   if (zustand.version > 0 && !neu) undoPunkt();
   seenZuruecksetzen();
+  flussZustand.liste = null;
   zustand.H = r.H; zustand.A = r.A; zustand.B = r.B; zustand.version++;
   $("p-weltgroesse").dispatchEvent(new Event("input"));
   zeichneAlles(); status("Fertig"); beschaeftigt(false);
@@ -407,12 +408,37 @@ async function erosionAnwenden(saat) {
   zustand.H = r.H; zustand.A = r.A; zustand.B = r.B; zustand.version++;
   zeichneAlles(); status("Erosion angewendet"); beschaeftigt(false);
 }
+// Flussverläufe für den Export (Wasserflächen in Godot): vor dem Einschneiden berechnet. Wasserspiegel auf halber
+// Bett-Tiefe (wie flussbetten() einschneidet: 1–4 m je nach Einzugsgebiet), flussabwärts nie steigend.
+// Punkte [x, y, Wasserspiegel, Einzugsgebiet] in Zellen.
+const flussZustand = { liste: null };
+function flussverlaeufeBerechnen() {
+  const netz = flussNetz(zustand.H, N, FLUSS_SCHWELLE, regionenZustand.SEE);
+  flussZustand.liste = netz.map((f) => {
+    let spiegel = Infinity;
+    return { punkte: f.punkte.map(([x, y, a]) => {
+      const tief = Math.min(4, 0.8 * Math.log2(Math.max(1, a / FLUSS_SCHWELLE)) + 1);
+      spiegel = Math.min(spiegel, zustand.H[y * N + x] - tief * 0.5);
+      return [x, y, spiegel, a];
+    }) };
+  });
+  return flussZustand.liste.length;
+}
+function fluesseExport() {
+  const h = WELT / 2;
+  return flussZustand.liste.map((f) => ({
+    punkte: f.punkte.map(([x, y, s, a]) => [+(x * ZELLE - h + ZELLE / 2).toFixed(1), +s.toFixed(2), +(y * ZELLE - h + ZELLE / 2).toFixed(1),
+      +Math.min(24, 10 + 3 * Math.log2(Math.max(1, a / FLUSS_SCHWELLE))).toFixed(1)]),
+  }));
+}
+
 async function flussbettenEinschneiden() {
   beschaeftigt(true); undoPunkt();
+  const anzahl = flussverlaeufeBerechnen();
   const H = zustand.H.slice();
   const r = await auftrag({ auftrag: "flussbetten", H, ...analyseArgs() }, [H.buffer]);
   zustand.H = r.H; zustand.A = r.A; zustand.B = r.B; zustand.version++;
-  zeichneAlles(); status("Flussbetten eingeschnitten"); beschaeftigt(false);
+  zeichneAlles(); status(`Flussbetten eingeschnitten (${anzahl} Flussläufe für den Export)`); beschaeftigt(false);
 }
 
 function herunterladen(blob, name) {
@@ -439,6 +465,7 @@ async function projektSpeichern() {
     ...(markerZustand.ressourcen ? [{ name: "ressourcen.json", daten: textBytes(JSON.stringify(markerZustand.ressourcen)) }] : []),
     ...(wegeZustand.liste ? [{ name: "wege.json", daten: textBytes(JSON.stringify(wegeExport())) }] : []),
     ...(wegeZustand.liste ? [{ name: "wege.json", daten: textBytes(JSON.stringify(wegeZustand.liste)) }] : []),
+    ...(flussZustand.liste ? [{ name: "fluesse.json", daten: textBytes(JSON.stringify(flussZustand.liste)) }] : []),
   ]), `welt_projekt_${meta.params.seed}.zip`);
   status("Projekt gespeichert");
 }
@@ -460,6 +487,7 @@ async function projektLaden(datei) {
     markerZustand.liste = lies("marker.json") || []; markerZustand.auswahl = -1;
     markerZustand.ressourcen = lies("ressourcen.json"); markerZustand.ressourcenAlt = false;
     wegeZustand.liste = lies("wege.json"); wegeZustand.alt = false;
+    flussZustand.liste = lies("fluesse.json");
     regionenLaden(z["regionen.u8"], meta.regionen);
     seenLaden(z["seen.u8"], meta.seen);
     markerPanel(); ressourcenInfo(); wegeInfo();
@@ -495,6 +523,7 @@ async function exportieren() {
     meeresspiegel: 0, params: params(), biom_params: biomParams(),
     regionen: regionenExportMeta(),
     seen: seenExportMeta(),
+    fluesse: flussZustand.liste ? { datei: "fluesse.json", format: "Liste {punkte [[x, Wasserspiegel, z, Breite]]} in Metern, von der Quelle flussabwärts" } : null,
   };
   herunterladen(zipErstellen([
     { name: "welt.json", daten: textBytes(JSON.stringify(meta, null, 2)) },
@@ -507,6 +536,7 @@ async function exportieren() {
     { name: "marker.json", daten: textBytes(JSON.stringify(markerExport(), null, 1)) },
     ...(markerZustand.ressourcen ? [{ name: "ressourcen.json", daten: textBytes(JSON.stringify(markerZustand.ressourcen)) }] : []),
     ...(wegeZustand.liste ? [{ name: "wege.json", daten: textBytes(JSON.stringify(wegeExport())) }] : []),
+    ...(flussZustand.liste ? [{ name: "fluesse.json", daten: textBytes(JSON.stringify(fluesseExport())) }] : []),
     { name: "uebersicht.png", daten: await canvasPng(basis) },
   ]), "welt_export.zip");
   status(`Export fertig: ${M} × ${M}, Höhen ${mn.toFixed(1)} … ${mx.toFixed(1)} m`);
@@ -606,7 +636,7 @@ function waehle(id) {
 
 // für automatische Tests
 window.WELT_API = { weltgroesseSetzen, wegeZustand, wegeGenerierenStarten, markerZustand, markerNeu, vorschlaegeMachen, ressourcenVerteilenStarten, zustand, effektiveBiome, generieren, erosionAnwenden, flussbettenEinschneiden, exportieren, projektSpeichern, pinsel, waehle, tab, ansicht, N, params,
-  regionenZustand, nebeninselFormen, zentralbergFormen, seeFormen, regionenBerechnen, siedlungenVorschlagen, variantenErzeugen, varianteLaden, varianten,
+  flussZustand, flussverlaeufeBerechnen, regionenZustand, nebeninselFormen, zentralbergFormen, seeFormen, regionenBerechnen, siedlungenVorschlagen, variantenErzeugen, varianteLaden, varianten,
   strichTest(werkzeug, punkte, dt = 0.05) { waehle(werkzeug); undoPunkt(); strich = { ziel: zustand.H[Math.round(punkte[0][1]) * N + Math.round(punkte[0][0])] };
     for (const [x, y] of punkte) pinsel(x, y, dt); strich = null; nachAenderung(true); } };
 aufbauen();

@@ -48,4 +48,5 @@ static func material(art: String) -> ShaderMaterial:
 			m.set_shader_parameter("wellen_staerke", 0.45)
 			m.set_shader_parameter("schaum_breite", 0.35)
 			m.set_shader_parameter("wellen_skala", 0.12)
+			m.set_shader_parameter("fliessen", 1.2)
 	return m

@@ -359,6 +359,75 @@ func _seen_importieren(wasser: Material = null) -> void:
 		_besitzer(see)
 
 
+## Flüsse aus fluesse.json: Wasserbänder auf Höhe des Wasserspiegels entlang der Flussläufe, zusammengefasst
+## in 512-m-Kacheln unter "Fluesse". UV in Metern (x quer, y flussabwärts) für die Strömung im Wasser-Shader.
+func _fluesse_importieren(wasser: Material = null) -> void:
+	var alt := get_node_or_null("Fluesse")
+	if alt:
+		remove_child(alt)
+		alt.free()
+	var pfad := daten_ordner.path_join("fluesse.json")
+	if not FileAccess.file_exists(pfad):
+		return
+	var kacheln := {} # Vector2i -> SurfaceTool
+	for f in JSON.parse_string(FileAccess.get_file_as_string(pfad)):
+		var roh: Array = f["punkte"]
+		if roh.size() < 2:
+			continue
+		# Punkte als Vector4 (x, Wasserspiegel, z, Breite), einmal nach Chaikin geglättet (das Raster macht Zickzack)
+		var pts: Array[Vector4] = []
+		for q in roh:
+			pts.append(Vector4(q[0], q[1], q[2], q[3]))
+		var glatt: Array[Vector4] = [pts[0]]
+		for i in pts.size() - 1:
+			glatt.append(pts[i].lerp(pts[i + 1], 0.25))
+			glatt.append(pts[i].lerp(pts[i + 1], 0.75))
+		glatt.append(pts[-1])
+		var laenge := 0.0
+		var links_alt := Vector3.ZERO
+		var rechts_alt := Vector3.ZERO
+		var v_alt := 0.0
+		for i in glatt.size():
+			var p := glatt[i]
+			var vor := glatt[mini(i + 1, glatt.size() - 1)]
+			var nach := glatt[maxi(i - 1, 0)]
+			var richtung := Vector2(vor.x - nach.x, vor.z - nach.z).normalized()
+			var quer := Vector3(-richtung.y, 0, richtung.x) * p.w / 2.0
+			var mitte := Vector3(p.x, p.y + 0.05, p.z)
+			var links := mitte - quer
+			var rechts := mitte + quer
+			if i > 0:
+				laenge += Vector2(p.x - glatt[i - 1].x, p.z - glatt[i - 1].z).length()
+				var k := Vector2i(floori(p.x / 512.0), floori(p.z / 512.0))
+				if not kacheln.has(k):
+					var neu := SurfaceTool.new()
+					neu.begin(Mesh.PRIMITIVE_TRIANGLES)
+					neu.set_normal(Vector3.UP)
+					kacheln[k] = neu
+				var st: SurfaceTool = kacheln[k]
+				var b := p.w
+				for e in [[links_alt, 0.0, v_alt], [rechts_alt, b, v_alt], [links, 0.0, laenge],
+						[rechts_alt, b, v_alt], [rechts, b, laenge], [links, 0.0, laenge]]:
+					st.set_normal(Vector3.UP)
+					st.set_uv(Vector2(e[1], e[2]))
+					st.add_vertex(e[0])
+			links_alt = links
+			rechts_alt = rechts
+			v_alt = laenge
+	var wurzel := Node3D.new()
+	wurzel.name = "Fluesse"
+	add_child(wurzel)
+	_besitzer(wurzel)
+	for k in kacheln:
+		var mi := MeshInstance3D.new()
+		mi.name = "Fluss_%d_%d" % [k.x, k.y]
+		mi.mesh = (kacheln[k] as SurfaceTool).commit()
+		mi.material_override = wasser
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		wurzel.add_child(mi)
+		_besitzer(mi)
+
+
 ## Einfache Holzbrücke: Fahrbahn aus Planken, Geländer, Stützpfeiler bis zum Boden
 func _bruecke_bauen(punkte: Array, breite: float) -> Node3D:
 	var a := Vector3(punkte[0][0], punkte[0][1], punkte[0][2])
