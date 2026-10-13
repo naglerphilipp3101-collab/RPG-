@@ -11,7 +11,9 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
   - `assets/`: per Blender-Skript erzeugte Ressourcen und Welt-Bausteine (siehe nächster Abschnitt)
   - `tools/blender/`: Blender-Testskript (Kiefer, Kupferader, Schwert)
 - `weltgenerator/`: Browser-Editor in Vanilla-JS ohne Abhängigkeiten. Nach Änderungen in `src/` immer `python3 build.py` ausführen (erzeugt `weltgenerator.html`).
-  Raster 4 m/Zelle, Weltgröße 2–8 km (Vielfache von 512 m).
+  Raster 4 m/Zelle (über 8 km: 8 m/Zelle, Raster bleibt ≤ 2048²), Weltgröße 2–16,4 km (Vielfache von 512 m, über 8 km von 1024 m).
+  Ohne Python: der Build lässt sich in PowerShell nachbauen (Platzhalter `/*ZIP*/` … `/*APP*/` ersetzen, `/*KERN*/` zweimal, UTF-8 ohne BOM).
+  Regionen, Seen und Varianten-Galerie in `src/regionen.js`; `WELT_API.variantenErzeugen(anzahl, startSaat)` baut komplette Karten.
 
 ### Assets (`godot/assets/`)
 

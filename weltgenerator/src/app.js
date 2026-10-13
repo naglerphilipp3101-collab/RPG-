@@ -1,8 +1,9 @@
 // ===== Weltgenerator: Oberfläche =====
-const ZELLE = 4;           // Meter pro Rasterzelle (fest)
-let WELT = 4096;           // Weltgröße in Metern (Regler "Weltgröße": 2–8 km)
+let WELT = 4096;           // Weltgröße in Metern (Regler "Weltgröße": 2–16 km)
+let ZELLE = 4;             // Meter pro Rasterzelle: 4 m bis 8 km, darüber 8 m (Raster bleibt höchstens 2048²)
 let N = WELT / ZELLE;      // Rasterzellen je Seite (512–2048)
-const FLUSS_SCHWELLE = 1500;
+let FLUSS_SCHWELLE = 1500; // Einzugsgebiet in Zellen, ab dem ein Fluss gezeichnet wird (≈ 24 000 m²)
+const zelleFuer = (meter) => (meter > 8192 ? 8 : 4);
 
 const zustand = {
   H: new Float32Array(N * N),
@@ -26,13 +27,14 @@ try {
   worker.onmessage = (e) => {
     const m = e.data;
     if (m.typ === "fortschritt") status(`${m.text} … ${Math.round(m.f * 100)} %`, m.f);
-    else if (m.typ === "fertig") { const r = wartend[m.auftrag]; delete wartend[m.auftrag]; if (r) r(m); }
+    // Der Worker arbeitet der Reihe nach: Antworten gleicher Art kommen in Auftragsreihenfolge zurück
+    else if (m.typ === "fertig") { const r = (wartend[m.auftrag] || []).shift(); if (r) r(m); }
   };
 } catch (err) { console.warn("Worker nicht verfügbar, rechne im Hauptthread", err); worker = null; }
 
 function auftrag(msg, transfer = []) {
   return new Promise((resolve) => {
-    if (worker) { wartend[msg.auftrag] = resolve; worker.postMessage(msg, transfer); return; }
+    if (worker) { (wartend[msg.auftrag] ||= []).push(resolve); worker.postMessage(msg, transfer); return; }
     // Rückfall ohne Worker
     setTimeout(() => {
       const st = (t) => (f) => status(`${t} … ${Math.round(f * 100)} %`, f);
@@ -114,7 +116,7 @@ let bctx = basis.getContext("2d");
 // Weltgröße ändern: alle Raster neu anlegen. Marker, Ressourcen und Wege passen nicht mehr und werden verworfen.
 function weltgroesseSetzen(meter) {
   if (meter === WELT) return false;
-  WELT = meter; N = WELT / ZELLE;
+  WELT = meter; ZELLE = zelleFuer(meter); N = WELT / ZELLE; FLUSS_SCHWELLE = Math.round(1500 * (4 / ZELLE) ** 2);
   zustand.H = new Float32Array(N * N); zustand.A = new Float32Array(N * N);
   zustand.B = new Uint8Array(N * N); zustand.O = new Uint8Array(N * N).fill(255);
   zustand.undo = []; zustand.redo = [];
@@ -129,15 +131,16 @@ function weltgroesseSetzen(meter) {
   return true;
 }
 
-// Regler-km -> Meter, gerundet auf 512 m (Terrain3D-Regionen sind 256 m groß, Raster bleibt ganzzahlig)
-function weltMeter(km) { return Math.max(2048, Math.min(8192, Math.round(km * 1000 / 512) * 512)); }
+// Regler-km -> Meter, gerundet auf 512 m, über 8 km auf 1024 m (Terrain3D-Regionen sind 256 m groß, Raster bleibt ganzzahlig)
+function weltMeter(km) { const r = km > 8 ? 1024 : 512; return Math.max(2048, Math.min(16384, Math.round(km * 1000 / r) * r)); }
 function weltText(m) { return `${(m / 1000).toLocaleString("de", { maximumFractionDigits: 1 })} km`; }
 
 function exportOptionen() {
   const sel = $("p-exportgroesse"); if (!sel) return;
-  const alt = sel.value, eins = WELT, zwei = WELT / 2;
-  sel.innerHTML = `<option value="${eins}">${eins} × ${eins} (1 m pro Pixel${eins > 4096 ? ", ~" + Math.round(eins * eins * 8 / 1e6) + " MB" : ""})</option>` +
-    `<option value="${zwei}">${zwei} × ${zwei} (2 m pro Pixel)</option>`;
+  // Über 8 km wäre 1 m pro Pixel zu groß (16384² = 2 GB) -> dann 2 und 4 m pro Pixel
+  const alt = sel.value, f = WELT > 8192 ? 2 : 1, eins = WELT / f, zwei = WELT / f / 2;
+  sel.innerHTML = `<option value="${eins}">${eins} × ${eins} (${f} m pro Pixel${eins > 4096 ? ", ~" + Math.round(eins * eins * 8 / 1e6) + " MB" : ""})</option>` +
+    `<option value="${zwei}">${zwei} × ${zwei} (${2 * f} m pro Pixel)</option>`;
   sel.value = [...sel.options].some((o) => o.value === alt) ? alt : String(eins > 4096 ? zwei : eins);
 }
 const LICHT = (() => { const l = [-1, -1, 1.6], n = Math.hypot(...l); return l.map((v) => v / n); })();
@@ -148,14 +151,18 @@ function zeichneBereich(x0, y0, x1, y1) {
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
     const i = y * N + x, h = H[i];
     let r, g, b;
-    if (zustand.modus === "biome" && h > 0) {
+    const see = regionenZustand.SEE && regionenZustand.SEE[i];
+    if (see) {
+      // Seewasser: Farbe nach Wassertiefe, ohne Höhenlinien
+      const t = Math.min(1, (regionenZustand.seen[see - 1].spiegel - h) / 12); r = 96 - 50 * t; g = 160 - 52 * t; b = 190 - 28 * t;
+    } else if (zustand.modus === "biome" && h > 0) {
       const bf = BIOM_FARBEN[biomBei(i)]; r = bf[0]; g = bf[1]; b = bf[2];
     } else { const li = lutIndex(h); r = LUT[li]; g = LUT[li + 1]; b = LUT[li + 2]; }
-    const fluss = zustand.fluesseZeigen && A[i] > FLUSS_SCHWELLE && h > 0;
+    const fluss = !see && zustand.fluesseZeigen && A[i] > FLUSS_SCHWELLE && h > 0;
     if (fluss) { const s = Math.min(1, 0.55 + 0.12 * Math.log2(A[i] / FLUSS_SCHWELLE)); r += (52 - r) * s; g += (110 - g) * s; b += (190 - b) * s; }
     const q = i * 4;
     farbe[q] = r; farbe[q + 1] = g; farbe[q + 2] = b; farbe[q + 3] = 255;
-    if (h > 0) {
+    if (h > 0 && !see) {
       const hl = H[i - (x > 0 ? 1 : 0)], hr = H[i + (x < N - 1 ? 1 : 0)], ho = H[i - (y > 0 ? N : 0)], hu = H[i + (y < N - 1 ? N : 0)];
       const gx = (hr - hl) / (2 * ZELLE) * 2.2, gy = (hu - ho) / (2 * ZELLE) * 2.2;
       const ln = Math.hypot(gx, gy, 1);
@@ -386,14 +393,17 @@ async function generieren() {
   beschaeftigt(true);
   const r = await auftrag({ auftrag: "generieren", p: params(), ...analyseArgs() });
   if (zustand.version > 0 && !neu) undoPunkt();
+  seenZuruecksetzen();
   zustand.H = r.H; zustand.A = r.A; zustand.B = r.B; zustand.version++;
   $("p-weltgroesse").dispatchEvent(new Event("input"));
   zeichneAlles(); status("Fertig"); beschaeftigt(false);
 }
-async function erosionAnwenden() {
+// saat: fester Zufallswert (für wiederholbare Varianten), sonst zufällig
+async function erosionAnwenden(saat) {
   beschaeftigt(true); undoPunkt();
   const H = zustand.H.slice();
-  const r = await auftrag({ auftrag: "erosion", H, ...analyseArgs(), anzahl: Math.round(parseFloat($("p-erosion2").value) * 1000 * (N / 1024) ** 2), seed: Math.floor(Math.random() * 1e6) }, [H.buffer]);
+  const seed = typeof saat === "number" ? saat : Math.floor(Math.random() * 1e6);
+  const r = await auftrag({ auftrag: "erosion", H, ...analyseArgs(), anzahl: Math.round(parseFloat($("p-erosion2").value) * 1000 * (N / 1024) ** 2), seed }, [H.buffer]);
   zustand.H = r.H; zustand.A = r.A; zustand.B = r.B; zustand.version++;
   zeichneAlles(); status("Erosion angewendet"); beschaeftigt(false);
 }
@@ -417,12 +427,14 @@ async function canvasPng(c) { return new Uint8Array(await (await new Promise((r)
 
 async function projektSpeichern() {
   const meta = { programm: "Weltgenerator", version: 3, N, welt_m: WELT, params: params(), biome: biomParams(),
-    regionen: regionenZustand.REG ? { namen: regionenZustand.namen, gipfel: regionenZustand.gipfel } : null };
+    regionen: regionenZustand.REG ? { namen: regionenZustand.namen, gipfel: regionenZustand.gipfel } : null,
+    seen: regionenZustand.seen.length ? regionenZustand.seen : null };
   herunterladen(zipErstellen([
     { name: "projekt.json", daten: textBytes(JSON.stringify(meta, null, 2)) },
     { name: "hoehe.r32", daten: bytes(zustand.H) },
     { name: "biome_gemalt.u8", daten: zustand.O },
     ...(regionenZustand.REG ? [{ name: "regionen.u8", daten: regionenZustand.REG }] : []),
+    ...(regionenZustand.SEE ? [{ name: "seen.u8", daten: regionenZustand.SEE }] : []),
     { name: "marker.json", daten: textBytes(JSON.stringify(markerZustand.liste)) },
     ...(markerZustand.ressourcen ? [{ name: "ressourcen.json", daten: textBytes(JSON.stringify(markerZustand.ressourcen)) }] : []),
     ...(wegeZustand.liste ? [{ name: "wege.json", daten: textBytes(JSON.stringify(wegeExport())) }] : []),
@@ -435,7 +447,7 @@ async function projektLaden(datei) {
     const z = await zipLesen(await datei.arrayBuffer());
     const meta = JSON.parse(new TextDecoder().decode(z["projekt.json"]));
     const welt = meta.welt_m || 4096;
-    if (welt / ZELLE !== meta.N) throw new Error("Unbekanntes Rasterformat");
+    if (welt / zelleFuer(welt) !== meta.N) throw new Error("Unbekanntes Rasterformat");
     weltgroesseSetzen(welt);
     $("p-weltgroesse").value = welt / 1000; $("p-weltgroesse").dispatchEvent(new Event("input"));
     for (const [k] of PARAMS) if (meta.params[k] != null) { $("p-" + k).value = meta.params[k]; $("p-" + k).dispatchEvent(new Event("input")); }
@@ -449,6 +461,7 @@ async function projektLaden(datei) {
     markerZustand.ressourcen = lies("ressourcen.json"); markerZustand.ressourcenAlt = false;
     wegeZustand.liste = lies("wege.json"); wegeZustand.alt = false;
     regionenLaden(z["regionen.u8"], meta.regionen);
+    seenLaden(z["seen.u8"], meta.seen);
     markerPanel(); ressourcenInfo(); wegeInfo();
     nachAenderung(true); status("Projekt geladen");
   } catch (err) { status("Laden fehlgeschlagen: " + err.message); }
@@ -481,6 +494,7 @@ async function exportieren() {
     biome: { datei: `biome_${N}.u8`, format: `uint8 je Zelle (${ZELLE} m), ${N} x ${N}, Zeile für Zeile`, namen: BIOM_NAMEN, texturen: ["sand", "wiese", "laubboden", "nadelboden", "sumpf", "steppe", "fels", "schnee", "weg"] },
     meeresspiegel: 0, params: params(), biom_params: biomParams(),
     regionen: regionenExportMeta(),
+    seen: seenExportMeta(),
   };
   herunterladen(zipErstellen([
     { name: "welt.json", daten: textBytes(JSON.stringify(meta, null, 2)) },
@@ -489,6 +503,7 @@ async function exportieren() {
     { name: `steuerung_${M}.r32`, daten: bytes(st.out) },
     { name: `biome_${N}.u8`, daten: E },
     ...(regionenZustand.REG ? [{ name: `regionen_${N}.u8`, daten: regionenZustand.REG }] : []),
+    ...(regionenZustand.SEE ? [{ name: `seen_${N}.u8`, daten: regionenZustand.SEE }] : []),
     { name: "marker.json", daten: textBytes(JSON.stringify(markerExport(), null, 1)) },
     ...(markerZustand.ressourcen ? [{ name: "ressourcen.json", daten: textBytes(JSON.stringify(markerZustand.ressourcen)) }] : []),
     ...(wegeZustand.liste ? [{ name: "wege.json", daten: textBytes(JSON.stringify(wegeExport())) }] : []),
@@ -504,7 +519,7 @@ function aufbauen() {
   {
     const z = document.createElement("label"); z.className = "regler";
     z.innerHTML = `<span>Weltgröße</span><output id="o-weltgroesse"></output>
-      <input id="p-weltgroesse" type="range" min="2" max="8" step="0.5" value="4">`;
+      <input id="p-weltgroesse" type="range" min="2" max="16" step="0.5" value="4">`;
     pg.appendChild(z);
     const inp = z.querySelector("input");
     inp.addEventListener("input", () => { const m = weltMeter(+inp.value); z.querySelector("output").textContent = `${weltText(m)} × ${weltText(m)}` + (m !== WELT ? " – „Neu generieren“" : ""); });
@@ -554,7 +569,7 @@ function aufbauen() {
     inp.addEventListener("input", () => (out.textContent = inp.value)); out.textContent = inp.value;
   }
   $("undo").onclick = rueckgaengig; $("redo").onclick = wiederholen;
-  $("erosion-anwenden").onclick = erosionAnwenden;
+  $("erosion-anwenden").onclick = () => erosionAnwenden();
   $("flussbetten").onclick = flussbettenEinschneiden;
   $("hoehenlinien").onchange = (e) => { zustand.hoehenlinien = e.target.checked; zeichneAlles(); };
   $("fluesse").onchange = (e) => { zustand.fluesseZeigen = e.target.checked; zeichneAlles(); };
@@ -591,7 +606,7 @@ function waehle(id) {
 
 // für automatische Tests
 window.WELT_API = { weltgroesseSetzen, wegeZustand, wegeGenerierenStarten, markerZustand, markerNeu, vorschlaegeMachen, ressourcenVerteilenStarten, zustand, effektiveBiome, generieren, erosionAnwenden, flussbettenEinschneiden, exportieren, projektSpeichern, pinsel, waehle, tab, ansicht, N, params,
-  regionenZustand, nebeninselFormen, zentralbergFormen, regionenBerechnen, siedlungenVorschlagen,
+  regionenZustand, nebeninselFormen, zentralbergFormen, seeFormen, regionenBerechnen, siedlungenVorschlagen, variantenErzeugen, varianteLaden, varianten,
   strichTest(werkzeug, punkte, dt = 0.05) { waehle(werkzeug); undoPunkt(); strich = { ziel: zustand.H[Math.round(punkte[0][1]) * N + Math.round(punkte[0][0])] };
     for (const [x, y] of punkte) pinsel(x, y, dt); strich = null; nachAenderung(true); } };
 aufbauen();

@@ -784,15 +784,15 @@ function chaikin(pts) {
 }
 
 // Export: Straßen ins hochaufgelöste Gelände einarbeiten (Ebnen + Böschung) und Weg-Maske liefern
-function wegeEinarbeiten(out, M, N, wege, fortschritt) {
+function wegeEinarbeiten(out, M, N, wege, fortschritt, welt = N * 4) {
   const s = M / N;                          // Pixel pro Zelle
+  const mpp = welt / M;                     // Meter pro Pixel
   const maske = new Uint8Array(M * M);      // 0..255 = Anteil Weg-Textur
   const ziel = new Float32Array(M * M).fill(NaN), gew = new Float32Array(M * M);
   let nr = 0;
   for (const w of wege) {
     if (fortschritt) fortschritt(nr++ / wege.length);
     const hb = w.breite / 2, boe = w.typ === "strasse" ? 6 : 4;   // halbe Breite, Böschung (m bei 1 m/px)
-    const mpp = N * 4 / M;
     for (let k = 1; k < w.punkte.length; k++) {
       if (w.bruecke[k]) continue;
       const [x0, y0, h0] = w.punkte[k - 1], [x1, y1, h1] = w.punkte[k];
@@ -895,7 +895,7 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
       self.postMessage({ typ: "fertig", auftrag: m.auftrag, out }, [out.buffer]);
     } else if (m.auftrag === "hochskalieren") {
       const out = hochskalieren(m.H, m.N, m.M, m.seed, m.feindetail, melde("Export"), m.welt);
-      const maske = m.wege && m.wege.length ? wegeEinarbeiten(out, m.M, m.N, m.wege, melde("Export Wege")) : null;
+      const maske = m.wege && m.wege.length ? wegeEinarbeiten(out, m.M, m.N, m.wege, melde("Export Wege"), m.welt) : null;
       self.postMessage({ typ: "fertig", auftrag: m.auftrag, out, maske }, maske ? [out.buffer, maske.buffer] : [out.buffer]);
     }
   };

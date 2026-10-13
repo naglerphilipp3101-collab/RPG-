@@ -1,6 +1,6 @@
 # Weltgenerator – Etappe 4: Gelände, Biome, Marker, Ressourcen, Wege
 
-Insel 2 × 2 bis 8 × 8 km. Generieren, mit Pinseln formen, nach Godot (Terrain3D) exportieren.
+Insel 2 × 2 bis 16 × 16 km. Generieren, mit Pinseln formen, nach Godot (Terrain3D) exportieren.
 
 ## 1. Editor starten
 `weltgenerator.html` per Doppelklick öffnen (Chrome, Edge oder Firefox). Läuft komplett offline, keine Installation.
@@ -8,7 +8,7 @@ Insel 2 × 2 bis 8 × 8 km. Generieren, mit Pinseln formen, nach Godot (Terrain3
 ### Generator
 | Regler | Wirkung |
 |---|---|
-| **Weltgröße** | 2–8 km Seitenlänge (gerundet auf 512 m, z. B. 8 km = 8192 m). Wirkt beim nächsten „Neu generieren“. Größere Welt = mehr Gebirgszüge, Hügel und Täler (nicht nur größer gezogen). Achtung: Marker, Ressourcen und Wege werden beim Größenwechsel entfernt. |
+| **Weltgröße** | 2–16,4 km Seitenlänge (gerundet auf 512 m, über 8 km auf 1024 m; z. B. 8 km = 8192 m, 16,4 km = 16384 m). Bis 8 km ist das Raster 4 m, darüber 8 m (Raster höchstens 2048², damit alles flott bleibt). Wirkt beim nächsten „Neu generieren“. Größere Welt = mehr Gebirgszüge, Hügel und Täler (nicht nur größer gezogen). Achtung: Marker, Ressourcen und Wege werden beim Größenwechsel entfernt. |
 | Seed / 🎲 | andere Insel |
 | Inselgröße | Anteil der Karte, der Land ist |
 | Küste zerklüftet | Buchten und Halbinseln |
@@ -69,13 +69,23 @@ und setzt bis zu 6 Minen an Felshängen. Vorschläge sind normale Marker – ver
 Abschnitt **Regionen & Siedlungen** (in dieser Reihenfolge benutzen):
 | Knopf | Wirkung |
 |---|---|
-| **Nebeninsel formen** | formt eine kleine Insel 550–900 m vor der Küste (bevorzugt im Süden, mit Abstand zum Kartenrand) |
+| **Nebeninsel formen** | formt eine kleine Insel draußen auf dem offenen Meer (650–1000 m vor der Küste, bei 16 km doppelt so weit, in zufälliger Richtung, mit Abstand zum Kartenrand) |
+| **See formen** | sucht eine ebene Stelle im Landesinneren (fern von Küste, Zentralberg und anderen Seen), senkt eine unregelmäßige Mulde ab und füllt sie bis zum Überlauf mit Wasser. Seen sind auf der Karte blau, mit Tiefe schattiert. |
 | **Zentralberg formen** | hebt die Inselmitte zu einem großen Berg an (Regler *Höhe Zentralberg*), mit Graten und Erosion |
-| **Regionen berechnen** | Startgebiet im Süden (Regler *Startgebiet %*), Fraktionsregionen ringförmig um den Berg (Regler *Fraktionsregionen*), Zentralberg ab *Berg-Grenze*. Die Grenzen folgen Flüssen und steilen Hängen, die Flächen werden angeglichen. Namen nach Himmelsrichtung. |
-| **Siedlungen vorschlagen** | je Region *Städte pro Region* + *Dörfer pro Region* auf ebenem Land, Startdorf, Gipfel-POI und Dungeon-Eingang am Südhang des Bergs, ein Dungeon je Nebeninsel. Ersetzt Städte, Dörfer, Dungeons und POIs (Felder und Minen bleiben). |
+| **Regionen berechnen** | Startgebiet im Süden (Regler *Startgebiet %*), Fraktionsregionen ringförmig um den Berg (Regler *Fraktionsregionen*), Zentralberg ab *Berg-Grenze*. Die Grenzen folgen Flüssen, Seen und steilen Hängen, die Flächen werden angeglichen. Namen nach Himmelsrichtung. |
+| **Siedlungen vorschlagen** | je Region *Städte pro Region*, je Stadt *Dörfer je Stadt* in ihrer Nähe (Name z. B. „Nord – Dorf 2a“ gehört zu „Nord – Stadt 2“), Startdorf, Gipfel-POI und Dungeon-Eingang am Südhang des Bergs, ein Dungeon je Nebeninsel. Ersetzt Städte, Dörfer, Dungeons und POIs (Felder und Minen bleiben). |
+
+Alle Entfernungen sind für 8 km gewählt und wachsen bei größeren Welten mit.
+
+### Varianten
+**Varianten erzeugen** baut mit der eingestellten Weltgröße nacheinander komplette Karten (Gelände, Zentralberg, Nebeninsel,
+1–2 Seen, Regionen, Siedlungen), jede mit eigenen Zufallswerten für Seed, Inselform, Küste, Gebirge und Hügel.
+Die **Galerie** zeigt alle Karten mit Kennzahlen; ein Klick lädt eine Karte in den Editor (danach Wege, Ressourcen, Export wie gewohnt).
+Die Varianten liegen nur im Speicher des Browsers – die gewählte Karte also mit *Projekt speichern* sichern.
 
 Danach wie gewohnt *Felder & Minen vorschlagen*, *Wege generieren*, *Ressourcen verteilen*. Die Regionen werden im Projekt (`regionen.u8`)
-und im Export (`regionen_<Raster>.u8`, Namen in `welt.json` unter `regionen`) gespeichert.
+und im Export (`regionen_<Raster>.u8`, Namen in `welt.json` unter `regionen`) gespeichert, Seen ebenso
+(`seen.u8` / `seen_<Raster>.u8`, Liste mit Position, Wasserspiegel, Fläche und Tiefe in `welt.json` unter `seen`).
 IDs: 0 Meer · 1 Startgebiet · 2 … Fraktionsregionen · 250 Zentralberg · 251 Nebeninseln.
 
 ### Ressourcen
@@ -111,7 +121,7 @@ Dichte-Regler je Art. Nach Änderungen an Karte/Markern zeigt der Editor „neu 
 - **Projekt speichern / laden**: deine Arbeitsdatei (`welt_projekt_*.zip`, ~4 MB). Damit machst du später weiter.
 - **Export für Godot**: `welt_export.zip` mit
   - Auflösung wählbar: **1 m pro Pixel** oder **2 m pro Pixel**. Bei 8 km sind 1 m = 8192² (~540 MB Export, braucht viel RAM im Browser
-    und in Godot) – empfohlen dort 2 m (4096², ~140 MB). Bis 4 km ist 1 m problemlos.
+    und in Godot) – empfohlen dort 2 m (4096², ~140 MB). Bis 4 km ist 1 m problemlos. Über 8 km gibt es 2 m oder 4 m pro Pixel.
   - `hoehe_<Auflösung>.r32` – Höhen in Metern (Gelände wird beim Export fein hochgerechnet,
     dazu kommen kleine Bodenwellen: Regler *Feindetail*)
   - `steuerung_4096.r32` – Biom-Steuerkarte im Terrain3D-Format (welche Bodentextur wo, mit weichen Übergängen)
