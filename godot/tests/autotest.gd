@@ -13,7 +13,7 @@ var log_lines: Array[String] = []
 func _ready() -> void:
 	player = get_tree().get_first_node_in_group("player")
 	# Mit --island: Blick über das Startgebiet der Insel (für Bilder mit --write-movie)
-	if Game.world_id == "insel":
+	if Game.world_id.begins_with("insel"):
 		phase = "island_view"
 		player.cam_yaw = PI # Richtung Dorf (Süden)
 		player.cam_pitch = -0.25

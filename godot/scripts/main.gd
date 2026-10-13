@@ -15,7 +15,7 @@ const SaveGame := preload("res://scripts/save_game.gd")
 
 const ISLAND_DATA := "res://welt_daten"
 const ISLAND_TERRAIN := "res://welt_daten/terrain3d"
-## Mitte des Startgebiets auf der Insel (Südspitze, bei „Dorf 8“ des Weltgenerators), in Weltmetern
+## Mitte des Startgebiets auf der Insel: der Marker „Startdorf“ aus marker.json; das hier gilt nur, falls er fehlt
 const ISLAND_START := Vector3(-1026.6, 0, 2569.5)
 
 const VILLAGE_CENTER := Vector3(0, 0, 24)
@@ -148,11 +148,14 @@ func _g(local: Vector3) -> Vector3:
 
 ## Lädt die importierte Insel (siehe tests/welt_importieren.gd) mit Bodentexturen, Meer und Siedlungsmarkern.
 func _build_island() -> void:
-	area.position = ISLAND_START
+	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(ISLAND_DATA.path_join("welt.json")))
+	area.position = _island_start()
+	# Jede generierte Welt hat ihren eigenen Spielstand-Ort (Positionen aus einer anderen Welt passen nicht)
+	Game.world_id = "insel_%d" % int(meta.get("params", {}).get("seed", 0))
 	# Vorläufige Kamera, bis der Spieler existiert (Terrain3D braucht eine aktive Kamera)
 	var temp_camera := Camera3D.new()
 	add_child(temp_camera)
-	temp_camera.position = ISLAND_START + Vector3(0, 80, 0)
+	temp_camera.position = area.position + Vector3(0, 80, 0)
 
 	var welt = load("res://assets/welt/welt_import.gd").new()
 	welt.name = "Insel"
@@ -162,11 +165,11 @@ func _build_island() -> void:
 	terrain.name = "Terrain3D"
 	terrain.set("data_directory", ISLAND_TERRAIN)
 	terrain.set("collision_radius", 192)
+	terrain.set("vertex_spacing", float(meta.get("meter_pro_pixel", 1.0))) # z. B. 2 m bei der 16-km-Welt
 	welt.add_child(terrain)
 	welt._texturen_einrichten(terrain)
 	terrain.get("material").set("world_background", 0)
 
-	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(ISLAND_DATA.path_join("welt.json")))
 	var size: float = float(meta.get("welt_m", 8192))
 	world_size = size
 	var sea := PlaneMesh.new()
@@ -180,11 +183,24 @@ func _build_island() -> void:
 	var seabed := MeshUtil.part(self, sea, MeshUtil.mat(Color(0.32, 0.3, 0.24), 0.0, 1.0))
 	seabed.position.y = float(meta["hoehe"]["min"]) + 0.3
 	welt._marker_importieren()
+	welt._seen_importieren(sea_mat)
+	welt._wege_importieren() # Wegverläufe und Brücken (das Gelände unter den Wegen ist schon eingeebnet)
+	welt._hoehe_bild = null # Höhendaten wurden nur für die Brückenpfeiler gebraucht
 
 	# Terrain3D lädt seine Regionen erst in den nächsten Frames
 	for i in 3:
 		await get_tree().process_frame
 	temp_camera.queue_free()
+
+
+## Position des Markers „Startdorf“ (x/z) aus marker.json, sonst ISLAND_START.
+func _island_start() -> Vector3:
+	var path := ISLAND_DATA.path_join("marker.json")
+	if FileAccess.file_exists(path):
+		for m in JSON.parse_string(FileAccess.get_file_as_string(path)):
+			if m.get("name", "") == "Startdorf":
+				return Vector3(float(m["x"]), 0, float(m["z"]))
+	return ISLAND_START
 
 
 func _build_ground() -> void:
@@ -377,7 +393,7 @@ func _build_coast_fishing() -> void:
 	for i in 32:
 		var dir := Vector3(cos(TAU * i / 32.0), 0, sin(TAU * i / 32.0))
 		var d := 8.0
-		while d < 600.0:
+		while d < 1500.0:
 			if _ground(dir * d) < -0.5:
 				if d < best_dist:
 					best_dist = d

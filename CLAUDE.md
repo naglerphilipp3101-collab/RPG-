@@ -67,7 +67,10 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
 
 **Nächster Schritt (M4.5 Grafik & Welt):**
 - Assets aus `assets/` ins Spiel einbinden: Erze auf **6 Tiers** umstellen (Spiel hat bisher Kupfer/Eisen in Tier 1–2), Bäume und Pflanzen ersetzen.
-- Terrain3D und Weltgenerator-Insel statt der flachen Testwelt.
+- ✅ Terrain3D-Insel ist eingebaut (Karte 5, Seed 737707, 16,4 km, 2 m/Pixel). Rohdaten: `Welt/welt_export.zip` (+ Projekt `welt_projekt_737707.zip`),
+  entpackt nach `godot/welt_daten` (gitignored), Import: `Godot --headless --path godot -s res://tests/welt_importieren.gd`.
+  Das Spiel setzt `vertex_spacing` aus `meter_pro_pixel`, startet am Marker „Startdorf“, legt Seen (`welt_seen`) und Brücken an,
+  Spielstand-Welt-ID = `insel_<seed>`. Noch offen: Ressourcen/Gegner außerhalb des Startgebiets (Streamer), Regionsgrenzen auf der Karte.
 - Spielfigur, NPCs und Gegner aus fertigen Paketen (Quaternius/KayKit + Mixamo). Downloads macht der Nutzer selbst.
 - Danach M5 (Startgebiet, Tutorial, NPCs, Dialoge), M6 (Fraktionsregion, Händler), M7 (lebendige Welt).
 
@@ -82,7 +85,7 @@ Godot --headless --path godot -- --autotest --craft        # Herstellungskette
 Godot --headless --path godot -- --autotest --savetest     # Speichern/Laden (eigene Testdatei)
 Godot --path godot --write-movie <ordner>\f.png --fixed-fps 20 -- --autotest --showcase   # Bilder prüfen
 ```
-Weitere Bild-Modi: `--ui`, `--village`, `--pause` (mit `--quit-after N`). Im Testmodus ist das Speichern abgeschaltet (`Game.saving_enabled = false`).
+Weitere Bild-Modi: `--ui`, `--village`, `--pause` (mit `--quit-after N`); Insel: `--island` (Blick aufs Startdorf), `--island --aerial`, `--island --flytest` (nur mit Fenster, headless bewegt sich der Spieler nicht). Im Testmodus ist das Speichern abgeschaltet (`Game.saving_enabled = false`).
 
 Assets und Weltgenerator: Godot headless + Playwright (Chromium). Terrain3D-Nahansichten in Forward+ stürzen im Container ab → `--rendering-method gl_compatibility`.
 

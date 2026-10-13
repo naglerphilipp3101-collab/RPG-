@@ -148,6 +148,7 @@ func importieren() -> void:
 
 	_marker_importieren()
 	_wege_importieren()
+	_seen_importieren(mat)
 	if Engine.is_editor_hint():
 		terrain.get("data").save_directory(datenordner)
 	print("Weltimport: %d x %d Pixel, %.1f m/Pixel, Höhen %.1f … %.1f m" % [n, n, mpp, meta["hoehe"]["min"], meta["hoehe"]["max"]])
@@ -277,6 +278,70 @@ func _wege_importieren() -> void:
 				k = e + 1
 			else:
 				k += 1
+
+
+## Seen aus welt.json ("seen"): je See eine Wasserfläche auf Höhe seines Wasserspiegels unter "Seen".
+## Die Fläche deckt das Rechteck der Seezellen aus seen_<Raster>.u8 ab; das Ufer ringsum liegt höher, deshalb
+## ist das Wasser nur im See zu sehen. Jede Fläche ist in der Gruppe "welt_seen" mit Metadaten (nr, wasserspiegel, flaeche_m2).
+func _seen_importieren(wasser: Material = null) -> void:
+	var alt := get_node_or_null("Seen")
+	if alt:
+		remove_child(alt)
+		alt.free()
+	var meta_pfad := daten_ordner.path_join("welt.json")
+	if not FileAccess.file_exists(meta_pfad):
+		return
+	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(meta_pfad))
+	if meta.get("seen") == null:
+		return
+	var seen: Dictionary = meta["seen"]
+	var raster: int = int(meta["raster"])
+	var zelle: float = float(meta["zelle_m"])
+	var maske := FileAccess.get_file_as_bytes(daten_ordner.path_join(seen["datei"]))
+	if maske.size() != raster * raster:
+		push_warning("Weltimport: Seen-Maske hat die falsche Größe, Seen werden übersprungen.")
+		return
+	var liste: Array = seen["liste"]
+	# Rechteck je See (in Zellen): [min_x, min_y, max_x, max_y]
+	var rechteck := {}
+	for s in liste:
+		rechteck[int(s["nr"])] = [raster, raster, -1, -1]
+	for y in raster:
+		var zeile := y * raster
+		for x in raster:
+			var nr := maske[zeile + x]
+			if nr == 0 or not rechteck.has(nr):
+				continue
+			var r: Array = rechteck[nr]
+			r[0] = mini(r[0], x); r[1] = mini(r[1], y); r[2] = maxi(r[2], x); r[3] = maxi(r[3], y)
+	if wasser == null:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.12, 0.34, 0.45, 0.85)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.roughness = 0.05
+		m.metallic_specular = 0.8
+		wasser = m
+	var wurzel := Node3D.new()
+	wurzel.name = "Seen"
+	add_child(wurzel)
+	_besitzer(wurzel)
+	var halb := raster * zelle / 2.0
+	for s in liste:
+		var r: Array = rechteck[int(s["nr"])]
+		if r[2] < 0:
+			continue
+		var ebene := PlaneMesh.new()
+		ebene.size = Vector2((r[2] - r[0] + 3) * zelle, (r[3] - r[1] + 3) * zelle)
+		var see := MeshInstance3D.new()
+		see.name = "See_%d" % int(s["nr"])
+		see.mesh = ebene
+		see.material_override = wasser
+		see.position = Vector3((r[0] + r[2] + 1) / 2.0 * zelle - halb, float(s["wasserspiegel"]), (r[1] + r[3] + 1) / 2.0 * zelle - halb)
+		for k in s.keys():
+			see.set_meta(k, s[k])
+		see.add_to_group("welt_seen", true)
+		wurzel.add_child(see)
+		_besitzer(see)
 
 
 ## Einfache Holzbrücke: Fahrbahn aus Planken, Geländer, Stützpfeiler bis zum Boden
