@@ -9,3 +9,9 @@ Welt/
 
 # Plugin Terrain3D (aus der Godot-AssetLib bzw. GitHub, ca. 40 MB Programmdateien) – lokal installieren
 godot/addons/terrain_3d/
+
+# Rohdateien der Poly-Haven-Scans (neu laden mit godot/assets/scans/scans_laden.ps1)
+godot/assets/scans/*/
+
+# Aus den Scans erzeugte Terrain-Texturen (neu erzeugen mit godot/tests/scans_umwandeln.gd)
+godot/assets/welt/texturen_scan/

@@ -25,13 +25,20 @@ extends Node3D
 		if m:
 			m.visible = v
 
-## Kachelgröße der Bodentexturen in Metern (Biom-Reihenfolge wie im Generator)
-## dazu ein Farbton, mit dem die Textur im Spiel multipliziert wird (Wiese gedämpfter, Waldböden etwas grüner)
+## Bodentexturen (Biom-Reihenfolge wie im Generator, dazu 9 Kopfstein und 10 moosiges Kopfstein für Siedlungen):
+## Name, Kachelgröße in Metern und Farbton – einmal für die Fotoscans (texturen_scan/, siehe tests/scans_umwandeln.gd),
+## einmal für die selbst erzeugten Texturen (texturen/), die genommen werden, wenn die Scans fehlen.
 const BODEN := [
-	["sand", 4.0, Color(1.0, 0.98, 0.95)], ["wiese", 3.0, Color(0.6, 0.64, 0.82)], ["laubboden", 3.0, Color(0.6, 0.72, 0.52)],
-	["nadelboden", 3.0, Color(0.72, 0.8, 0.64)], ["sumpf", 4.0, Color.WHITE], ["steppe", 3.0, Color(0.92, 0.9, 0.88)],
-	["fels", 8.0, Color.WHITE], ["schnee", 6.0, Color.WHITE], ["weg", 3.0, Color.WHITE],
+	["sand", 5.0, 3.0, Color.WHITE, Color(1.0, 0.98, 0.95)], ["wiese", 2.4, 3.0, Color(0.68, 0.84, 0.5), Color(0.6, 0.64, 0.82)],
+	["laubboden", 3.0, 3.0, Color(0.7, 0.78, 0.58), Color(0.6, 0.72, 0.52)], ["nadelboden", 3.2, 3.0, Color(0.85, 0.88, 0.78), Color(0.72, 0.8, 0.64)],
+	["sumpf", 2.6, 4.0, Color(0.85, 0.92, 0.75), Color.WHITE], ["steppe", 4.0, 3.0, Color(1.0, 1.0, 0.9), Color(0.92, 0.9, 0.88)],
+	["fels", 5.4, 8.0, Color.WHITE, Color.WHITE], ["schnee", 3.0, 6.0, Color.WHITE, Color.WHITE],
+	["weg", 2.5, 3.0, Color.WHITE, Color.WHITE], ["kopfstein", 2.0, 3.0, Color.WHITE, Color.WHITE],
+	["kopfstein_moos", 2.0, 3.0, Color.WHITE, Color.WHITE],
 ]
+const WEG_ID := 8
+const KOPFSTEIN_ID := 9
+const KOPFSTEIN_MOOS_ID := 10
 
 ## Platzhalter (farbige Säulen, Namen, Feldflächen) für die Marker anzeigen
 @export var marker_platzhalter: bool = true:
@@ -88,6 +95,7 @@ func importieren() -> void:
 	if meta.has("steuerung"):
 		var sb := FileAccess.get_file_as_bytes(daten_ordner.path_join(meta["steuerung"]["datei"]))
 		if sb.size() == n * n * 4:
+			_kopfstein_in_siedlungen(sb, n, mpp, float(meta.get("welt_m", n * mpp)))
 			steuer = Image.create_from_data(n, n, false, Image.FORMAT_RF, sb)
 		else:
 			push_warning("Weltimport: Steuerkarte hat falsche Größe, Biome werden übersprungen.")
@@ -158,20 +166,59 @@ func importieren() -> void:
 	print("Weltimport: %d x %d Pixel, %.1f m/Pixel, Höhen %.1f … %.1f m" % [n, n, mpp, meta["hoehe"]["min"], meta["hoehe"]["max"]])
 
 
+## In Städten werden Wege zu Kopfsteinpflaster, in Dörfern zu moosigem Kopfstein: in der Steuerkarte (uint32 je Pixel:
+## Bits 27–31 Grundtextur, 22–26 Überlagerung) wird im Umkreis jeder Siedlung die Weg-Textur ersetzt.
+func _kopfstein_in_siedlungen(sb: PackedByteArray, n: int, mpp: float, welt_m: float) -> void:
+	var pfad := daten_ordner.path_join("marker.json")
+	if not FileAccess.file_exists(pfad):
+		return
+	var ersetzt := 0
+	for m in JSON.parse_string(FileAccess.get_file_as_string(pfad)):
+		var typ: String = m["typ"]
+		if typ != "stadt" and typ != "dorf":
+			continue
+		var neu := KOPFSTEIN_ID if typ == "stadt" else KOPFSTEIN_MOOS_ID
+		var r: float = float(m.get("radius", 60)) * (1.25 if typ == "stadt" else 1.1) / mpp
+		var cx := (float(m["x"]) + welt_m / 2.0) / mpp
+		var cy := (float(m["z"]) + welt_m / 2.0) / mpp
+		for y in range(maxi(0, int(cy - r)), mini(n, int(cy + r) + 1)):
+			for x in range(maxi(0, int(cx - r)), mini(n, int(cx + r) + 1)):
+				if (x - cx) * (x - cx) + (y - cy) * (y - cy) > r * r:
+					continue
+				var o := (y * n + x) * 4
+				var v := sb.decode_u32(o)
+				var basis := (v >> 27) & 31
+				var auf := (v >> 22) & 31
+				if basis != WEG_ID and auf != WEG_ID:
+					continue
+				if basis == WEG_ID:
+					v = (v & ~(31 << 27)) | (neu << 27)
+				if auf == WEG_ID:
+					v = (v & ~(31 << 22)) | (neu << 22)
+				sb.encode_u32(o, v & 0xFFFFFFFF)
+				ersetzt += 1
+	print("Weltimport: %d Weg-Pixel in Siedlungen zu Kopfstein" % ersetzt)
+
+
 func _texturen_einrichten(terrain: Node3D) -> void:
 	var basis: String = (get_script() as Script).resource_path.get_base_dir()
 	var assets = terrain.get("assets")
 	if assets == null:
 		assets = ClassDB.instantiate("Terrain3DAssets")
 		terrain.set("assets", assets)
+	var scans := ResourceLoader.exists(basis.path_join("texturen_scan/wiese_albedo_hoehe.png"))
 	for id in BODEN.size():
 		var name_: String = BODEN[id][0]
+		var ordner := "texturen_scan" if scans else "texturen"
+		if not ResourceLoader.exists(basis.path_join("%s/%s_albedo_hoehe.png" % [ordner, name_])):
+			name_ = "weg" # ohne Scans gibt es kein Kopfstein: dann Weg-Textur
+			ordner = "texturen_scan" if scans else "texturen"
 		var t = ClassDB.instantiate("Terrain3DTextureAsset")
-		t.set("name", name_.capitalize())
-		t.set("albedo_texture", load(basis.path_join("texturen/%s_albedo_hoehe.png" % name_)))
-		t.set("normal_texture", load(basis.path_join("texturen/%s_normal_rauheit.png" % name_)))
-		t.set("uv_scale", 1.0 / BODEN[id][1])
-		t.set("albedo_color", BODEN[id][2])
+		t.set("name", String(BODEN[id][0]).capitalize())
+		t.set("albedo_texture", load(basis.path_join("%s/%s_albedo_hoehe.png" % [ordner, name_])))
+		t.set("normal_texture", load(basis.path_join("%s/%s_normal_rauheit.png" % [ordner, name_])))
+		t.set("uv_scale", 1.0 / float(BODEN[id][1 if scans else 2]))
+		t.set("albedo_color", BODEN[id][3 if scans else 4])
 		t.set("detiling_rotation", 0.3)
 		t.set("detiling_shift", 0.2)
 		# Terrain3D 1.0.x: set_texture · neuere Versionen: set_texture_asset
@@ -185,8 +232,8 @@ func _texturen_einrichten(terrain: Node3D) -> void:
 	var mat = terrain.get("material")
 	mat.call("set_shader_param", "blend_sharpness", 0.6)
 	mat.call("set_shader_param", "enable_macro_variation", true)
-	mat.call("set_shader_param", "macro_variation1", Color(1.0, 0.94, 0.86))
-	mat.call("set_shader_param", "macro_variation2", Color(0.86, 0.96, 0.88))
+	mat.call("set_shader_param", "macro_variation1", Color(0.94, 1.0, 0.9))
+	mat.call("set_shader_param", "macro_variation2", Color(1.0, 0.97, 0.92))
 	mat.call("set_shader_param", "macro_variation_slope", 0.4)
 	mat.call("set_shader_param", "noise1_scale", 0.012)
 	mat.call("set_shader_param", "noise2_scale", 0.05)
