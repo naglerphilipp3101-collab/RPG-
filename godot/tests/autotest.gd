@@ -34,6 +34,20 @@ func _ready() -> void:
 		if OS.get_cmdline_user_args().has("--fluss"):
 			_fluss_ansicht()
 			return
+		if OS.get_cmdline_user_args().has("--baeume"):
+			# Fichte, Kiefer, Eiche (alt) nebeneinander vor dem Spieler
+			var main = get_tree().current_scene
+			for a in 3:
+				var baum = load("res://assets/baeume/baum.tscn").instantiate()
+				baum.set("art", a)
+				baum.set("alter", 1)
+				var p: Vector3 = player.global_position + Vector3(-7.0 + a * 7.0, 0, -11.0)
+				p.y = main.terrain.get("data").get_height(p)
+				main.add_child(baum)
+				baum.global_position = p
+			player.cam_yaw = 0.0
+			player.cam_pitch = 0.3
+			return
 		if OS.get_cmdline_user_args().has("--steine"):
 			# alle fünf Felsbrocken-Größen in einer Reihe vor dem Spieler (Startgebiet, flach)
 			var main = get_tree().current_scene

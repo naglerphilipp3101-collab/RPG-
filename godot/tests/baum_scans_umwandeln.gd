@@ -41,7 +41,17 @@ func _process(_delta: float) -> bool:
 		stueck.resize(int(stueck.get_width() * sw), int(stueck.get_height() * sh), Image.INTERPOLATE_LANCZOS)
 		var aus := Image.create(1024, 512, false, Image.FORMAT_RGBA8)
 		aus.fill(Color(0.2, 0.3, 0.15, 0.0))
-		aus.blit_rect(stueck, Rect2i(Vector2i.ZERO, stueck.get_size()), Vector2i(0, (512 - stueck.get_height()) / 2))
+		if art == "fichte":
+			# Der Fichtenzweig ist licht: mehrfach überlagert zu einem dichten Ast (wie die eigene Fichten-Textur)
+			for k in 4:
+				var teil := stueck.duplicate() as Image
+				var f: float = [1.0, 0.85, 0.75, 0.6][k]
+				teil.resize(int(teil.get_width() * f), int(teil.get_height() * f), Image.INTERPOLATE_LANCZOS)
+				if k % 2 == 1:
+					teil.flip_y()
+				aus.blend_rect(teil, Rect2i(Vector2i.ZERO, teil.get_size()), Vector2i([0, 160, 330, 470][k], (512 - teil.get_height()) / 2))
+		else:
+			aus.blit_rect(stueck, Rect2i(Vector2i.ZERO, stueck.get_size()), Vector2i(0, (512 - stueck.get_height()) / 2))
 		aus.save_png(ProjectSettings.globalize_path("%s/%s_nadeln.png" % [ziel, art]))
 		print("ZWEIG %s <- %s (%d × %d)" % [art, z[0], stueck.get_width(), stueck.get_height()])
 	return true

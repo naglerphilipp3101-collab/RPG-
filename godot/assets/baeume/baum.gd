@@ -94,6 +94,9 @@ func _aufbauen() -> void:
 	var rinde := _scan_rinde("knotted_pine_bark" if alter == Alter.URALT else SCAN_RINDE[art])
 	if rinde:
 		mats["rinde"] = rinde
+		# Kiefer: obere Rinde ist dieselbe Borke, nur rötlich-orange (sonst sieht der Übergang wie abgeschält aus)
+		if art == Art.KIEFER:
+			mats["rinde_oben"] = _scan_rinde("pine_bark", Color(1.35, 0.78, 0.5))
 	var nadeln := _scan_nadeln(art_name, mats.get("nadeln"))
 	if nadeln:
 		mats["nadeln"] = nadeln
@@ -130,9 +133,10 @@ static var _scan_mats := {}
 
 
 ## Rinde aus einem Poly-Haven-Scan (assets/scans/<id>/); Kachel ~1,6 m (UVs der Modelle: 0,8 m je Einheit)
-static func _scan_rinde(id: String) -> Material:
-	if _scan_mats.has(id):
-		return _scan_mats[id]
+static func _scan_rinde(id: String, ton := Color.WHITE) -> Material:
+	var key := id + str(ton)
+	if _scan_mats.has(key):
+		return _scan_mats[key]
 	var basis := "res://assets/scans/%s/%s_" % [id, id]
 	var m: StandardMaterial3D = null
 	if ResourceLoader.exists(basis + "diffuse_2k.jpg"):
@@ -143,7 +147,8 @@ static func _scan_rinde(id: String) -> Material:
 		m.normal_scale = 1.3
 		m.roughness_texture = load(basis + "rough_2k.jpg")
 		m.uv1_scale = Vector3(0.5, 0.5, 1.0)
-	_scan_mats[id] = m
+		m.albedo_color = ton
+	_scan_mats[key] = m
 	return m
 
 
