@@ -34,6 +34,19 @@ func _ready() -> void:
 		if OS.get_cmdline_user_args().has("--fluss"):
 			_fluss_ansicht()
 			return
+		if OS.get_cmdline_user_args().has("--steine"):
+			# alle fünf Felsbrocken-Größen in einer Reihe vor dem Spieler (Startgebiet, flach)
+			var main = get_tree().current_scene
+			for g in range(1, 6):
+				var stein = load("res://assets/erz/felsbrocken.tscn").instantiate()
+				stein.set("groesse", g)
+				var p: Vector3 = player.global_position + Vector3(-9.0 + g * 3.5, 0, -10.0 - g * 0.8)
+				p.y = main.terrain.get("data").get_height(p)
+				main.add_child(stein)
+				stein.global_position = p
+			player.cam_yaw = 0.0
+			player.cam_pitch = -0.2
+			return
 		if OS.get_cmdline_user_args().has("--aerial"):
 			# Luftbild: eigene Kamera hoch über dem Startgebiet, Blick nach Norden über die Insel
 			var cam := Camera3D.new()
@@ -399,9 +412,12 @@ func _natur_test() -> void:
 		var best := []
 		var best_d := INF
 		var mk := Vector2i(floori(player.global_position.x / 256.0), floori(player.global_position.z / 256.0))
-		for dz in range(-6, 7):
-			for dx in range(-6, 7):
+		for dz in range(-12, 13):
+			for dx in range(-12, 13):
 				for m in natur._monolithen(mk + Vector2i(dx, dz)):
+					var nur: int = 0 if OS.get_cmdline_user_args().has("--turm") else (2 if OS.get_cmdline_user_args().has("--klippe") else -1)
+					if nur >= 0 and int(m[3]) != nur:
+						continue
 					var d := Vector2(m[0], m[2]).distance_to(Vector2(player.global_position.x, player.global_position.z))
 					if d < best_d:
 						best_d = d
@@ -413,7 +429,7 @@ func _natur_test() -> void:
 			player.cam_yaw = atan2(-blick.x, -blick.z)
 			player.cam_pitch = 0.1
 			natur._fern_bauen(Vector2i(floori(best[0] / 256.0), floori(best[2] / 256.0)))
-			print("AUTOTEST Monolith: %s bei %s, %.0f m entfernt" % ["Turm" if int(best[3]) == 0 else "Gruppe", Vector2(best[0], best[2]).round(), best_d])
+			print("AUTOTEST Monolith: %s bei %s, %.0f m entfernt" % [["Turm", "Gruppe", "Felswand"][int(best[3])], Vector2(best[0], best[2]).round(), best_d])
 	if OS.get_cmdline_user_args().has("--fels"):
 		# vor den nächsten noch stehenden Felsbrocken stellen und hinsehen
 		var stein = null

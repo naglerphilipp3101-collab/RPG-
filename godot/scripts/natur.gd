@@ -179,7 +179,7 @@ func _monolithen(k: Vector2i) -> Array:
 		var x := (k.x + 0.1 + 0.8 * rng.randf()) * FERN_KACHEL
 		var z := (k.y + 0.1 + 0.8 * rng.randf()) * FERN_KACHEL
 		var r := rng.randf()
-		var typ := 0 if rng.randf() < 0.45 else 1
+		var typ := 0 if rng.randf() < 0.45 else 1 # 0 Felsturm, 1 Felsgruppe
 		var variante := rng.randi_range(1, 3)
 		var dreh := rng.randf() * TAU
 		var b := _biom(x, z)
@@ -598,12 +598,31 @@ func _monolith_bauen(m: Array) -> Node3D:
 	koerper.rotation.y = float(m[5])
 	var mi := MeshInstance3D.new()
 	mi.mesh = daten[0]
-	mi.material_override = SteinMaterial
+	mi.material_override = _fels_material()
 	koerper.add_child(mi)
 	var form := CollisionShape3D.new()
 	form.shape = daten[1]
 	koerper.add_child(form)
 	return koerper
+
+
+## Material der Felstürme/-gruppen: Fels-Scan triplanar, wenn die Scans da sind, sonst das alte Steinmaterial
+var _fels_mat: Material
+func _fels_material() -> Material:
+	if _fels_mat:
+		return _fels_mat
+	var basis := "res://assets/scans/rock_face_03/rock_face_03_"
+	if ResourceLoader.exists(basis + "diffuse_2k.jpg"):
+		var mat := ShaderMaterial.new()
+		mat.shader = preload("res://scripts/fels_triplanar.gdshader")
+		mat.set_shader_parameter("farbe", load(basis + "diffuse_2k.jpg"))
+		mat.set_shader_parameter("normale", load(basis + "nor_gl_2k.jpg"))
+		mat.set_shader_parameter("rauheit", load(basis + "rough_2k.jpg"))
+		mat.set_shader_parameter("groesse", 4.0)
+		_fels_mat = mat
+	else:
+		_fels_mat = SteinMaterial
+	return _fels_mat
 
 
 # --- einfache Baumformen für die Ferne (Höhe 1, Breite 1, Fuß bei y = 0) ----
