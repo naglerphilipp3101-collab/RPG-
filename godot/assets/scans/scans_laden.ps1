@@ -32,4 +32,26 @@ foreach ($id in $modelle) {
 	if ($a) { $summe += Laden $a."2k".png.url (Join-Path $ziel "$id\textures\$id`_alpha_2k.png") }
 	Write-Output "Modell $id"
 }
+# Bäume: Rinden-Texturen und nur die Zweig-/Blatt-Texturen einzelner Baum-Modelle (ohne deren große Geometrie)
+$rinden = @("bark_brown_02", "pine_bark", "jolcham_oak_bark_01", "knotted_pine_bark")
+foreach ($id in $rinden) {
+	$f = Invoke-RestMethod "https://api.polyhaven.com/files/$id"
+	foreach ($k in @("Diffuse", "nor_gl", "Rough")) {
+		$e = $f.$k."2k".jpg
+		if ($e) { $summe += Laden $e.url (Join-Path $ziel "$id\$id`_$($k.ToLower())_2k.jpg") }
+	}
+	Write-Output "Rinde $id"
+}
+$zweige = @(@("fir_tree_01", "twig"), @("pine_tree_01", "twig"), @("tree_small_02", "leaves"))
+foreach ($z in $zweige) {
+	$id = $z[0]; $teil = $z[1]
+	$f = Invoke-RestMethod "https://api.polyhaven.com/files/$id"
+	foreach ($k in @("diff", "nor_gl", "arm")) {
+		$e = $f."$teil`_$k"."2k".jpg
+		if ($e) { $summe += Laden $e.url (Join-Path $ziel "$id\$id`_$teil`_$k`_2k.jpg") }
+	}
+	$a = $f."$teil`_alpha"."2k".png
+	if ($a) { $summe += Laden $a.url (Join-Path $ziel "$id\$id`_$teil`_alpha_2k.png") }
+	Write-Output "Zweige $id"
+}
 Write-Output ("Fertig, {0:N1} MB neu geladen" -f ($summe / 1MB))

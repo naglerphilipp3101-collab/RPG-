@@ -15,3 +15,5 @@ godot/assets/scans/*/
 
 # Aus den Scans erzeugte Terrain-Texturen (neu erzeugen mit godot/tests/scans_umwandeln.gd)
 godot/assets/welt/texturen_scan/
+# Aus den Baum-Scans geschnittene Zweige (neu erzeugen mit godot/tests/baum_scans_umwandeln.gd)
+godot/assets/baeume/texturen_scan/

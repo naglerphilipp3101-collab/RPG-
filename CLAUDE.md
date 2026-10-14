@@ -91,7 +91,8 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
 3. ✅ (14.10.) Realismus-Durchgang: Poly-Haven-Scans (CC0, `godot/assets/scans/scans_laden.ps1`, nicht im Repo) –
    Böden (`tests/scans_umwandeln.gd` → `assets/welt/texturen_scan/`), Kopfstein in Städten/Dörfern (beim Weltimport),
    abbaubare Moosfelsen (felsbrocken.gd), Fels-Triplanar auf Monolithen, Gras/Farn/Blumen-Scans mit Alpha (gras.gd).
-   Ohne Scans fällt alles auf die selbst erzeugten Formen/Texturen zurück. Bäume sind weiter die Blender-Modelle.
+   Bäume: Blender-Formen mit Scan-Rinde (baum.gd `_scan_rinde`) und aus Atlanten geschnittenen Zweigen
+   (`tests/baum_scans_umwandeln.gd` → `assets/baeume/texturen_scan/`). Ohne Scans fällt alles auf die eigenen Texturen zurück.
 - Weiter offen: Gegner/Tiere (wartet auf Modelle + Animationen), feindliche Lager, Schwierigkeit, Erze in Minen, Siedlungen, Regionsgrenzen auf der Karte.
 - Spielfigur, NPCs und Gegner aus fertigen Paketen (Quaternius/KayKit + Mixamo). Downloads macht der Nutzer selbst.
 - Danach M5 (Startgebiet, Tutorial, NPCs, Dialoge), M6 (Fraktionsregion, Händler), M7 (lebendige Welt).

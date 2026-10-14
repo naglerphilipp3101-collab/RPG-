@@ -90,6 +90,13 @@ func _aufbauen() -> void:
 		var pfad := basis + "/materialien/%s_%s.tres" % [art_name, teil]
 		if ResourceLoader.exists(pfad):
 			mats[teil] = load(pfad)
+	# Fotogescannte Rinde und Zweige (Poly Haven), wenn vorhanden – uralte Bäume mit knorriger Rinde
+	var rinde := _scan_rinde("knotted_pine_bark" if alter == Alter.URALT else SCAN_RINDE[art])
+	if rinde:
+		mats["rinde"] = rinde
+	var nadeln := _scan_nadeln(art_name, mats.get("nadeln"))
+	if nadeln:
+		mats["nadeln"] = nadeln
 	_baum = _modell(basis + "/modelle/%s_%s_%d.glb" % [art_name, ALTER_DATEI[alter], v], mats)
 	_stumpf = _modell(basis + "/modelle/%s_stumpf_%s.glb" % [art_name, ALTER_DATEI[alter]], mats)
 
@@ -116,6 +123,43 @@ func _aufbauen() -> void:
 	_timer.timeout.connect(nachwachsen)
 	add_child(_timer)
 	_setze_zustand()
+
+
+const SCAN_RINDE := ["bark_brown_02", "pine_bark", "jolcham_oak_bark_01"]
+static var _scan_mats := {}
+
+
+## Rinde aus einem Poly-Haven-Scan (assets/scans/<id>/); Kachel ~1,6 m (UVs der Modelle: 0,8 m je Einheit)
+static func _scan_rinde(id: String) -> Material:
+	if _scan_mats.has(id):
+		return _scan_mats[id]
+	var basis := "res://assets/scans/%s/%s_" % [id, id]
+	var m: StandardMaterial3D = null
+	if ResourceLoader.exists(basis + "diffuse_2k.jpg"):
+		m = StandardMaterial3D.new()
+		m.albedo_texture = load(basis + "diffuse_2k.jpg")
+		m.normal_enabled = true
+		m.normal_texture = load(basis + "nor_gl_2k.jpg")
+		m.normal_scale = 1.3
+		m.roughness_texture = load(basis + "rough_2k.jpg")
+		m.uv1_scale = Vector3(0.5, 0.5, 1.0)
+	_scan_mats[id] = m
+	return m
+
+
+## Laub/Nadeln: eigenes Shader-Material, aber mit dem aus dem Scan geschnittenen Zweig (tests/baum_scans_umwandeln.gd)
+static func _scan_nadeln(art_name: String, vorlage: Material) -> Material:
+	var key := art_name + "_nadeln"
+	if _scan_mats.has(key):
+		return _scan_mats[key]
+	var pfad := "res://assets/baeume/texturen_scan/%s_nadeln.png" % art_name
+	var m: ShaderMaterial = null
+	if vorlage is ShaderMaterial and ResourceLoader.exists(pfad):
+		m = (vorlage as ShaderMaterial).duplicate()
+		m.set_shader_parameter("textur", load(pfad))
+		m.set_shader_parameter("alpha_schwelle", 0.5)
+	_scan_mats[key] = m
+	return m
 
 
 func _modell(pfad: String, mats: Dictionary) -> Node3D:
