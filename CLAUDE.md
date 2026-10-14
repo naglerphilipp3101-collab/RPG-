@@ -88,7 +88,10 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
    (`*_uralt_*.glb`, Blender `kahle_aeste()` in kiefer.py; ~6 % im Wald) geben „Gereiftes Holz“ (aged_wood).
    Felsmonolithen (`assets/erz/modelle/monolith_turm|gruppe_1-3.glb`, Blender `monolith.py`) stehen je 256-m-Kachel in natur.gd
    (`_monolithen()`), mit Kollision, nicht abbaubar. Tests: `--island --natur [--uralt|--monolith]`.
-3. Realismus-Durchgang mit gescannten Assets (Böden, Kopfsteinpflaster, Felsen, Bewuchs).
+3. ✅ (14.10.) Realismus-Durchgang: Poly-Haven-Scans (CC0, `godot/assets/scans/scans_laden.ps1`, nicht im Repo) –
+   Böden (`tests/scans_umwandeln.gd` → `assets/welt/texturen_scan/`), Kopfstein in Städten/Dörfern (beim Weltimport),
+   abbaubare Moosfelsen (felsbrocken.gd), Fels-Triplanar auf Monolithen, Gras/Farn/Blumen-Scans mit Alpha (gras.gd).
+   Ohne Scans fällt alles auf die selbst erzeugten Formen/Texturen zurück. Bäume sind weiter die Blender-Modelle.
 - Weiter offen: Gegner/Tiere (wartet auf Modelle + Animationen), feindliche Lager, Schwierigkeit, Erze in Minen, Siedlungen, Regionsgrenzen auf der Karte.
 - Spielfigur, NPCs und Gegner aus fertigen Paketen (Quaternius/KayKit + Mixamo). Downloads macht der Nutzer selbst.
 - Danach M5 (Startgebiet, Tutorial, NPCs, Dialoge), M6 (Fraktionsregion, Händler), M7 (lebendige Welt).

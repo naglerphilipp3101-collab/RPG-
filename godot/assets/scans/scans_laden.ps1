@@ -27,6 +27,9 @@ foreach ($id in $modelle) {
 	$g = (Invoke-RestMethod "https://api.polyhaven.com/files/$id").gltf."2k".gltf
 	$summe += Laden $g.url (Join-Path $ziel "$id\$id`_2k.gltf")
 	foreach ($i in $g.include.PSObject.Properties) { $summe += Laden $i.Value.url (Join-Path $ziel "$id\$($i.Name)") }
+	# Pflanzen: Transparenz liegt als eigene Datei vor (die Farb-JPG im glTF hat keinen Alphakanal)
+	$a = (Invoke-RestMethod "https://api.polyhaven.com/files/$id").Alpha
+	if ($a) { $summe += Laden $a."2k".png.url (Join-Path $ziel "$id\textures\$id`_alpha_2k.png") }
 	Write-Output "Modell $id"
 }
 Write-Output ("Fertig, {0:N1} MB neu geladen" -f ($summe / 1MB))

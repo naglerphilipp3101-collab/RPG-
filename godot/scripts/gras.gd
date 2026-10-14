@@ -5,6 +5,7 @@ extends Node3D
 ## Nicht auf Wegen, in Feldern, Seen und Flüssen, auf Fels/Schnee und an Steilhängen. Nutzt die Daten von scripts/natur.gd.
 
 const GrasShader := preload("res://scripts/gras.gdshader")
+const GrasScanShader := preload("res://scripts/gras_scan.gdshader")
 
 const KACHEL := 16.0
 const RADIUS := 35.0
@@ -33,7 +34,21 @@ var _kacheln := {}                # Vector2i -> Node3D (je Art ein MultiMeshInst
 var _offen: Array = []
 var _mitte := Vector2(INF, INF)
 var _material := ShaderMaterial.new()
-var _meshes: Array = []
+var _materialien: Array = []      # alle Materialien, die "mitte" brauchen
+## je Art eine Liste von Varianten {mesh, xf (Transform aus dem Scan), mat, s (Skalierung min, max)}
+var _varianten: Array = []
+var _scans := false
+
+## Fotogescannter Bewuchs (Poly Haven, scripts/scan_modelle.gd): Scan, Teil-Filter, Skalierung
+const SCANS := [
+	[["grass_medium_01", "tall", Vector2(2.4, 3.2)], ["grass_medium_01", "mid", Vector2(2.2, 3.0)], ["grass_medium_01", "large", Vector2(2.0, 2.6)]],
+	[["fern_02", "_a", Vector2(1.0, 1.4)], ["fern_02", "_d", Vector2(1.0, 1.4)], ["fern_02", "_b", Vector2(0.9, 1.2)]],
+	[["celandine_01", "_a_", Vector2(1.3, 1.8)], ["celandine_01", "_b_", Vector2(1.3, 1.8)], ["celandine_01", "_e_", Vector2(1.3, 1.8)]],
+	[["dandelion_01", "_c_", Vector2(1.3, 1.7)], ["dandelion_01", "_d_", Vector2(1.5, 2.0)], ["dandelion_01", "_e_", Vector2(1.3, 1.7)]],
+]
+## Farbton der Scans je Biom (Strand, Wiese, Laubwald, Nadelwald, Sumpf, Steppe, Fels, Schnee)
+const SCAN_TINT := [Color(1.1, 1.05, 0.75), Color(1.0, 1.0, 1.0), Color(0.9, 0.95, 0.85), Color(0.85, 0.9, 0.8),
+	Color(0.95, 1.0, 0.85), Color(1.2, 1.05, 0.65), Color(0.9, 0.9, 0.8), Color.WHITE]
 
 
 func setup(natur_node, spieler: Node3D) -> void:
@@ -41,14 +56,48 @@ func setup(natur_node, spieler: Node3D) -> void:
 	ziel = spieler
 	_material.shader = GrasShader
 	_material.set_shader_parameter("radius", RADIUS)
-	_meshes = [_gras_mesh(), _farn_mesh(), _kraut_mesh(), _blumen_mesh()]
+	_materialien = [_material]
+	_scans = ScanModelle.vorhanden("grass_medium_01")
+	if _scans:
+		for art in 4:
+			var liste: Array = []
+			for eintrag in SCANS[art]:
+				for teil in ScanModelle.teile(eintrag[0], eintrag[1]):
+					liste.append({"mesh": teil["mesh"], "xf": teil["xf"], "mat": _scan_material(teil), "s": eintrag[2]})
+			if liste.is_empty():
+				_scans = false
+			_varianten.append(liste)
+	if not _scans:
+		_varianten = []
+		for m in [_gras_mesh(), _farn_mesh(), _kraut_mesh(), _blumen_mesh()]:
+			_varianten.append([{"mesh": m, "xf": Transform3D.IDENTITY, "mat": _material, "s": Vector2(0.7, 1.3)}])
+
+
+## Shader-Material für einen Scan-Teil: Texturen aus dem Material des Scans übernehmen
+func _scan_material(teil: Dictionary) -> ShaderMaterial:
+	var orig := (teil["mesh"] as Mesh).surface_get_material(0) as BaseMaterial3D
+	var m := ShaderMaterial.new()
+	m.shader = GrasScanShader
+	if orig:
+		m.set_shader_parameter("farbe", orig.albedo_texture)
+		m.set_shader_parameter("normale", orig.normal_texture)
+		m.set_shader_parameter("orm", orig.roughness_texture)
+		var pfad := "res://assets/scans/%s/textures/%s_alpha_2k.png" % [orig.resource_name, orig.resource_name]
+		if ResourceLoader.exists(pfad):
+			m.set_shader_parameter("alpha_map", load(pfad))
+			m.set_shader_parameter("mit_alpha", true)
+	m.set_shader_parameter("hoehe", maxf(0.05, (teil["aabb"] as AABB).size.y))
+	m.set_shader_parameter("radius", RADIUS)
+	_materialien.append(m)
+	return m
 
 
 func _process(_delta: float) -> void:
 	if ziel == null:
 		return
 	var p := Vector2(ziel.global_position.x, ziel.global_position.z)
-	_material.set_shader_parameter("mitte", p)
+	for m in _materialien:
+		m.set_shader_parameter("mitte", p)
 	if p.distance_to(_mitte) > 4.0:
 		_aktualisieren(p)
 	var ende := Time.get_ticks_usec() + BUDGET_US
@@ -150,38 +199,54 @@ func _kachel_bauen(k: Vector2i, voll: bool) -> Node3D:
 				continue
 			if pruefen and (natur._auf_weg(x, z) or natur._im_feld(x, z) or _im_freien_kreis(x, z)):
 				continue
-			var basis := Basis(Vector3.UP, dreh).scaled(Vector3(groesse, groesse * (1.1 if b == WIESE_ID else 0.9), groesse))
 			var c: Color
-			match art:
-				GRAS:
-					c = FARBE[b]
-				FARN:
-					c = FARN_FARBE
-				_:
-					c = KRAUT_FARBE.lerp(FARBE[b], 0.4)
-			c = c.lerp(Color(c.r * 1.25, c.g * 1.15, c.b * 0.9), rng.randf())
-			# Blütenfarbe im Alpha: meist lila, sonst weiß, gelb, rosa
+			if _scans:
+				c = SCAN_TINT[b].lerp(SCAN_TINT[b] * Color(1.1, 1.08, 0.9), rng.randf())
+			else:
+				match art:
+					GRAS:
+						c = FARBE[b]
+					FARN:
+						c = FARN_FARBE
+					_:
+						c = KRAUT_FARBE.lerp(FARBE[b], 0.4)
+				c = c.lerp(Color(c.r * 1.25, c.g * 1.15, c.b * 0.9), rng.randf())
+			# Blütenfarbe im Alpha (nur eigene Formen): meist lila, sonst weiß, gelb, rosa
 			c.a = 0.0 if farbwahl < 0.45 else (0.33 if farbwahl < 0.7 else (0.66 if farbwahl < 0.88 else 1.0))
-			listen[art].append([Transform3D(basis, Vector3(x, h - 0.03, z)), c])
+			# gescannte Grasbüschel sind kleiner: je Stelle zwei
+			for kk in (4 if _scans and art == GRAS else 1):
+				var varianten: Array = _varianten[art]
+				var vi := rng.randi_range(0, varianten.size() - 1)
+				var sv: Vector2 = varianten[vi]["s"]
+				var s := (groesse if not _scans else 1.0) * lerpf(sv.x, sv.y, rng.randf())
+				var basis := Basis(Vector3.UP, dreh + kk * 2.1).scaled(Vector3(s, s * (1.1 if b == WIESE_ID else 0.9), s))
+				var versatz := Vector3(rng.randf_range(-0.25, 0.25), 0, rng.randf_range(-0.3, 0.3)) * minf(kk, 1.0)
+				listen[art].append([Transform3D(basis, Vector3(x, h - 0.03, z) + versatz) * (varianten[vi]["xf"] as Transform3D), c, vi])
 	var knoten := Node3D.new()
 	knoten.set_meta("voll", voll)
 	for art in 4:
-		var liste: Array = listen[art]
-		if liste.is_empty():
-			continue
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_custom_data = true # Farbton und Blütenfarbe (im Shader INSTANCE_CUSTOM)
-		mm.mesh = _meshes[art]
-		mm.instance_count = liste.size()
-		for i in liste.size():
-			mm.set_instance_transform(i, liste[i][0])
-			mm.set_instance_custom_data(i, liste[i][1])
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		mmi.material_override = _material
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		knoten.add_child(mmi)
+		# je Variante ein MultiMesh
+		var je_variante := {}
+		for e in listen[art]:
+			if not je_variante.has(e[2]):
+				je_variante[e[2]] = []
+			je_variante[e[2]].append(e)
+		for vi in je_variante:
+			var liste: Array = je_variante[vi]
+			var v: Dictionary = _varianten[art][vi]
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.use_custom_data = true # Farbton und Blütenfarbe (im Shader INSTANCE_CUSTOM)
+			mm.mesh = v["mesh"]
+			mm.instance_count = liste.size()
+			for i in liste.size():
+				mm.set_instance_transform(i, liste[i][0])
+				mm.set_instance_custom_data(i, liste[i][1])
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = mm
+			mmi.material_override = v["mat"]
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			knoten.add_child(mmi)
 	add_child(knoten)
 	return knoten
 
