@@ -9,7 +9,8 @@ from fichte import Bau, stamm_radius, export
 
 # höhe, stamm_d, krone_breit, krone_ab, quirle, stumpf_höhe, büschelgröße  (siehe groessen.py)
 KIEFER = {"jung": (4.9, 0.18, 2.5, 2.2, 5, 0.35, 0.85),
-          "alt":  (11.2, 0.35, 4.9, 6.3, 7, 0.5, 1.45)}
+          "alt":  (11.2, 0.35, 4.9, 6.3, 7, 0.5, 1.45),
+          "uralt": (18.0, 0.62, 7.5, 12.0, 6, 0.6, 1.9)}   # untere 2/3 kahl
 RINDE, NADELN, KERN, SCHNITT, RINDE_OBEN = range(5)
 
 def roehre(b, punkte, radien, seiten, mat):
@@ -26,6 +27,27 @@ def roehre(b, punkte, radien, seiten, mat):
             f = b.bm.faces.new((ringe[k][i], ringe[k][i2], ringe[k + 1][i2], ringe[k + 1][i])); f.material_index = mat
             for l, uv in zip(f.loops, ((i / seiten, k), ((i + 1) / seiten, k), ((i + 1) / seiten, k + 1), (i / seiten, k + 1))):
                 l[b.uv].uv = uv
+
+def kahle_aeste(b, H, r0, achse, z_von, z_bis, rnd, laenge=(0.8, 2.4), mat=RINDE):
+    """Abgestorbene, blattlose Äste am unteren Stamm alter Bäume (z_von..z_bis): leicht hängend, nach oben länger,
+    manche abgebrochen, längere mit einem Seitenzweig. Kostet viel weniger als belaubte Äste."""
+    z = z_von
+    while z < z_bis:
+        a = rnd.uniform(0, 2 * math.pi)
+        d = Vector((math.cos(a), math.sin(a), rnd.uniform(-0.35, 0.12))).normalized()
+        t = (z - z_von) / max(0.1, z_bis - z_von)
+        L = rnd.uniform(*laenge) * (0.45 + 0.55 * t)
+        if rnd.random() < 0.35:
+            L *= rnd.uniform(0.15, 0.35)                 # abgebrochener Stummel
+        p0 = Vector((0, 0, z)) + achse(z) + d * stamm_radius(z, H, r0) * 0.6
+        pts = [p0, p0 + d * L * 0.5 + Vector((0, 0, -0.05 * L)), p0 + d * L + Vector((0, 0, -0.18 * L))]
+        rr = max(0.025, stamm_radius(z, H, r0) * 0.16)
+        roehre(b, pts, [rr, rr * 0.55, rr * 0.15], 4, mat)
+        if L > 1.0 and rnd.random() < 0.6:
+            sa = a + rnd.choice((-1, 1)) * rnd.uniform(0.5, 1.1)
+            q1 = pts[1] + Vector((math.cos(sa), math.sin(sa), rnd.uniform(-0.2, 0.3))).normalized() * L * rnd.uniform(0.3, 0.5)
+            roehre(b, [pts[1], q1], [rr * 0.45, rr * 0.1], 3, mat)
+        z += rnd.uniform(0.35, 0.8)
 
 def karte(b, basis, richtung, laenge, breite, drehung, mat):
     """ein Quad: u entlang richtung (0 = Basis), v quer"""
@@ -56,8 +78,10 @@ def kiefer(alter, seed=1):
     b = Bau()
     b.stamm(H, r0, H * 0.93, 10 if jung else 12, seed, mat=RINDE, achse=achse,
             mat_oben=RINDE_OBEN, grenze=H * (0.45 if jung else 0.4))
+    if alter == "uralt":                                    # untere zwei Drittel: nur kahle Äste
+        kahle_aeste(b, H, r0, achse, 2.2, ka - 0.3, rnd, laenge=(0.8, 2.6))
     # abgestorbene Aststummel am kahlen Stamm
-    for _ in range(0 if jung else rnd.randint(3, 6)):
+    for _ in range(0 if jung or alter == "uralt" else rnd.randint(3, 6)):
         z = rnd.uniform(2.5, ka - 0.5); a = rnd.uniform(0, 2 * math.pi)
         d = Vector((math.cos(a), math.sin(a), rnd.uniform(-0.1, 0.3))).normalized()
         p = Vector((0, 0, z)) + achse(z)

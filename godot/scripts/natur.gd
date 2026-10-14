@@ -14,6 +14,7 @@ const BaumSzene := preload("res://assets/baeume/baum.tscn")
 const BuschSzene := preload("res://assets/baeume/aeste_busch.tscn")
 const PflanzeSzene := preload("res://assets/sammeln/sammelpflanze.tscn")
 const SteinSzene := preload("res://assets/erz/felsbrocken.tscn")
+const SteinMaterial := preload("res://assets/erz/materialien/stein.tres")
 const FernShader := preload("res://scripts/natur_fern.gdshader")
 
 const KACHEL := 64.0
@@ -26,8 +27,13 @@ const BUDGET_US := 4000          # Zeit je Frame für neue Nah-Objekte (ein Mode
 # Biome des Weltgenerators
 enum { STRAND, WIESE, LAUBWALD, NADELWALD, SUMPF, STEPPE, FELS, SCHNEE }
 enum { BAUM, BUSCH, PFLANZE, STEIN }
-## Baum-Arten wie in assets/baeume/baum.gd: 0 Fichte, 1 Kiefer, 2 Eiche · Größe (Breite, Höhe) je Alter [jung, alt]
-const BAUM_GROESSE := [[Vector2(2.7, 5.8), Vector2(5.0, 12.9)], [Vector2(2.9, 5.2), Vector2(6.8, 11.8)], [Vector2(2.9, 5.0), Vector2(7.5, 10.7)]]
+## Baum-Arten wie in assets/baeume/baum.gd: 0 Fichte, 1 Kiefer, 2 Eiche · Größe (Breite, Höhe) je Alter [jung, alt, uralt]
+const BAUM_GROESSE := [[Vector2(2.7, 5.8), Vector2(5.0, 12.9), Vector2(6.6, 20.5)], [Vector2(2.9, 5.2), Vector2(6.8, 11.8), Vector2(8.4, 18.5)],
+	[Vector2(2.9, 5.0), Vector2(7.5, 10.7), Vector2(10.5, 16.8)]]
+const ALTER_ID := ["jung", "alt", "uralt"]
+## Anteil uralter Bäume (untere 2/3 kahl, geben Gereiftes Holz): im Wald und einzeln auf Wiesen
+const URALT_WALD := 0.06
+const URALT_SONST := 0.04
 const BAUM_ID := ["fichte", "kiefer", "eiche"]
 
 var terrain                       # Terrain3D (Höhen)
@@ -52,6 +58,8 @@ var _fern_offen: Array = []       # noch zu bauende Fernkacheln
 var _fern_material := ShaderMaterial.new()
 var _fern_meshes: Array = []      # je Baumart ein ArrayMesh
 var _wurzel_nah: Node3D
+var _mono_cache := {}              # Vector2i (256-m-Kachel) -> Monolithen (siehe _monolithen)
+var _mono_modelle := {}            # Modellname -> [Mesh, Kollisionsform]
 
 
 ## main = Spielszene (liefert terrain und das Startgebiet), spieler = Mittelpunkt des Streamings
@@ -73,7 +81,7 @@ func setup(main, spieler: Node3D, daten_ordner: String) -> void:
 	rauschen.frequency = 1.0 / 230.0
 	rauschen.fractal_octaves = 3
 	_fern_material.shader = FernShader
-	_fern_meshes = [_fichte_mesh(), _kiefer_mesh(), _eiche_mesh()]
+	_fern_meshes = [_fichte_mesh(), _kiefer_mesh(), _eiche_mesh(), _uralt_mesh(0), _uralt_mesh(1), _uralt_mesh(2)]
 	_wurzel_nah = Node3D.new()
 	_wurzel_nah.name = "Nah"
 	add_child(_wurzel_nah)
@@ -145,6 +153,63 @@ func _biom(x: float, z: float) -> int:
 
 
 func _gesperrt(x: float, z: float) -> bool:
+	return _gesperrt_flaechen(x, z) or _an_monolith(x, z)
+
+
+## Steht hier schon ein Felsmonolith? (Bäume, Pflanzen und Steine halten Abstand)
+func _an_monolith(x: float, z: float) -> bool:
+	var k := Vector2i(floori(x / FERN_KACHEL), floori(z / FERN_KACHEL))
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			for m in _monolithen(k + Vector2i(dx, dz)):
+				if Vector2(x, z).distance_to(Vector2(m[0], m[2])) < float(m[6]):
+					return true
+	return false
+
+
+## Felsmonolithen einer 256-m-Kachel (fest je Kachel): [x, Höhe, z, Typ (0 Turm, 1 Gruppe), Variante, Drehung, Freiraum]
+## Häufig auf Fels, seltener auf Wiese/Steppe/im Wald. Werden mit den fernen Bäumen gebaut, sind also weit sichtbar.
+func _monolithen(k: Vector2i) -> Array:
+	if _mono_cache.has(k):
+		return _mono_cache[k]
+	var out: Array = []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(Vector3i(k.x, k.y, welt_seed + 991))
+	for versuch in 3:
+		var x := (k.x + 0.1 + 0.8 * rng.randf()) * FERN_KACHEL
+		var z := (k.y + 0.1 + 0.8 * rng.randf()) * FERN_KACHEL
+		var r := rng.randf()
+		var typ := 0 if rng.randf() < 0.45 else 1
+		var variante := rng.randi_range(1, 3)
+		var dreh := rng.randf() * TAU
+		var b := _biom(x, z)
+		var chance := 0.0
+		match b:
+			FELS:
+				chance = 0.3
+			WIESE, STEPPE:
+				chance = 0.07
+			LAUBWALD, NADELWALD:
+				chance = 0.05
+			SCHNEE:
+				chance = 0.05
+		if r > chance or _gesperrt_flaechen(x, z):
+			continue
+		var h := _boden(x, z, 0.9)
+		if is_nan(h):
+			continue
+		var frei := 11.0 if typ == 0 else 13.0
+		var zu_nah := false
+		for m in out:
+			if Vector2(x, z).distance_to(Vector2(m[0], m[2])) < 40.0:
+				zu_nah = true
+		if not zu_nah:
+			out.append([x, h, z, typ, variante, dreh, frei])
+	_mono_cache[k] = out
+	return out
+
+
+func _gesperrt_flaechen(x: float, z: float) -> bool:
 	var p := Vector2(x, z)
 	for f in frei:
 		if p.distance_to(f[0]) < f[1]:
@@ -261,7 +326,9 @@ func _kachel(k: Vector2i) -> Array:
 			var h := _boden(x, z, 0.7)
 			if is_nan(h):
 				continue
-			out.append([BAUM, x, h, z, art, 1 if r_alter < 0.62 else 0, r_dreh])
+			var uralt := URALT_WALD if b == LAUBWALD or b == NADELWALD else URALT_SONST
+			var alter := 2 if r_alter < uralt else (1 if r_alter < 0.62 else 0)
+			out.append([BAUM, x, h, z, art, alter, r_dreh])
 	# Äste-Büsche: 16-m-Raster, an Waldrändern, in Wäldern und auf Wiesen
 	n = 4
 	s = KACHEL / n
@@ -426,7 +493,7 @@ func _nah_erzeugen(e: Array) -> Node3D:
 			modell = BaumSzene.instantiate()
 			modell.set("art", int(e[4]))
 			modell.set("alter", int(e[5]))
-			q.setup("%s_%s" % [BAUM_ID[int(e[4])], "alt" if int(e[5]) == 1 else "jung"], modell, 2.4 if int(e[5]) == 1 else 1.8)
+			q.setup("%s_%s" % [BAUM_ID[int(e[4])], ALTER_ID[int(e[5])]], modell, [1.8, 2.4, 3.2][int(e[5])])
 		BUSCH:
 			modell = BuschSzene.instantiate()
 			q.setup("aeste_busch", modell, 1.5)
@@ -482,27 +549,30 @@ func _fern_aktualisieren(p: Vector2) -> void:
 func _fern_bauen(k: Vector2i) -> void:
 	if _fern.has(k):
 		return
-	var je_art: Array = [[], [], []]
+	# je Form ein MultiMesh: 0–2 Fichte/Kiefer/Eiche, 3–5 dieselben uralt (Krone nur im oberen Drittel)
+	var je_art: Array = [[], [], [], [], [], []]
 	for sz in 4:
 		for sx in 4:
 			for e in _kachel(Vector2i(k.x * 4 + sx, k.y * 4 + sz)):
 				if int(e[0]) == BAUM:
-					je_art[int(e[4])].append(e)
+					je_art[int(e[4]) + (3 if int(e[5]) == 2 else 0)].append(e)
 	var knoten := Node3D.new()
 	knoten.name = "Fern_%d_%d" % [k.x, k.y]
 	add_child(knoten)
+	for m in _monolithen(k):
+		knoten.add_child(_monolith_bauen(m))
 	_fern[k] = knoten
-	for art in 3:
-		var liste: Array = je_art[art]
+	for form in 6:
+		var liste: Array = je_art[form]
 		if liste.is_empty():
 			continue
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = _fern_meshes[art]
+		mm.mesh = _fern_meshes[form]
 		mm.instance_count = liste.size()
 		for i in liste.size():
 			var e: Array = liste[i]
-			var g: Vector2 = BAUM_GROESSE[art][int(e[5])]
+			var g: Vector2 = BAUM_GROESSE[int(e[4])][int(e[5])]
 			var faktor := 0.85 + 0.3 * fposmod(float(e[1]) * 0.731 + float(e[3]) * 0.377, 1.0)
 			var basis := Basis(Vector3.UP, float(e[6])).scaled(Vector3(g.x, g.y, g.x) * faktor)
 			mm.set_instance_transform(i, Transform3D(basis, Vector3(e[1], float(e[2]) - 0.2, e[3])))
@@ -511,6 +581,29 @@ func _fern_bauen(k: Vector2i) -> void:
 		mmi.material_override = _fern_material
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		knoten.add_child(mmi)
+
+
+## Felsmonolith mit Kollision (Dreiecksnetz, je Modell einmal berechnet), leicht eingesunken
+func _monolith_bauen(m: Array) -> Node3D:
+	var name_ := "monolith_%s_%d" % ["turm" if int(m[3]) == 0 else "gruppe", int(m[4])]
+	if not _mono_modelle.has(name_):
+		var szene: PackedScene = load("res://assets/erz/modelle/%s.glb" % name_)
+		var probe := szene.instantiate()
+		var mesh: Mesh = (probe.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
+		probe.free()
+		_mono_modelle[name_] = [mesh, mesh.create_trimesh_shape()]
+	var daten: Array = _mono_modelle[name_]
+	var koerper := StaticBody3D.new()
+	koerper.position = Vector3(m[0], float(m[1]) - 0.4, m[2])
+	koerper.rotation.y = float(m[5])
+	var mi := MeshInstance3D.new()
+	mi.mesh = daten[0]
+	mi.material_override = SteinMaterial
+	koerper.add_child(mi)
+	var form := CollisionShape3D.new()
+	form.shape = daten[1]
+	koerper.add_child(form)
+	return koerper
 
 
 # --- einfache Baumformen für die Ferne (Höhe 1, Breite 1, Fuß bei y = 0) ----
@@ -564,6 +657,21 @@ func _kiefer_mesh() -> ArrayMesh:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	_form(st, _zylinder(0.03, 0.05, 0.7), Transform3D(Basis(), Vector3(0, 0.35, 0)), RINDE)
 	_form(st, _kugel(), Transform3D(Basis().scaled(Vector3(1.0, 0.5, 1.0)), Vector3(0, 0.75, 0)), Color(0.13, 0.24, 0.12))
+	return st.commit()
+
+
+## Uralter Baum aus der Ferne: hoher kahler Stamm, Krone nur im oberen Drittel
+func _uralt_mesh(art: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_form(st, _zylinder(0.02, 0.05, 0.8), Transform3D(Basis(), Vector3(0, 0.4, 0)), RINDE)
+	match art:
+		0:
+			_form(st, _zylinder(0.0, 0.45, 0.4), Transform3D(Basis(), Vector3(0, 0.82, 0)), Color(0.12, 0.25, 0.14))
+		1:
+			_form(st, _kugel(), Transform3D(Basis().scaled(Vector3(1.0, 0.28, 1.0)), Vector3(0, 0.84, 0)), Color(0.13, 0.24, 0.12))
+		_:
+			_form(st, _kugel(), Transform3D(Basis().scaled(Vector3(1.0, 0.36, 1.0)), Vector3(0, 0.8, 0)), Color(0.16, 0.27, 0.11))
 	return st.commit()
 
 

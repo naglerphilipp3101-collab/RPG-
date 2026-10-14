@@ -81,9 +81,24 @@
 		"drops": [{"item": "green_wood", "min": 2, "max": 3}]
 	},
 	"eiche_alt": {
-		"name": "Alte Eiche", "tier": 2, "action": "fällen", "profession": "woodcutting", "level": 3,
-		"hp": 65, "xp": 45, "respawn": 900,
-		"drops": [{"item": "aged_wood", "min": 3, "max": 5}, {"item": "green_wood", "min": 1, "max": 2}]
+		"name": "Eiche", "tier": 1, "action": "fällen", "profession": "woodcutting", "level": 1,
+		"hp": 45, "xp": 28, "respawn": 600,
+		"drops": [{"item": "green_wood", "min": 5, "max": 7}]
+	},
+	"fichte_uralt": {
+		"name": "Uralte Fichte", "tier": 2, "action": "fällen", "profession": "woodcutting", "level": 3,
+		"hp": 90, "xp": 60, "respawn": 1200,
+		"drops": [{"item": "aged_wood", "min": 4, "max": 6}, {"item": "resin", "min": 1, "max": 2, "chance": 0.4}]
+	},
+	"kiefer_uralt": {
+		"name": "Uralte Kiefer", "tier": 2, "action": "fällen", "profession": "woodcutting", "level": 3,
+		"hp": 90, "xp": 60, "respawn": 1200,
+		"drops": [{"item": "aged_wood", "min": 4, "max": 6}, {"item": "resin", "min": 1, "max": 2, "chance": 0.5}]
+	},
+	"eiche_uralt": {
+		"name": "Uralte Eiche", "tier": 2, "action": "fällen", "profession": "woodcutting", "level": 3,
+		"hp": 100, "xp": 65, "respawn": 1200,
+		"drops": [{"item": "aged_wood", "min": 5, "max": 7}]
 	},
 	"aeste_busch": {
 		"name": "Ästebusch", "tier": 1, "action": "sammeln", "profession": "harvesting", "level": 1,

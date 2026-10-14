@@ -7,11 +7,12 @@ import bpy, bmesh, math, random, sys, os
 from mathutils import Vector, noise
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fichte import Bau, stamm_radius, export
-from kiefer import roehre, karte
+from kiefer import roehre, karte, kahle_aeste
 
 # höhe, stamm_d, krone_breit, krone_ab, büschel_anzahl, stumpf_höhe, büschelgröße  (siehe groessen.py)
 EICHE = {"jung": (4.5, 0.21, 2.2, 2.0, 60, 0.35, 0.95),
-         "alt":  (9.8, 0.70, 6.0, 2.8, 150, 0.55, 1.8)}
+         "alt":  (9.8, 0.70, 6.0, 2.8, 150, 0.55, 1.8),
+         "uralt": (16.0, 1.15, 9.5, 10.5, 210, 0.7, 2.3)}   # untere 2/3 kahl
 RINDE, LAUB, KERN, SCHNITT = range(4)
 
 def laubbuschel(b, p, normale, groesse, rnd):
@@ -65,6 +66,8 @@ def eiche(alter, seed=1):
     else:
         gabel = ka + rnd.uniform(0.2, 0.8)
         b.stamm(H, r0, gabel + 0.3, 14, seed, mat=RINDE, achse=achse)
+        if alter == "uralt":                                 # unter der Gabel: nur kahle Äste
+            kahle_aeste(b, H, r0, achse, 2.4, gabel - 0.5, rnd, laenge=(1.0, 3.2))
         aeste = []
         n = rnd.randint(3, 4)
         start = rnd.uniform(0, 2 * math.pi)

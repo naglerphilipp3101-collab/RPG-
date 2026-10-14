@@ -84,8 +84,10 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
 
 **Nächste Schritte (vom Nutzer festgelegt, 13.10.2026):**
 1. Nutzer schreibt die genaue Inhaltsbeschreibung (gesamter Spielinhalt) → in `godot/KONZEPT.md` übernehmen und Plan ableiten.
-2. Bäume: alle jetzigen Bäume droppen „Frischholz“ (Menge nach Größe); neue, größere „Alte Bäume“ (untere 2/3 nur kahle Äste,
-   spart Leistung, von weitem erkennbar) droppen „Gereiftes Holz“. Dazu Stein-Monolithen/Felsformationen als Landschaftsdeko.
+2. ✅ (14.10.) Bäume: alle jungen/alten Bäume geben „Frischholz“ (green_wood, Menge nach Größe); neue uralte Bäume
+   (`*_uralt_*.glb`, Blender `kahle_aeste()` in kiefer.py; ~6 % im Wald) geben „Gereiftes Holz“ (aged_wood).
+   Felsmonolithen (`assets/erz/modelle/monolith_turm|gruppe_1-3.glb`, Blender `monolith.py`) stehen je 256-m-Kachel in natur.gd
+   (`_monolithen()`), mit Kollision, nicht abbaubar. Tests: `--island --natur [--uralt|--monolith]`.
 3. Realismus-Durchgang mit gescannten Assets (Böden, Kopfsteinpflaster, Felsen, Bewuchs).
 - Weiter offen: Gegner/Tiere (wartet auf Modelle + Animationen), feindliche Lager, Schwierigkeit, Erze in Minen, Siedlungen, Regionsgrenzen auf der Karte.
 - Spielfigur, NPCs und Gegner aus fertigen Paketen (Quaternius/KayKit + Mixamo). Downloads macht der Nutzer selbst.

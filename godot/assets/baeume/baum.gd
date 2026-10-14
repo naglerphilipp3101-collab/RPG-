@@ -8,12 +8,12 @@ signal gefaellt(holz: String, menge: int)
 signal nachgewachsen
 
 enum Art { FICHTE, KIEFER, EICHE }
-enum Alter { JUNG, ALT }
+enum Alter { JUNG, ALT, URALT }
 const ART_DATEI := ["fichte", "kiefer", "eiche"]
-const ALTER_DATEI := ["jung", "alt"]
-const HOLZ := ["Grünholz", "Reifes Holz"]
+const ALTER_DATEI := ["jung", "alt", "uralt"]
+const HOLZ := ["Frischholz", "Frischholz", "Gereiftes Holz"]
 ## Kollisionsradius des Stamms je Alter (inkl. Wurzelanlauf)
-const STAMM_RADIUS := [0.13, 0.3]
+const STAMM_RADIUS := [0.13, 0.3, 0.55]
 
 @export var art: Art = Art.FICHTE:
 	set(v):
@@ -30,8 +30,8 @@ const STAMM_RADIUS := [0.13, 0.3]
 	set(v):
 		variante = v
 		_aufbauen()
-## Holzmenge je Alter (jung, alt) – Platzhalter
-@export var ertrag: Array[int] = [3, 8]
+## Holzmenge je Alter (jung, alt, uralt) – Platzhalter
+@export var ertrag: Array[int] = [3, 8, 12]
 ## Zufällige Drehung und ±15 % Größe, abhängig von der Position (bleibt bei jedem Laden gleich)
 @export var zufalls_variation: bool = true:
 	set(v):

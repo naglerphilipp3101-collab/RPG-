@@ -6,7 +6,8 @@ from mathutils import Vector, Matrix, noise
 
 # höhe, stamm_d, krone_breit, krone_ab, ast_schichten, stumpf_höhe   (siehe groessen.py)
 FICHTE = {"jung": (5.6, 0.18, 2.1, 2.2, 11, 0.35),
-          "alt":  (12.6, 0.42, 4.2, 3.5, 17, 0.5)}
+          "alt":  (12.6, 0.42, 4.2, 3.5, 17, 0.5),
+          "uralt": (20.0, 0.8, 6.2, 13.3, 13, 0.6)}   # untere 2/3 kahl
 
 def stamm_radius(z, H, r0):
     """konisch + Wurzelanlauf unten"""
@@ -102,6 +103,9 @@ def fichte(alter, seed=1):
     b = Bau()
     b.stamm(H, r0, H * 0.96, 10 if alter == "jung" else 14, seed, mat=0, achse=achse)
     b.kegel(ka + 0.3, H * 0.92, R * 0.42, 10, mat=2, achse=achse)
+    if alter == "uralt":                                     # untere zwei Drittel: nur kahle Äste
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); from kiefer import kahle_aeste
+        kahle_aeste(b, H, r0, achse, 1.8, ka - 0.2, rnd, laenge=(0.9, 2.8))
     abstand = (H * 0.9 - ka) / (schichten - 1)
     for i in range(schichten):
         t = i / (schichten - 1)                              # 0 = unten, 1 = oben

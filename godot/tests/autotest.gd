@@ -367,9 +367,53 @@ func _natur_test() -> void:
 		if best:
 			best.harvest(player)
 			print("AUTOTEST Natur geerntet: %s (%.0f m entfernt), danach abbaubar: %s" % [best.node_id, best_d, best.is_interactable()])
+	# nächsten uralten Baum fällen (gibt Gereiftes Holz) – vorher Holzfällerstufe 3, sonst ist er gesperrt
+	var uralt = null
+	for n in natur._nah.values():
+		if String(n.node_id).ends_with("_uralt") and (uralt == null or n.global_position.distance_to(player.global_position) < uralt.global_position.distance_to(player.global_position)):
+			uralt = n
+	if uralt:
+		uralt.harvest(player)
+		print("AUTOTEST Natur uralter Baum: %s (%.0f m entfernt), danach abbaubar: %s" % [uralt.node_id, uralt.global_position.distance_to(player.global_position), uralt.is_interactable()])
+	var monolithen := 0
+	for mk_ in natur._mono_cache:
+		monolithen += natur._mono_cache[mk_].size()
+	print("AUTOTEST Natur Monolithen in %d geladenen Fernkacheln: %d" % [natur._mono_cache.size(), monolithen])
 	print("AUTOTEST Natur Inventar: ", player.inventory.items)
 	player.cam_yaw = 0.3
 	player.cam_pitch = -0.12
+	if OS.get_cmdline_user_args().has("--uralt"):
+		# vor den nächsten noch stehenden uralten Baum stellen, leicht nach oben schauen
+		var baum = null
+		for n in natur._nah.values():
+			if String(n.node_id).ends_with("_uralt") and n.is_interactable() \
+					and (baum == null or n.global_position.distance_to(player.global_position) < baum.global_position.distance_to(player.global_position)):
+				baum = n
+		if baum:
+			var p: Vector3 = baum.global_position + Vector3(24, 0, 0)
+			player.global_position = Vector3(p.x, natur._hoehe(p.x, p.z) + 1.0, p.z)
+			player.cam_yaw = PI / 2.0
+			player.cam_pitch = 0.18
+	if OS.get_cmdline_user_args().has("--monolith"):
+		# zum nächsten Felsmonolithen (sucht in den Kacheln rund um den Spieler)
+		var best := []
+		var best_d := INF
+		var mk := Vector2i(floori(player.global_position.x / 256.0), floori(player.global_position.z / 256.0))
+		for dz in range(-6, 7):
+			for dx in range(-6, 7):
+				for m in natur._monolithen(mk + Vector2i(dx, dz)):
+					var d := Vector2(m[0], m[2]).distance_to(Vector2(player.global_position.x, player.global_position.z))
+					if d < best_d:
+						best_d = d
+						best = m
+		if not best.is_empty():
+			var p := Vector3(best[0] + 22.0, 0, best[2] + 8.0)
+			player.global_position = Vector3(p.x, natur._hoehe(p.x, p.z) + 1.0, p.z)
+			var blick := Vector3(best[0], 0, best[2]) - p
+			player.cam_yaw = atan2(-blick.x, -blick.z)
+			player.cam_pitch = 0.1
+			natur._fern_bauen(Vector2i(floori(best[0] / 256.0), floori(best[2] / 256.0)))
+			print("AUTOTEST Monolith: %s bei %s, %.0f m entfernt" % ["Turm" if int(best[3]) == 0 else "Gruppe", Vector2(best[0], best[2]).round(), best_d])
 	if OS.get_cmdline_user_args().has("--fels"):
 		# vor den nächsten noch stehenden Felsbrocken stellen und hinsehen
 		var stein = null
