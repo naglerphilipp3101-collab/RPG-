@@ -42,10 +42,12 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
 | `scripts/enemy.gd` | Gegner-KI, Beute, Häuten, Blutung, Debuffs |
 | `scripts/resource_node.gd` | Abbaubare Quellen des Spiels (LP pro Tier, Nachwachsen). Soll mit den Asset-Skripten zusammengeführt werden |
 | `scripts/crafting_station.gd`, `projectile.gd`, `zone.gd`, `loot_bag.gd` | Werkstätten, Geschosse, Flächenangriffe, Beute |
-| `scripts/hud.gd`, `inventory_ui.gd`, `crafting_ui.gd`, `skill_tree_ui.gd`, `pause_menu.gd` | Oberfläche |
+| `scripts/hud.gd`, `inventory_ui.gd`, `crafting_ui.gd`, `skill_tree_ui.gd`, `charakter_ui.gd`, `kompass.gd`, `pause_menu.gd` | Oberfläche (Charakterfenster P, Kompass mit Aufspüren und Uhrzeit) |
+| `scripts/tageszeit.gd` | Tag/Nacht-Zyklus (Sonne, Mond, Himmel, Nebel; Uhrzeit in `Game.time_of_day`) |
 | `scripts/save_game.gd` | Speichern/Laden (JSON) |
 | `data/weapons.json` | 12 Waffentypen: Movesets, Fernkampf, Rezepte, Skillbäume (Templates strike/dash/leap/buff/evade/shot/zone) |
-| `data/items|recipes|stations|gathering|professions|enemies.json` | Übrige Inhalte |
+| `data/attributes.json` | 5 Attribute: Boni je Punkt, Schwellen 25–500 (`stats` → `player.bonus()`, `mechanics` → Sonderregeln, `ab` = noch ohne Wirkung) |
+| `data/items|recipes|stations|gathering|professions|enemies.json` | Übrige Inhalte (`level` bei Rezepten/Quellen = benötigter Berufs-Skill 0–300) |
 
 Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nur Kamera).
 
@@ -55,6 +57,7 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
 - **M3** 11 Werkstätten, Rezepte Tier 1–2, Ausrüstung mit Zufallswerten und Zusatzmaterialien, Tränke/Essen
 - **Speichern** mit Autosave und Esc-Menü
 - **M4** 12 Waffentypen plus Schild, Fernkampf, Skillbaum (K), Meisterschaft bis 20, 2 Waffenplätze (X), Übungswaffenständer
+- **M5** (15.10.) Charakterlevel 1–100, 5 Attribute mit Schwellen (P), Tod −20 % EP, Waffen-EP nach Schadensanteil, Berufe Skill 0–300 mit 6 Tiers, Aufspüren (Kompass), Bonus-Ausbeute, Tag/Nacht. Details in KONZEPT.md unter „M5 umgesetzt“
 
 **Designregeln des Nutzers:**
 - Rohstoffe haben LP pro Tier, Werkzeuge haben Abbaukraft. Abbauzeit = LP ÷ Abbaukraft.
@@ -95,7 +98,7 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
    (`tests/baum_scans_umwandeln.gd` → `assets/baeume/texturen_scan/`). Ohne Scans fällt alles auf die eigenen Texturen zurück.
 - Weiter offen: Gegner/Tiere (wartet auf Modelle + Animationen), feindliche Lager, Schwierigkeit, Erze in Minen, Siedlungen, Regionsgrenzen auf der Karte.
 - Spielfigur, NPCs und Gegner aus fertigen Paketen (Quaternius/KayKit + Mixamo). Downloads macht der Nutzer selbst.
-- Danach M5 (Startgebiet, Tutorial, NPCs, Dialoge), M6 (Fraktionsregion, Händler), M7 (lebendige Welt).
+- Danach geht es nach dem Umsetzungsplan in KONZEPT.md weiter: M6 Waffen-Umbau (1h/2h zusammengelegt), M7 Magie, M8 Startgebiet …
 
 ## Testen
 
@@ -106,6 +109,7 @@ Godot --headless --path godot -- --autotest                # Kampf + Sammeln
 Godot --headless --path godot -- --autotest --weapons      # alle Waffen und Fähigkeiten
 Godot --headless --path godot -- --autotest --craft        # Herstellungskette
 Godot --headless --path godot -- --autotest --savetest     # Speichern/Laden (eigene Testdatei)
+Godot --headless --path godot -- --autotest --character    # Level, Attribute, Waffen-EP, Berufe, Aufspüren, Tag/Nacht
 Godot --path godot --write-movie <ordner>\f.png --fixed-fps 20 -- --autotest --showcase   # Bilder prüfen
 ```
 Weitere Bild-Modi: `--ui`, `--village`, `--pause` (mit `--quit-after N`); Insel: `--island` (Blick aufs Startdorf), `--island --aerial`, `--island --flytest` (nur mit Fenster, headless bewegt sich der Spieler nicht). Im Testmodus ist das Speichern abgeschaltet (`Game.saving_enabled = false`).

@@ -1,0 +1,97 @@
+{
+	"_info": "Attribute und Schwellenboni (KONZEPT.md, Abschnitt Level und Attribute). stats fließen in player.bonus(), mechanics schalten Sonderregeln im Code frei (Wert = Chance oder Stärke). Einträge mit \"ab\" sind beschrieben, wirken aber erst mit dem genannten Meilenstein.",
+	"base": 5,
+	"order": ["strength", "dexterity", "intelligence", "spirit", "vitality"],
+	"attributes": {
+		"strength": {
+			"name": "Stärke", "short": "STÄ", "profession": "mining", "color": [0.95, 0.45, 0.35],
+			"per_point": {"weapon_damage": 0.002, "stats": {"gather_speed:mining": 0.001}},
+			"per_point_text": "+0,2 % Schaden mit Stärke-Waffen · Bergbau +0,1 % schneller",
+			"thresholds": [
+				{"at": 25, "text": "Schwere Angriffe +5 % Schaden", "stats": {"heavy": 0.05}},
+				{"at": 50, "text": "Bergbau 10 % schneller", "stats": {"gather_speed:mining": 0.1}},
+				{"at": 100, "text": "Schwere Angriffe kosten 15 % weniger Ausdauer", "stats": {"heavy_cost_pct": 0.15}},
+				{"at": 150, "text": "Erz und Stein wiegen 10 % weniger", "stats": {"weight:Erz": 0.1}},
+				{"at": 200, "name": "Unaufhaltsam", "text": "Ein schwerer Angriff kann nicht unterbrochen werden", "mechanics": {"unaufhaltsam": 1}},
+				{"at": 250, "text": "Bergbau: 10 % Chance auf doppelte Ausbeute", "stats": {"double:mining": 0.1}},
+				{"at": 300, "name": "Siegesrausch", "text": "Nach einem Kill 5 s lang +10 % Nahkampfschaden", "mechanics": {"siegesrausch": 0.1}},
+				{"at": 350, "text": "Bergbau: Chance auf seltene Funde und Edelsteine +25 %", "stats": {"rare:mining": 0.25}},
+				{"at": 400, "name": "Durchschlag", "text": "+10 % Rüstungsdurchdringung im Nahkampf", "mechanics": {"durchschlag": 0.1}, "ab": "Gegner mit Rüstung"},
+				{"at": 450, "text": "Bergbau weitere 15 % schneller, Erz wiegt weitere 10 % weniger", "stats": {"gather_speed:mining": 0.15, "weight:Erz": 0.1}},
+				{"at": 500, "name": "Erdbeben", "text": "Jeder 5. Nahkampftreffer löst eine Schockwelle aus (40 % Schaden, 3 m). Bergbau: 5 % Chance, ein Vorkommen mit einem Schlag abzubauen", "mechanics": {"erdbeben": 0.4, "sofort:mining": 0.05}}
+			]
+		},
+		"dexterity": {
+			"name": "Geschicklichkeit", "short": "GES", "profession": "skinning", "color": [0.45, 0.85, 0.45],
+			"per_point": {"weapon_damage": 0.002, "stats": {"gather_speed:skinning": 0.001}},
+			"per_point_text": "+0,2 % Schaden mit Geschick-Waffen · Häuten +0,1 % schneller",
+			"thresholds": [
+				{"at": 25, "text": "+3 % kritische Trefferchance", "stats": {"crit": 0.03}},
+				{"at": 50, "text": "Häuten 10 % schneller", "stats": {"gather_speed:skinning": 0.1}},
+				{"at": 100, "text": "Ausweichen kostet 15 % weniger Ausdauer", "stats": {"dodge_cost_pct": 0.15}},
+				{"at": 150, "text": "Häute und Fleisch wiegen 10 % weniger", "stats": {"weight:Leder": 0.1}},
+				{"at": 200, "name": "Zielruhe", "text": "Nach 1 s ohne Bewegung +10 % Fernkampfschaden", "mechanics": {"zielruhe": 0.1}},
+				{"at": 250, "text": "Häuten: 10 % Chance auf doppelte Häute", "stats": {"double:skinning": 0.1}},
+				{"at": 300, "name": "Schneller Finger", "text": "Kritische Treffer verkürzen alle Abklingzeiten um 0,5 s", "mechanics": {"schneller_finger": 0.5}},
+				{"at": 350, "text": "Häuten: Chance auf seltene Trophäen +25 %", "stats": {"rare:skinning": 0.25}},
+				{"at": 400, "name": "Tödliche Präzision", "text": "+10 % kritischer Schaden", "stats": {"crit_damage": 0.1}},
+				{"at": 450, "text": "Wildtiere bemerken dich erst auf halbe Entfernung", "mechanics": {"wildtiere_scheu": 0.5}},
+				{"at": 500, "name": "Schwachstelle", "text": "Kopftreffer mit allen Fernwaffen +25 % Schaden. Häuten geschieht sofort", "mechanics": {"schwachstelle": 0.25, "sofort:skinning": 1}, "ab_teilweise": "Kopftreffer mit M6"}
+			]
+		},
+		"intelligence": {
+			"name": "Intelligenz", "short": "INT", "profession": "harvesting", "color": [0.45, 0.6, 1.0],
+			"per_point": {"weapon_damage": 0.002, "stats": {"gather_speed:harvesting": 0.001}},
+			"per_point_text": "+0,2 % Schaden mit Intelligenz-Waffen und Magie · Ernte +0,1 % schneller",
+			"thresholds": [
+				{"at": 25, "text": "Magische Fähigkeiten +5 % Schaden", "stats": {"magic_damage_pct": 0.05}, "ab": "M7 Magie"},
+				{"at": 50, "text": "Ernte 10 % schneller", "stats": {"gather_speed:harvesting": 0.1}},
+				{"at": 100, "text": "Abklingzeiten der Magiewaffen −5 %", "stats": {"magic_cooldown_pct": 0.05}, "ab": "M7 Magie"},
+				{"at": 150, "text": "Pflanzen und Fasern wiegen 10 % weniger", "stats": {"weight:Pflanze": 0.1}},
+				{"at": 200, "name": "Arkane Resonanz", "text": "Drei verschiedene Fähigkeiten nacheinander, die nächste macht +20 % Schaden", "mechanics": {"arkane_resonanz": 0.2}},
+				{"at": 250, "text": "Ernte: 10 % Chance auf doppelte Ausbeute", "stats": {"double:harvesting": 0.1}},
+				{"at": 300, "name": "Elementarmeister", "text": "Brennen, Frost und Ladung halten 25 % länger", "mechanics": {"elementarmeister": 0.25}, "ab": "M7 Magie"},
+				{"at": 350, "text": "Ernte: Chance auf seltene Pflanzen +25 %", "stats": {"rare:harvesting": 0.25}},
+				{"at": 400, "name": "Durchdringung", "text": "Magie ignoriert 10 % der Resistenz", "mechanics": {"durchdringung": 0.1}, "ab": "M7 Magie"},
+				{"at": 450, "text": "Ernte nimmt eine gleiche Pflanze im Umkreis von 2 m mit", "mechanics": {"ernte_umkreis": 2}},
+				{"at": 500, "name": "Zahrfluss", "text": "Jede 4. Fähigkeit hat keine Abklingzeit. Ernte: 5 % Chance, dass die Pflanze sofort nachwächst", "mechanics": {"zahrfluss": 4, "nachwachsen": 0.05}}
+			]
+		},
+		"spirit": {
+			"name": "Spiritual", "short": "SPI", "profession": "fishing", "color": [0.85, 0.75, 1.0],
+			"per_point": {"weapon_damage": 0.002, "stats": {"healing_pct": 0.002, "gather_speed:fishing": 0.001}},
+			"per_point_text": "+0,2 % Heilung · Fischen +0,1 % schneller",
+			"thresholds": [
+				{"at": 25, "text": "+5 % ausgehende Heilung", "stats": {"healing_pct": 0.05}},
+				{"at": 50, "text": "Fische beißen 10 % schneller an", "stats": {"gather_speed:fishing": 0.1}},
+				{"at": 100, "text": "Heilung auf Ziele unter 50 % LP +10 %", "stats": {"heal_low_pct": 0.1}},
+				{"at": 150, "text": "Fische entkommen 15 % seltener (die Schnur reißt seltener)", "stats": {"fish_escape_pct": 0.15}},
+				{"at": 200, "name": "Überfluss", "text": "Überheilung wird zu einem Schild bis 10 % der max. LP", "mechanics": {"ueberfluss": 0.1}},
+				{"at": 250, "text": "Fischen: 10 % Chance auf doppelten Fang", "stats": {"double:fishing": 0.1}},
+				{"at": 300, "name": "Innere Quelle", "text": "Tränke und Heilung auf dich selbst +15 %", "stats": {"self_heal_pct": 0.15}},
+				{"at": 350, "text": "Fischen: Chance auf seltene Fische und Schätze +25 %", "stats": {"rare:fishing": 0.25}},
+				{"at": 400, "name": "Läuterung", "text": "Jede Heilung entfernt mit 20 % Chance einen Schwächungseffekt", "mechanics": {"laeuterung": 0.2}, "ab": "Schwächungen auf dem Spieler"},
+				{"at": 450, "text": "Fischgründe werden aus doppelter Entfernung angezeigt", "stats": {"track_range:fishing": 1.0}},
+				{"at": 500, "name": "Lebensquell", "text": "Fällt jemand aus deiner Gruppe unter 20 % LP, heilt ihn eine starke Heilung über 5 s (alle 60 s). Fischen: Jeder Fang an einem Fischgrund ist mindestens gut", "mechanics": {"lebensquell": 0.4, "fang_gut": 1}, "ab_teilweise": "wirkt vorerst auf dich; Fangqualität kommt später"}
+			]
+		},
+		"vitality": {
+			"name": "Vitalität", "short": "VIT", "profession": "woodcutting", "color": [1.0, 0.8, 0.35],
+			"per_point": {"weapon_damage": 0.002, "stats": {"health": 10, "gather_speed:woodcutting": 0.001}},
+			"per_point_text": "+10 Lebenspunkte · Holzernte +0,1 % schneller",
+			"thresholds": [
+				{"at": 25, "text": "+5 % Rüstung", "stats": {"armor_pct": 0.05}},
+				{"at": 50, "text": "Holzernte 10 % schneller", "stats": {"gather_speed:woodcutting": 0.1}},
+				{"at": 100, "text": "Blocken kostet 15 % weniger Ausdauer", "stats": {"block_pct": 0.15}},
+				{"at": 150, "text": "Holz wiegt 10 % weniger", "stats": {"weight:Holz": 0.1}},
+				{"at": 200, "name": "Standhaft", "text": "Unter 30 % LP 20 % weniger Schaden", "mechanics": {"standhaft": 0.2}},
+				{"at": 250, "text": "Holzernte: 10 % Chance auf doppelte Ausbeute", "stats": {"double:woodcutting": 0.1}},
+				{"at": 300, "name": "Zäh", "text": "Im Kampf 1 % LP alle 5 s, außerhalb doppelte Regeneration", "mechanics": {"zaeh": 0.01}},
+				{"at": 350, "text": "Holzernte: Chance auf Harz und seltene Rinde +25 %", "stats": {"rare:woodcutting": 0.25}},
+				{"at": 400, "name": "Einschüchternd", "text": "Gegner in 4 m machen 5 % weniger Schaden, Spott hält 25 % länger", "mechanics": {"einschuechternd": 0.05}, "ab_teilweise": "Spott kommt mit M6"},
+				{"at": 450, "text": "Holzernte weitere 15 % schneller", "stats": {"gather_speed:woodcutting": 0.15}},
+				{"at": 500, "name": "Unbeugsam", "text": "Ein tödlicher Treffer lässt dich mit 1 LP und 3 s Unverwundbarkeit überleben (alle 120 s). Holzernte: 5 % Chance, dass ein Baum mit einem Schlag fällt", "mechanics": {"unbeugsam": 120, "sofort:woodcutting": 0.05}}
+			]
+		}
+	}
+}

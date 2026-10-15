@@ -41,6 +41,8 @@ var interact_radius := 2.0
 var bleed_dps := 0.0
 var bleed_time := 0.0
 var bleed_tick := 0.0
+var bleed_source := "" # Waffenart, die die Blutung verursacht hat
+var damage_by_source: Dictionary = {} # Waffenart -> Schaden in diesem Leben (für Waffen-EP nach Schadensanteil)
 var slow_pct := 0.0 # Verlangsamung durch Fähigkeiten
 var slow_time := 0.0
 var expose_pct := 0.0 # erhöhter erlittener Schaden
@@ -111,7 +113,7 @@ func get_profession() -> String:
 
 
 func get_required_level() -> int:
-	return int(data.get("skin_level", 1))
+	return int(data.get("skin_level", 0))
 
 
 func get_gather_hp() -> float:
@@ -119,8 +121,7 @@ func get_gather_hp() -> float:
 
 
 func harvest(p) -> void:
-	var level: int = p.get_profession_level("skinning")
-	p.receive_items(Game.roll_drops(data.get("skin_drops", []), level))
+	p.receive_items(p.gather_drops("skinning", data.get("skin_drops", [])))
 	p.add_profession_xp("skinning", int(data.get("skin_xp", 15)))
 	_remove_corpse(life_id)
 
@@ -318,7 +319,11 @@ func _set_state(new_state: State, timer := 0.0) -> void:
 
 
 func _do_idle() -> Vector3:
-	if _player_valid() and _flat_to_player().length() < float(data.get("aggro_range", 12.0)):
+	var aggro_range := float(data.get("aggro_range", 12.0))
+	# Geschicklichkeit 450: Wildtiere bemerken den Spieler erst auf halbe Entfernung
+	if _player_valid() and data.get("shape", "") == "beast" and player.has_mechanic("wildtiere_scheu"):
+		aggro_range *= float(player.attr_mechanics["wildtiere_scheu"])
+	if _player_valid() and _flat_to_player().length() < aggro_range:
 		_aggro()
 		return Vector3.ZERO
 	wander_timer -= dt
@@ -478,7 +483,8 @@ func apply_debuff(kind: String, pct: float, duration: float) -> void:
 		FX.popup(get_tree(), head, "Verwundbar", Color(1.0, 0.6, 0.2), 40)
 
 
-func apply_bleed(dps: float, duration: float) -> void:
+func apply_bleed(dps: float, duration: float, source := "") -> void:
+	bleed_source = source
 	if bleed_time <= 0.0:
 		FX.popup(get_tree(), global_position + Vector3(0, _bar_height() + 0.4, 0), "Blutung", Color(0.85, 0.1, 0.15), 44)
 	bleed_dps = maxf(bleed_dps, dps)
@@ -496,17 +502,19 @@ func _update_bleed(delta: float) -> void:
 		return
 	bleed_tick = 1.0
 	health -= bleed_dps
+	_track_damage(bleed_source, bleed_dps)
 	FX.popup(get_tree(), global_position + Vector3(0, _bar_height(), 0), str(roundi(bleed_dps)), Color(0.85, 0.15, 0.2), 48)
 	if health <= 0.0:
 		_die()
 
 
-func take_damage(amount: float, from_pos: Vector3, knockback: float, stagger: float, crit := false) -> void:
+func take_damage(amount: float, from_pos: Vector3, knockback: float, stagger: float, crit := false, source := "") -> void:
 	if state == State.DEAD:
 		return
 	if expose_time > 0.0:
 		amount *= 1.0 + expose_pct
 	health -= amount
+	_track_damage(source, amount)
 	var heavy := stagger >= 0.6
 	var text := str(roundi(amount)) + ("!" if crit else "")
 	var color := Color(1.0, 0.55, 0.15) if crit else (Color(1.0, 0.85, 0.25) if heavy else Color.WHITE)
@@ -541,8 +549,22 @@ func take_damage(amount: float, from_pos: Vector3, knockback: float, stagger: fl
 		punch.tween_property(model, "scale", Vector3.ONE * base_scale, 0.1)
 
 
+func _track_damage(source: String, amount: float) -> void:
+	if source != "":
+		damage_by_source[source] = float(damage_by_source.get(source, 0.0)) + amount
+
+
+## Erfahrung für den Kill: Wert aus enemies.json, sonst 10 je Gegnerstufe.
+func get_xp() -> int:
+	return int(data.get("xp", int(data.get("level", 1)) * 10))
+
+
 func _die() -> void:
 	health = 0.0
+	var killer = get_tree().get_first_node_in_group("player")
+	if killer != null and not damage_by_source.is_empty():
+		killer.on_enemy_killed(self, get_xp(), damage_by_source.duplicate())
+	damage_by_source.clear()
 	_set_state(State.DEAD)
 	collision.set_deferred("disabled", true)
 	bar_root.visible = false
@@ -585,6 +607,7 @@ func _remove_corpse(for_life: int) -> void:
 
 func _respawn() -> void:
 	corpse_present = false
+	damage_by_source.clear()
 	bleed_time = 0.0
 	slow_time = 0.0
 	expose_time = 0.0

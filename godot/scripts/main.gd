@@ -15,6 +15,7 @@ const SaveGame := preload("res://scripts/save_game.gd")
 const NaturScript := preload("res://scripts/natur.gd")
 const Wasser := preload("res://scripts/wasser.gd")
 const GrasScript := preload("res://scripts/gras.gd")
+const TageszeitScript := preload("res://scripts/tageszeit.gd")
 
 const ISLAND_DATA := "res://welt_daten"
 const ISLAND_TERRAIN := "res://welt_daten/terrain3d"
@@ -35,6 +36,7 @@ var terrain = null # Terrain3D, wenn die Insel geladen ist
 var natur = null # Natur-Streamer (scripts/natur.gd), nur auf der Insel
 var island := false
 var world_size := 8192.0 # Seitenlänge der Insel in Metern (aus welt.json)
+var tageszeit = null # Tag/Nacht-Zyklus (scripts/tageszeit.gd)
 
 
 func _ready() -> void:
@@ -289,11 +291,14 @@ func _build_environment() -> void:
 	add_child(world_env)
 
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-50, -35, 0)
-	sun.light_energy = 1.2
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 120.0 if island else 80.0
 	add_child(sun)
+	# Sonne, Himmel und Nebel folgen der Tageszeit
+	tageszeit = TageszeitScript.new()
+	tageszeit.name = "Tageszeit"
+	add_child(tageszeit)
+	tageszeit.setup(sun, env, sky_mat)
 
 
 func _add_box_collision(body: Node3D, size: Vector3, pos: Vector3) -> void:

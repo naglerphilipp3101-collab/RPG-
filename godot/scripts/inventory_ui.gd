@@ -214,12 +214,19 @@ func _refresh_professions() -> void:
 			bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			bar.max_value = 1.0
 			bar.step = 0.001
-			bar.value = float(xp) / Game.xp_to_next(level)
+			var maxed := level >= Game.MAX_PROFESSION_LEVEL
+			bar.value = 1.0 if maxed else float(xp) / Game.xp_to_next(level)
 			row.add_child(bar)
-			row.add_child(_label("Stufe %d" % level, 13, Color(1.0, 0.85, 0.5)))
-			row.tooltip_text = "%d / %d EP" % [xp, Game.xp_to_next(level)]
+			row.add_child(_label("%d / %d" % [level, Game.MAX_PROFESSION_LEVEL], 13, Color(1.0, 0.85, 0.5)))
+			row.tooltip_text = "Skill %d (max.)" % level if maxed else "Skill %d  ·  %d / %d EP bis zum nächsten Punkt" % [
+				level, xp, Game.xp_to_next(level)]
+			row.tooltip_text += "\nTier %s freigeschaltet" % Game.tier_name(player.profession_tier(id))
 			if group == "gathering":
+				row.tooltip_text += "  ·  Aufspüren bis Tier %s" % Game.tier_name(player.track_tier(id)) \
+					if player.track_tier(id) > 0 else "  ·  Aufspüren ab Skill %d" % Game.TRACK_OFFSET
 				row.tooltip_text += "\nAbbaukraft: %d" % roundi(player.get_tool_power(id))
+			elif group == "refining":
+				row.tooltip_text += "\nBonus-Ausbeute: %d %%" % roundi(player.refining_bonus_chance(id) * 100.0)
 			professions_box.add_child(row)
 
 
@@ -287,7 +294,7 @@ func _make_base_slot(id: String, corner_text: String, square_icon: bool) -> Pane
 func _make_item_slot(id: String, amount: int) -> Control:
 	var data := Game.item(id)
 	var slot := _make_base_slot(id, str(amount), false)
-	var weight := float(data.get("weight", 0.0))
+	var weight: float = player.inventory.item_weight(id)
 	slot.tooltip_text = "%s\nTier %s  ·  %s\nGewicht %.1f  (gesamt %.1f)\n\n%s" % [
 		data.get("name", id), Game.tier_name(int(data.get("tier", 1))), data.get("category", ""),
 		weight, weight * amount, data.get("description", "")]

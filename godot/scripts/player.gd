@@ -42,8 +42,9 @@ const FOCUS_INTERVAL := 0.1
 const FISH_WAIT_MIN := 2.5
 const FISH_WAIT_MAX := 6.0
 const FISH_BITE_WINDOW := 1.1
-const MASTERY_XP_PER_DAMAGE := 0.5
 const MAX_EQUIPPED_SKILLS := 3
+const HEAVY_COST := 12.0 # Ausdauer für einen schweren Angriff
+const SECONDARY_ATTRIBUTE_FACTOR := 0.5 # zweites Attribut einer Waffe zählt halb für den Schaden
 
 const SHIELD_REST_POS := Vector3(-0.45, 0.0, 0.0)
 const SHIELD_REST_ROT := Vector3(0, 80, 0)
@@ -123,7 +124,7 @@ var gather_hp := 0.0
 
 # Ausrüstung: Slot ("weapon", "weapon2", "shield", "head", "chest", "legs", "ring", "tool:<beruf>") -> Ausrüstungsstück
 var equipment: Dictionary = {}
-const BASE_MAX_HEALTH := 200.0
+const BASE_MAX_HEALTH := 150.0 # dazu 10 je Punkt Vitalität (Start 5 → 200)
 const BASE_WEAPON_DAMAGE := 20.0 # Schaden ohne Waffe; Angriffe skalieren relativ zum Waffenschaden
 var damage_mult := 1.0 # nur für die Anzeige (ohne zeitliche Buffs)
 var crit_chance := 0.05
@@ -140,6 +141,25 @@ var buffs: Array[Dictionary] = [] # {"stats": {...}, "time": float}
 var skill_cooldowns: Dictionary = {} # Knoten-id -> verbleibende Sekunden
 var ranged_loaded := true
 var damage_dealt_total := 0.0 # nur für Tests/Statistik
+
+# Charakter: Level 1–100, Attribute mit Schwellenboni (data/attributes.json)
+var char_level := 1
+var char_xp := 0 # Erfahrung im aktuellen Level
+var attribute_points: Dictionary = {} # Attribut-id -> verteilte Punkte
+var attr_stats: Dictionary = {} # Werte aus Attributen (je Punkt und Schwellen), fließen in bonus()
+var attr_mechanics: Dictionary = {} # freigeschaltete Schwellen-Mechaniken: id -> Wert (Chance, Stärke …)
+var shield_hp := 0.0 # Schild aus Überheilung (Spiritual 200)
+var still_time := 0.0 # Sekunden ohne Bewegung (Zielruhe)
+var melee_hit_count := 0 # für Erdbeben (jeder 5. Treffer)
+var skill_use_count := 0 # für Zahrfluss (jede 4. Fähigkeit)
+var recent_skills: Array = [] # für Arkane Resonanz
+var resonance_ready := false
+var unbeugsam_cooldown := 0.0
+var lebensquell_cooldown := 0.0
+var heal_over_time := 0.0 # verbleibende Heilung pro Sekunde (Lebensquell)
+var heal_over_time_left := 0.0
+var _harvesting_neighbor := false
+var _skill_resonance := false # gerade ausgelöste Fähigkeit ist durch Arkane Resonanz verstärkt
 
 # Debug-Flug (F3): fliegen ohne Kollision, mit Sprinten 30-fache Geschwindigkeit, unverwundbar
 const FLY_SPEED := 12.0
@@ -168,8 +188,10 @@ func _ready() -> void:
 	add_child(shape)
 
 	for id in Game.professions:
-		professions[id] = {"level": 1, "xp": 0}
+		professions[id] = {"level": 0, "xp": 0}
 		tool_tiers[id] = 1
+	for id in Game.attribute_ids():
+		attribute_points[id] = 0
 
 	_build_model()
 	_build_tools()
@@ -240,7 +262,68 @@ func is_ranged() -> bool:
 # --- Inventar & Berufe --------------------------------------------------
 
 func get_profession_level(id: String) -> int:
-	return int(professions.get(id, {}).get("level", 1))
+	return int(professions.get(id, {}).get("level", 0))
+
+
+## Höchstes Tier, das mit dem aktuellen Skill abgebaut bzw. hergestellt werden kann.
+func profession_tier(id: String) -> int:
+	return mini(1 + get_profession_level(id) / Game.SKILL_PER_TIER, Game.TIER_NAMES.size())
+
+
+## Höchstes Tier, das auf dem Kompass aufgespürt wird (0 = noch keins, erst ab Skill 25).
+func track_tier(id: String) -> int:
+	var level := get_profession_level(id)
+	if level < Game.TRACK_OFFSET:
+		return 0
+	return mini(1 + (level - Game.TRACK_OFFSET) / Game.SKILL_PER_TIER, Game.TIER_NAMES.size())
+
+
+## Chance auf ein zusätzliches Erzeugnis beim Verarbeiten: +1 % je 15 Skillpunkte (20 % bei 300).
+func refining_bonus_chance(id: String) -> float:
+	if Game.professions.get(id, {}).get("type", "") != "refining":
+		return 0.0
+	return floorf(get_profession_level(id) / 15.0) * 0.01
+
+
+## Würfelt die Ausbeute einer Quelle mit allen Boni: Skill (bis 30 % ein Stück mehr), seltene Funde
+## und doppelte Ausbeute aus den Attributsschwellen.
+func gather_drops(profession: String, entries: Array, pick_one := false) -> Dictionary:
+	var level := get_profession_level(profession)
+	var drops := Game.roll_drops(entries, level, pick_one, 1.0 + bonus("rare:" + profession))
+	if drops.is_empty():
+		return drops
+	if randf() < level * 0.001:
+		var first: String = drops.keys()[0]
+		drops[first] = int(drops[first]) + 1
+	if randf() < bonus("double:" + profession):
+		for id in drops:
+			drops[id] = int(drops[id]) * 2
+		notify.emit("Doppelte Ausbeute!", Color(1.0, 0.9, 0.4))
+	return drops
+
+
+## Zahrfluss (Intelligenz 500): Eine geerntete Pflanze wächst mit kleiner Chance sofort nach.
+func regrows_instantly(profession: String) -> bool:
+	if profession != "harvesting" or randf() >= float(attr_mechanics.get("nachwachsen", 0.0)):
+		return false
+	notify.emit("Die Pflanze wächst sofort nach", Color(0.6, 1.0, 0.6))
+	return true
+
+
+## Intelligenz 450: Ernte nimmt eine gleiche Pflanze im Umkreis mit.
+func harvest_neighbor(source) -> void:
+	if _harvesting_neighbor or not attr_mechanics.has("ernte_umkreis") or source.get_profession() != "harvesting":
+		return
+	var reach := float(attr_mechanics["ernte_umkreis"])
+	for node in get_tree().get_nodes_in_group("interactable"):
+		var other = node
+		if other == source or other.get("node_id") != source.get("node_id") or not other.is_interactable():
+			continue
+		if other.global_position.distance_to(source.global_position) <= reach:
+			_harvesting_neighbor = true
+			other.harvest(self)
+			_harvesting_neighbor = false
+			return
 
 
 func add_profession_xp(id: String, amount: int) -> void:
@@ -249,11 +332,24 @@ func add_profession_xp(id: String, amount: int) -> void:
 	var p: Dictionary = professions[id]
 	p["xp"] = int(p["xp"]) + amount
 	notify.emit("+%d EP %s" % [amount, Game.profession_name(id)], Color(0.6, 0.85, 1.0))
+	var before := int(p["level"])
 	while int(p["level"]) < Game.MAX_PROFESSION_LEVEL and int(p["xp"]) >= Game.xp_to_next(int(p["level"])):
 		p["xp"] = int(p["xp"]) - Game.xp_to_next(int(p["level"]))
 		p["level"] = int(p["level"]) + 1
-		message.emit("%s: Stufe %d erreicht!" % [Game.profession_name(id), p["level"]])
-		FX.popup(get_tree(), global_position + Vector3(0, 2.3, 0), "Stufe %d!" % p["level"], Color(0.5, 0.9, 1.0), 72)
+	if int(p["level"]) >= Game.MAX_PROFESSION_LEVEL:
+		p["xp"] = 0
+	var after := int(p["level"])
+	if after == before:
+		return
+	FX.popup(get_tree(), global_position + Vector3(0, 2.3, 0), "%s %d" % [Game.profession_name(id), after], Color(0.5, 0.9, 1.0), 60)
+	# Meldung nur bei neuen Tiers und Aufspür-Stufen, sonst wäre bei 300 Punkten ständig eine da
+	for level in range(before + 1, after + 1):
+		if level % Game.SKILL_PER_TIER == 0:
+			message.emit("%s %d: Tier %s freigeschaltet!" % [Game.profession_name(id), level,
+				Game.tier_name(1 + level / Game.SKILL_PER_TIER)])
+		elif level % Game.SKILL_PER_TIER == Game.TRACK_OFFSET and Game.professions[id].get("type", "") == "gathering":
+			message.emit("%s %d: Tier %s wird jetzt aufgespürt (Kompass)" % [Game.profession_name(id), level,
+				Game.tier_name(1 + level / Game.SKILL_PER_TIER)])
 
 
 ## Legt Gegenstände ins Inventar. Gibt zurück, was nicht mehr hineingepasst hat.
@@ -270,6 +366,141 @@ func receive_items(drops: Dictionary) -> Dictionary:
 	if not leftover.is_empty():
 		message.emit("Tasche voll!")
 	return leftover
+
+
+# --- Charakterlevel & Attribute -----------------------------------------
+
+func add_char_xp(amount: int) -> void:
+	if amount <= 0 or char_level >= Game.MAX_CHAR_LEVEL:
+		return
+	char_xp += amount
+	notify.emit("+%d EP" % amount, Color(0.75, 0.6, 1.0))
+	var before := char_level
+	while char_level < Game.MAX_CHAR_LEVEL and char_xp >= Game.char_xp_to_next(char_level):
+		char_xp -= Game.char_xp_to_next(char_level)
+		char_level += 1
+	if char_level >= Game.MAX_CHAR_LEVEL:
+		char_xp = 0
+	if char_level > before:
+		var points := Game.attribute_points_total(char_level) - Game.attribute_points_total(before)
+		message.emit("Level %d!  +%d Attributspunkte (P)" % [char_level, points])
+		FX.popup(get_tree(), global_position + Vector3(0, 2.5, 0), "Level %d!" % char_level, Color(0.8, 0.65, 1.0), 90)
+		health = max_health
+		equipment_changed.emit()
+
+
+## Tod: 20 % der Erfahrung im aktuellen Level gehen verloren, ein Level kann man nicht verlieren.
+func _apply_death_penalty() -> void:
+	var loss := int(char_xp * Game.DEATH_XP_LOSS)
+	if loss > 0:
+		char_xp -= loss
+		notify.emit("−%d EP (Tod)" % loss, Color(1.0, 0.45, 0.4))
+
+
+## Gesamtwert eines Attributs: Grundwert + verteilte Punkte (später auch Ausrüstung und Essen).
+func attribute_value(id: String) -> int:
+	return Game.attribute_base() + int(attribute_points.get(id, 0))
+
+
+func attribute_points_spent() -> int:
+	var spent := 0
+	for id in attribute_points:
+		spent += int(attribute_points[id])
+	return spent
+
+
+func attribute_points_free() -> int:
+	return Game.attribute_points_total(char_level) - attribute_points_spent()
+
+
+func add_attribute_points(id: String, amount := 1) -> String:
+	if not attribute_points.has(id):
+		return "Unbekanntes Attribut"
+	amount = mini(amount, attribute_points_free())
+	if amount <= 0:
+		return "Keine freien Punkte"
+	attribute_points[id] = int(attribute_points[id]) + amount
+	_recalc_stats()
+	return ""
+
+
+func reset_attributes() -> void:
+	for id in attribute_points:
+		attribute_points[id] = 0
+	_recalc_stats()
+
+
+func has_mechanic(id: String) -> bool:
+	return attr_mechanics.has(id)
+
+
+## Rechnet die Werte aller Attribute zusammen: Boni je Punkt, Schwellen und den Schadensbonus der Waffe
+## (erstes Attribut der Waffe voll, zweites halb). Schwellen mit "ab" sind noch nicht im Spiel.
+func _recalc_attributes() -> void:
+	attr_stats = {}
+	attr_mechanics = {}
+	var scaling: Array = weapon_def.get("attributes", [])
+	for id in Game.attribute_ids():
+		var def := Game.attribute_def(id)
+		var value := attribute_value(id)
+		var per_point: Dictionary = def.get("per_point", {})
+		var stats: Dictionary = per_point.get("stats", {})
+		for stat in stats:
+			_add_attr_stat(stat, float(stats[stat]) * value)
+		var index := scaling.find(id)
+		if index >= 0:
+			var factor := 1.0 if index == 0 else SECONDARY_ATTRIBUTE_FACTOR
+			_add_attr_stat("damage_pct", float(per_point.get("weapon_damage", 0.0)) * value * factor)
+		for t in def.get("thresholds", []):
+			var threshold: Dictionary = t
+			if value < int(threshold["at"]) or threshold.has("ab"):
+				continue
+			var t_stats: Dictionary = threshold.get("stats", {})
+			for stat in t_stats:
+				_add_attr_stat(stat, float(t_stats[stat]))
+			var mechanics: Dictionary = threshold.get("mechanics", {})
+			for m in mechanics:
+				attr_mechanics[m] = float(mechanics[m])
+	var factors := {}
+	for stat in attr_stats:
+		if String(stat).begins_with("weight:"):
+			factors[String(stat).substr(7)] = maxf(1.0 - float(attr_stats[stat]), 0.1)
+	inventory.weight_factors = factors
+
+
+func _add_attr_stat(stat: String, value: float) -> void:
+	attr_stats[stat] = float(attr_stats.get(stat, 0.0)) + value
+
+
+## Wird vom Gegner beim Tod aufgerufen: Charakter-EP voll, Waffen-EP nach Schadensanteil jeder Waffenart.
+func on_enemy_killed(enemy, xp: int, damage_by_source: Dictionary) -> void:
+	var total := 0.0
+	for source in damage_by_source:
+		total += float(damage_by_source[source])
+	if total <= 0.0:
+		return
+	add_char_xp(xp)
+	for source in damage_by_source:
+		if Game.weapons.has(source):
+			add_mastery_xp(source, xp * float(damage_by_source[source]) / total)
+	if has_mechanic("siegesrausch") and not is_ranged():
+		buffs.append({"stats": {"damage_pct": float(attr_mechanics["siegesrausch"])}, "time": 5.0})
+		FX.popup(get_tree(), global_position + Vector3(0, 2.3, 0), "Siegesrausch", Color(1.0, 0.5, 0.3), 48)
+
+
+## Heilung mit Spiritual-Boni; Überheilung wird mit „Überfluss“ zum Schild.
+func heal(amount: float, on_self := true) -> float:
+	var factor := 1.0 + bonus("healing_pct")
+	if health < max_health * 0.5:
+		factor += bonus("heal_low_pct")
+	if on_self:
+		factor += bonus("self_heal_pct")
+	amount *= factor
+	var missing := max_health - health
+	health = minf(health + amount, max_health)
+	if amount > missing and has_mechanic("ueberfluss"):
+		shield_hp = minf(shield_hp + amount - missing, max_health * float(attr_mechanics["ueberfluss"]))
+	return amount
 
 
 # --- Ausrüstung & Werte -------------------------------------------------
@@ -321,9 +552,9 @@ func _stat(key: String, stat: String, fallback := 0.0) -> float:
 	return float(equipment[key]["stats"].get(stat, fallback))
 
 
-## Bonus aus passiven Skillknoten und laufenden Buffs.
+## Bonus aus passiven Skillknoten, Attributen und laufenden Buffs.
 func bonus(stat: String) -> float:
-	var value := float(passive.get(stat, 0.0))
+	var value := float(passive.get(stat, 0.0)) + float(attr_stats.get(stat, 0.0))
 	for b in buffs:
 		value += float(b["stats"].get(stat, 0.0))
 	return value
@@ -344,10 +575,11 @@ func _recalc_stats() -> void:
 	weapon_def = Game.weapon_def(weapon_type)
 	_mastery(weapon_type)
 	_recalc_passives()
+	_recalc_attributes()
 
 	damage_mult = _stat("weapon", "damage", BASE_WEAPON_DAMAGE) / BASE_WEAPON_DAMAGE \
-		* (1.0 + _stat("weapon", "damage_pct") + float(passive.get("damage_pct", 0.0)))
-	crit_chance = 0.05 + _stat("weapon", "crit") + float(passive.get("crit", 0.0))
+		* (1.0 + _stat("weapon", "damage_pct") + float(passive.get("damage_pct", 0.0)) + float(attr_stats.get("damage_pct", 0.0)))
+	crit_chance = 0.05 + _stat("weapon", "crit") + float(passive.get("crit", 0.0)) + float(attr_stats.get("crit", 0.0))
 	bleed_chance = _stat("weapon", "bleed") + float(passive.get("bleed", 0.0))
 	block_power = _stat("shield", "block") if shield_active() else 0.0
 	armor = 0.0
@@ -355,8 +587,10 @@ func _recalc_stats() -> void:
 		armor += _stat(key, "armor")
 	if shield_active():
 		armor += _stat("shield", "armor")
+	armor *= 1.0 + float(attr_stats.get("armor_pct", 0.0))
 	var old_max := max_health
-	max_health = BASE_MAX_HEALTH + _stat("ring", "health") + float(passive.get("health", 0.0))
+	max_health = BASE_MAX_HEALTH + _stat("ring", "health") + float(passive.get("health", 0.0)) \
+		+ float(attr_stats.get("health", 0.0))
 	health = clampf(health + maxf(max_health - old_max, 0.0), 0.0, max_health)
 	for id in Game.professions:
 		var key: String = "tool:" + String(id)
@@ -501,8 +735,8 @@ func craft_check(recipe_id: String, amount := 1, modifiers: Array = []) -> Strin
 	if recipe.is_empty():
 		return "Unbekanntes Rezept"
 	var profession: String = Game.stations[recipe["station"]]["profession"]
-	if get_profession_level(profession) < int(recipe.get("level", 1)):
-		return "Benötigt %s Stufe %d" % [Game.profession_name(profession), int(recipe.get("level", 1))]
+	if get_profession_level(profession) < int(recipe.get("level", 0)):
+		return "Benötigt %s Skill %d" % [Game.profession_name(profession), int(recipe.get("level", 0))]
 	var needed: Dictionary = {}
 	var ingredients: Dictionary = recipe["ingredients"]
 	for id in ingredients:
@@ -537,9 +771,17 @@ func craft(recipe_id: String, amount := 1, modifiers: Array = []) -> String:
 			made = Game.item_name(output)
 	else:
 		var count := int(recipe.get("count", 1)) * amount
+		# Verarbeiten: Chance auf ein zusätzliches Erzeugnis je Durchgang
+		var extra := 0
+		var chance := refining_bonus_chance(Game.stations[recipe["station"]]["profession"])
+		for i in amount:
+			if randf() < chance:
+				extra += 1
 		if inventory.space_for(output) >= count:
-			inventory.add(output, count)
+			inventory.add(output, count + mini(extra, inventory.space_for(output) - count))
 			made = "%d× %s" % [count, Game.item_name(output)]
+			if extra > 0:
+				made += "  (+%d Bonus)" % extra
 	if made == "":
 		for id in ingredients:
 			inventory.add(id, int(ingredients[id]) * amount)
@@ -574,10 +816,9 @@ func use_consumable(kind: String) -> void:
 		if potion_cooldown > 0.0:
 			message.emit("Heiltrank noch %d s gesperrt" % ceili(potion_cooldown))
 			return
-		var heal := float(effect.get("heal", 50))
-		health = minf(health + heal, max_health)
+		var healed := heal(float(effect.get("heal", 50)))
 		potion_cooldown = POTION_COOLDOWN
-		FX.popup(get_tree(), global_position + Vector3(0, 2.1, 0), "+%d" % roundi(heal), Color(0.4, 1.0, 0.4), 64)
+		FX.popup(get_tree(), global_position + Vector3(0, 2.1, 0), "+%d" % roundi(healed), Color(0.4, 1.0, 0.4), 64)
 	else:
 		food_regen = float(effect.get("regen", 2))
 		food_time = float(effect.get("duration", 60))
@@ -601,6 +842,9 @@ func to_save() -> Dictionary:
 		"equipment": equipment.duplicate(true),
 		"professions": professions.duplicate(true),
 		"masteries": masteries.duplicate(true),
+		"char_level": char_level,
+		"char_xp": char_xp,
+		"attributes": attribute_points.duplicate(),
 	}
 
 
@@ -634,10 +878,24 @@ func from_save(data: Dictionary) -> void:
 		if Game.items.has(gear.get("id", "")):
 			gear["uid"] = int(gear["uid"])
 			equipment[key] = gear
+	# Spielstände vor Version 2 hatten Berufsstufen 1–50: Stufe 1/2/3 entspricht Skill 0/25/50
+	var old_scale := int(data.get("_version", 2)) < 2
 	var saved_professions: Dictionary = data.get("professions", {})
 	for id in saved_professions:
 		if professions.has(id):
-			professions[id] = {"level": int(saved_professions[id]["level"]), "xp": int(saved_professions[id]["xp"])}
+			var level := int(saved_professions[id]["level"])
+			var xp := int(saved_professions[id]["xp"])
+			if old_scale:
+				level = mini((level - 1) * 25, Game.MAX_PROFESSION_LEVEL)
+				xp = 0
+			professions[id] = {"level": clampi(level, 0, Game.MAX_PROFESSION_LEVEL), "xp": xp}
+	char_level = clampi(int(data.get("char_level", 1)), 1, Game.MAX_CHAR_LEVEL)
+	char_xp = int(data.get("char_xp", 0))
+	var saved_attributes: Dictionary = data.get("attributes", {})
+	for id in attribute_points:
+		attribute_points[id] = maxi(int(saved_attributes.get(id, 0)), 0)
+	if attribute_points_free() < 0: # sollte nicht vorkommen; sonst Punkte neu verteilen lassen
+		reset_attributes()
 	masteries.clear()
 	var saved_masteries: Dictionary = data.get("masteries", {})
 	for type in saved_masteries:
@@ -669,7 +927,7 @@ func get_focus_prompt() -> String:
 		return ""
 	var text := "[E]  %s" % focus.get_prompt()
 	if focus_blocked():
-		text += "   (benötigt %s %d)" % [Game.profession_name(focus.get_profession()), focus.get_required_level()]
+		text += "   (benötigt %s Skill %d)" % [Game.profession_name(focus.get_profession()), focus.get_required_level()]
 	return text
 
 
@@ -942,6 +1200,7 @@ func _physics_process(delta: float) -> void:
 			_state_fish(delta, move_dir, captured)
 
 	move_and_slide()
+	still_time = still_time + delta if Vector2(velocity.x, velocity.z).length() < 0.3 else 0.0
 	if global_position.y < -80.0: # tiefster Meeresboden der Insel liegt bei etwa −41 m
 		_respawn()
 
@@ -964,8 +1223,22 @@ func _update_timers(delta: float) -> void:
 	elif not blocking:
 		stamina = minf(stamina + STAMINA_REGEN * (1.0 + bonus("stamina_regen_pct")) * delta, max_stamina)
 	combat_timer -= delta
+	var tough := has_mechanic("zaeh")
 	if combat_timer <= 0.0:
-		health = minf(health + HEALTH_REGEN * delta, max_health)
+		health = minf(health + HEALTH_REGEN * (2.0 if tough else 1.0) * delta, max_health)
+	elif tough: # Zäh: im Kampf 1 % LP alle 5 s
+		health = minf(health + max_health * float(attr_mechanics["zaeh"]) / 5.0 * delta, max_health)
+	unbeugsam_cooldown = maxf(unbeugsam_cooldown - delta, 0.0)
+	lebensquell_cooldown = maxf(lebensquell_cooldown - delta, 0.0)
+	if has_mechanic("lebensquell") and lebensquell_cooldown <= 0.0 and health < max_health * 0.2:
+		# Lebensquell: starke Heilung über 5 s, alle 60 s
+		lebensquell_cooldown = 60.0
+		heal_over_time = max_health * float(attr_mechanics["lebensquell"]) / 5.0
+		heal_over_time_left = 5.0
+		FX.popup(get_tree(), global_position + Vector3(0, 2.3, 0), "Lebensquell", Color(0.5, 1.0, 0.6), 56)
+	if heal_over_time_left > 0.0:
+		heal_over_time_left -= delta
+		heal(heal_over_time * delta)
 	potion_cooldown = maxf(potion_cooldown - delta, 0.0)
 	if food_time > 0.0:
 		food_time -= delta
@@ -1030,7 +1303,7 @@ func _start_interaction(target) -> void:
 	var profession: String = target.get_profession()
 	var required: int = target.get_required_level()
 	if get_profession_level(profession) < required:
-		message.emit("Benötigt %s Stufe %d" % [Game.profession_name(profession), required])
+		message.emit("Benötigt %s Skill %d" % [Game.profession_name(profession), required])
 		return
 	gather_target = target
 	blocking = false
@@ -1052,8 +1325,11 @@ func _start_interaction(target) -> void:
 	gather_time = 0.0
 	# Abbauzeit = Lebenspunkte der Quelle / Abbaukraft des Werkzeugs; höhere Stufe macht etwas schneller
 	gather_hp = float(target.get_gather_hp())
-	var level_factor := 1.0 - minf(get_profession_level(profession), 50) * 0.006
-	gather_total = gather_hp / get_tool_power(profession) * level_factor
+	# Skill bis 30 % schneller, dazu die Attribute (je Punkt und Schwellen)
+	var level_factor := 1.0 - minf(get_profession_level(profession), Game.MAX_PROFESSION_LEVEL) * 0.001
+	gather_total = gather_hp / get_tool_power(profession) * level_factor / (1.0 + bonus("gather_speed:" + profession))
+	if randf() < float(attr_mechanics.get("sofort:" + profession, 0.0)):
+		gather_total = 0.15 # mit einem Schlag (Erdbeben, Schwachstelle, Unbeugsam)
 	anim_tween = create_tween().set_loops()
 	match profession:
 		"harvesting":
@@ -1094,7 +1370,8 @@ func _state_gather(delta: float, move_dir: Vector3, captured: bool) -> void:
 func _begin_fish_wait() -> void:
 	fish_phase = "wait"
 	# Bessere Angel = kürzere Wartezeit
-	fish_timer = randf_range(FISH_WAIT_MIN, FISH_WAIT_MAX) * Game.BASE_TOOL_POWER / get_tool_power("fishing")
+	fish_timer = randf_range(FISH_WAIT_MIN, FISH_WAIT_MAX) * Game.BASE_TOOL_POWER / get_tool_power("fishing") \
+		/ (1.0 + bonus("gather_speed:fishing"))
 
 
 func _state_fish(delta: float, move_dir: Vector3, captured: bool) -> void:
@@ -1110,8 +1387,8 @@ func _state_fish(delta: float, move_dir: Vector3, captured: bool) -> void:
 			_end_gather() # Angel wieder einholen
 		elif fish_timer <= 0.0:
 			fish_phase = "bite"
-			fish_timer = FISH_BITE_WINDOW * get_tool_power("fishing") / Game.BASE_TOOL_POWER \
-				+ get_profession_level("fishing") * 0.02
+			fish_timer = (FISH_BITE_WINDOW * get_tool_power("fishing") / Game.BASE_TOOL_POWER \
+				+ get_profession_level("fishing") * 0.002) * (1.0 + bonus("fish_escape_pct"))
 			FX.popup(get_tree(), gather_target.global_position + Vector3(0, 0.8, 0), "!", Color(1.0, 0.9, 0.3), 120)
 			_kill_anim(false)
 			anim_tween = create_tween().set_loops()
@@ -1197,8 +1474,14 @@ func _start_light() -> void:
 
 func _start_heavy() -> void:
 	var heavy: Dictionary = weapon_def.get("heavy", {})
-	if not heavy.is_empty():
-		_begin_melee(heavy, "heavy")
+	if heavy.is_empty():
+		return
+	var cost := HEAVY_COST * (1.0 - clampf(bonus("heavy_cost_pct"), 0.0, 0.7))
+	if stamina < cost * 0.5:
+		message.emit("Zu wenig Ausdauer")
+		return
+	_use_stamina(cost, 0.4)
+	_begin_melee(heavy, "heavy")
 
 
 ## Startet einen Nahkampfschlag aus den Moveset-Daten (data/weapons.json).
@@ -1318,6 +1601,7 @@ func _spawn_projectiles(shot: Dictionary) -> void:
 		p.hit_data = {
 			"mult": float(shot.get("mult", 1.0)), "kb": float(shot.get("kb", 1.0)), "stag": float(shot.get("stag", 0.3)),
 			"effects": shot.get("effects", {}), "pierce": shot.get("pierce", false), "explode": float(shot.get("explode", 0.0)),
+			"source": weapon_type, "resonance": _skill_resonance,
 		}
 		p.position = muzzle
 		get_tree().current_scene.add_child(p)
@@ -1325,8 +1609,10 @@ func _spawn_projectiles(shot: Dictionary) -> void:
 
 ## Wird von Geschossen und Flächenangriffen aufgerufen.
 func on_projectile_hit(enemy, hit_data: Dictionary, from_pos: Vector3) -> void:
-	_deal_damage(enemy, float(hit_data.get("mult", 1.0)), float(hit_data.get("kb", 1.0)),
-		float(hit_data.get("stag", 0.3)), hit_data.get("effects", {}), false, from_pos)
+	var mult := float(hit_data.get("mult", 1.0)) * (1.0 + float(attr_mechanics.get("arkane_resonanz", 0.0)) \
+		if hit_data.get("resonance", false) else 1.0)
+	_deal_damage(enemy, mult, float(hit_data.get("kb", 1.0)),
+		float(hit_data.get("stag", 0.3)), hit_data.get("effects", {}), false, from_pos, String(hit_data.get("source", "")))
 	combat_timer = 6.0
 	shake = maxf(shake, 0.06)
 
@@ -1344,6 +1630,7 @@ func _try_skill(index: int) -> void:
 		message.emit("%s ist noch nicht bereit" % node.get("name", ""))
 		return
 	skill_cooldowns[node["id"]] = _skill_cooldown(node)
+	_skill_resonance = _skill_mechanics(node)
 	var speed := 1.0 + bonus("attack_speed")
 	match String(skill.get("template", "")):
 		"strike":
@@ -1406,19 +1693,47 @@ func _try_skill(index: int) -> void:
 			zone.radius = float(skill.get("radius", 4.0))
 			zone.ticks = int(skill.get("ticks", 5))
 			zone.interval = float(skill.get("interval", 0.4))
-			zone.hit_data = {"mult": float(skill.get("mult", 0.5)), "kb": 0.5, "stag": 0.2, "effects": skill.get("effects", {})}
+			zone.hit_data = {"mult": float(skill.get("mult", 0.5)), "kb": 0.5, "stag": 0.2, "effects": skill.get("effects", {}),
+				"source": weapon_type}
 			zone.position = _aim_point()
 			get_tree().current_scene.add_child(zone)
+	if _skill_resonance and not action.is_empty():
+		action["resonance"] = true
+	_skill_resonance = false
+
+
+## Zahrfluss (jede 4. Fähigkeit ohne Abklingzeit) und Arkane Resonanz (nach drei verschiedenen Fähigkeiten
+## macht die nächste mehr Schaden). Gibt zurück, ob diese Fähigkeit verstärkt ist.
+func _skill_mechanics(node: Dictionary) -> bool:
+	var id: String = node["id"]
+	skill_use_count += 1
+	if has_mechanic("zahrfluss") and skill_use_count % int(attr_mechanics["zahrfluss"]) == 0:
+		skill_cooldowns[id] = 0.0
+		FX.popup(get_tree(), global_position + Vector3(0, 2.3, 0), "Zahrfluss", Color(0.5, 0.8, 1.0), 48)
+	if not has_mechanic("arkane_resonanz"):
+		return false
+	if resonance_ready:
+		resonance_ready = false
+		recent_skills.clear()
+		return true
+	recent_skills.append(id)
+	if recent_skills.size() > 3:
+		recent_skills.pop_front()
+	if recent_skills.size() == 3 and recent_skills[0] != recent_skills[1] and recent_skills[1] != recent_skills[2] \
+			and recent_skills[0] != recent_skills[2]:
+		resonance_ready = true
+		FX.popup(get_tree(), global_position + Vector3(0, 2.3, 0), "Arkane Resonanz", Color(0.6, 0.6, 1.0), 48)
+	return false
 
 
 func _apply_buff(skill: Dictionary) -> void:
 	var stats: Dictionary = skill.get("buffs", {})
 	if not stats.is_empty():
 		buffs.append({"stats": stats.duplicate(), "time": float(skill.get("duration", 5.0))})
-	var heal := float(skill.get("heal_pct", 0.0)) * max_health
-	if heal > 0.0:
-		health = minf(health + heal, max_health)
-		FX.popup(get_tree(), global_position + Vector3(0, 2.1, 0), "+%d" % roundi(heal), Color(0.4, 1.0, 0.4), 64)
+	var amount := float(skill.get("heal_pct", 0.0)) * max_health
+	if amount > 0.0:
+		amount = heal(amount)
+		FX.popup(get_tree(), global_position + Vector3(0, 2.1, 0), "+%d" % roundi(amount), Color(0.4, 1.0, 0.4), 64)
 
 
 func _cam_forward() -> Vector3:
@@ -1495,7 +1810,10 @@ func _state_action(delta: float, move_dir: Vector3, captured: bool) -> void:
 func _resolve_hit() -> void:
 	if action.get("shockwave", false):
 		FX.shockwave(get_tree(), global_position + _forward() * 0.5, float(action["range"]), Color(0.75, 0.65, 0.5, 0.6))
-	_hit_arc(float(action["range"]), float(action["arc"]), float(action["mult"]), float(action["kb"]),
+	var mult := float(action["mult"])
+	if action.get("resonance", false):
+		mult *= 1.0 + float(attr_mechanics.get("arkane_resonanz", 0.0))
+	_hit_arc(float(action["range"]), float(action["arc"]), mult, float(action["kb"]),
 		float(action["stag"]), action.get("effects", {}), action.get("heavy", false))
 
 
@@ -1547,28 +1865,52 @@ func _path_hits() -> void:
 
 
 ## Schaden aus Waffenwert × Angriffsfaktor, mit Boni, Krit, Blutung und Effekten der Fähigkeit.
-func _deal_damage(enemy, mult: float, knockback: float, stagger: float, effects: Dictionary, heavy: bool, from_pos: Vector3) -> void:
+## `source` = Waffenart, der der Schaden zählt (Geschosse merken sich die Waffe beim Abschuss).
+func _deal_damage(enemy, mult: float, knockback: float, stagger: float, effects: Dictionary, heavy: bool, from_pos: Vector3,
+		source := "") -> void:
+	var ranged_hit := source != ""
+	if source == "":
+		source = weapon_type
 	var weapon_damage := _stat("weapon", "damage", BASE_WEAPON_DAMAGE)
 	var amount := weapon_damage * mult * (1.0 + _stat("weapon", "damage_pct") + bonus("damage_pct")) * randf_range(0.9, 1.1)
 	if heavy:
 		amount *= 1.0 + _stat("weapon", "heavy") + bonus("heavy")
+	if ranged_hit and is_ranged() and still_time >= 1.0:
+		amount *= 1.0 + float(attr_mechanics.get("zielruhe", 0.0))
 	var crit := randf() < 0.05 + _stat("weapon", "crit") + bonus("crit")
 	if crit:
 		amount *= 1.5 + bonus("crit_damage")
-	enemy.take_damage(amount, from_pos, knockback, stagger, crit)
+		if has_mechanic("schneller_finger"):
+			for id in skill_cooldowns:
+				skill_cooldowns[id] = maxf(float(skill_cooldowns[id]) - float(attr_mechanics["schneller_finger"]), 0.0)
+	enemy.take_damage(amount, from_pos, knockback, stagger, crit, source)
 	damage_dealt_total += amount
-	add_mastery_xp(weapon_type, amount * MASTERY_XP_PER_DAMAGE)
+	if not ranged_hit and has_mechanic("erdbeben"):
+		melee_hit_count += 1
+		if melee_hit_count % 5 == 0:
+			_earthquake(enemy, amount * float(attr_mechanics["erdbeben"]))
 	if not enemy.is_alive():
 		return
 	var bleed_dps := weapon_damage * 0.2 * (1.0 + bonus("damage_pct"))
 	if effects.has("bleed"):
-		enemy.apply_bleed(bleed_dps, float(effects["bleed"]))
+		enemy.apply_bleed(bleed_dps, float(effects["bleed"]), source)
 	elif randf() < _stat("weapon", "bleed") + bonus("bleed"):
-		enemy.apply_bleed(bleed_dps, 4.0)
+		enemy.apply_bleed(bleed_dps, 4.0, source)
 	for kind in ["slow", "expose"]:
 		if effects.has(kind):
 			var e: Array = effects[kind]
 			enemy.apply_debuff(kind, float(e[0]), float(e[1]))
+
+
+## Erdbeben (Stärke 500): Schockwelle um das getroffene Ziel, trifft alle Gegner in 3 m.
+func _earthquake(center_enemy, amount: float) -> void:
+	var center: Vector3 = center_enemy.global_position
+	FX.shockwave(get_tree(), center, 3.0, Color(0.75, 0.6, 0.4, 0.6))
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var enemy = node
+		if enemy.is_alive() and enemy.global_position.distance_to(center) <= 3.0:
+			enemy.take_damage(amount, center, 3.0, 0.4, false, weapon_type)
+			damage_dealt_total += amount
 
 
 func _on_hit_landed() -> void:
@@ -1731,13 +2073,29 @@ func take_damage(amount: float, from_pos: Vector3, unblockable := false) -> void
 
 	amount *= 1.0 - clampf(bonus("damage_reduction"), 0.0, 0.75)
 	amount *= 100.0 / (100.0 + armor) # Rüstung verringert den Schaden
+	if has_mechanic("standhaft") and health < max_health * 0.3:
+		amount *= 1.0 - float(attr_mechanics["standhaft"])
+	if has_mechanic("einschuechternd") and to_attacker.length() <= 4.0:
+		amount *= 1.0 - float(attr_mechanics["einschuechternd"])
+	if shield_hp > 0.0: # Schild aus Überheilung fängt zuerst ab
+		var absorbed := minf(shield_hp, amount)
+		shield_hp -= absorbed
+		amount -= absorbed
 	health = maxf(health - amount, 0.0)
 	FX.popup(get_tree(), head, str(roundi(amount)), Color(1.0, 0.3, 0.25), 64)
 	shake = 0.25
 	hurt.emit()
+	if health <= 0.0 and has_mechanic("unbeugsam") and unbeugsam_cooldown <= 0.0:
+		# Unbeugsam: mit 1 LP und 3 s Unverwundbarkeit überleben
+		health = 1.0
+		iframes = 3.0
+		unbeugsam_cooldown = float(attr_mechanics["unbeugsam"])
+		FX.popup(get_tree(), head + Vector3(0, 0.4, 0), "Unbeugsam!", Color(1.0, 0.85, 0.3), 64)
+		return
+	var unstoppable: bool = has_mechanic("unaufhaltsam") and state == State.ACTION and action.get("heavy", false)
 	if health <= 0.0:
 		_die()
-	elif amount >= 25.0 and bonus("stagger_immune") <= 0.0 and state != State.DODGE:
+	elif amount >= 25.0 and bonus("stagger_immune") <= 0.0 and state != State.DODGE and not unstoppable:
 		_stagger(0.45, away * 5.0)
 
 
@@ -1748,6 +2106,9 @@ func _die() -> void:
 	blocking = false
 	action = {}
 	buffs.clear()
+	shield_hp = 0.0
+	heal_over_time_left = 0.0
+	_apply_death_penalty()
 	_set_block_pose(false)
 	_kill_anim(true)
 	anim_tween = create_tween().set_parallel(true)

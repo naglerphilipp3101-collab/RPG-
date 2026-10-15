@@ -174,7 +174,7 @@ Gestaltungsregel für die Schwellen: Kleine Schwellen (25, 50, 150, 250, 350, 45
 | Spiritual | +0,2 % Heilung | Fischen +0,1 % schneller |
 | Vitalität | +10 Lebenspunkte | Holzernte +0,1 % schneller |
 
-Der Schadensbonus gilt für Waffen, die mit dem Attribut skalieren (siehe Waffentabelle).
+Der Schadensbonus gilt für Waffen, die mit dem Attribut skalieren (siehe Waffentabelle): das erste Attribut einer Waffe zählt voll, das zweite halb. Das gilt auch für Vitalität und Spiritual (Schwert und Schild, Axt, Eis- und Lebensmagie). Der Grundwert 5 zählt mit; damit ein neuer Charakter weiter 200 LP hat, liegt das Grundleben bei 150.
 
 ### Stärke: Nahkampf und Bergbau
 
@@ -424,18 +424,18 @@ Zurzeit sind keine Fragen offen.
 
 ## Umsetzungsplan
 
-Stand 15.10.2026, abgeleitet aus diesem Konzept und dem Code im Repository. Zuerst kommt der Charakterkern, weil Level, Attribute und Tiers fast alle späteren Systeme berühren; Inhalte mit Gegnermodellen warten auf die Modellpakete.
+Stand 15.10.2026, abgeleitet aus diesem Konzept und dem Code im Repository. M5 ist umgesetzt (siehe unten). Zuerst kommt der Charakterkern, weil Level, Attribute und Tiers fast alle späteren Systeme berühren; Inhalte mit Gegnermodellen warten auf die Modellpakete.
 
 ### Was der Code heute schon kann und was sich ändert
 
 | Bereich | Heute im Code | Laut Konzept |
 | --- | --- | --- |
-| Charakter | kein Charakterlevel, keine Attribute | Level 1–100, 5 Attribute mit Schwellen 25–500, Tod −20 % EP |
-| Waffen-EP | 0,5 EP je Schadenspunkt (`player.gd`) | EP des Monsters beim Tod nach Schadensanteil verteilt |
+| Charakter | ✅ M5: Level 1–100, 5 Attribute mit Schwellen, Tod −20 % EP | Level 1–100, 5 Attribute mit Schwellen 25–500, Tod −20 % EP |
+| Waffen-EP | ✅ M5: nach Schadensanteil | EP des Monsters beim Tod nach Schadensanteil verteilt |
 | Waffen | 12 Typen + Schild, je 2 Äste, 3 Fähigkeiten aktiv (Q/R/F), Meisterschaft bis 20 | 15 Waffen inkl. 5 Magiearten, 2 Seiten mit je 1 Passiven (eine aktiv), 4 Fähigkeiten (3 ausgerüstet) + Ultimative |
-| Berufe | 16 Berufe, Stufe bis 50, Tiers I–V (Kupfer, Eisen) | 17 Berufe, Skill 0–300, 6 Tiers (Iron bis Darksteel), Aufspüren, Bonus-Ausbeute |
+| Berufe | ✅ M5: 16 Berufe, Skill 0–300, Tiers I–VI, Aufspüren, Bonus-Ausbeute (Erze heißen noch Kupfer, Eisen) | 17 Berufe, Skill 0–300, 6 Tiers (Iron bis Darksteel), Aufspüren, Bonus-Ausbeute |
 | Stationen | 12 (u. a. Waffenschmiede, Rüstungsschmiede, Juwelier getrennt) | 5 Verarbeitung + 5 Herstellung (Schmiede, Schneiderei, Werkstatt, Arkanes Sanktum, Küche) |
-| Welt | Terrain3D-Insel, Natur, Wasser, feste Sonne | dazu Tag/Nacht-Zyklus, Städte als Schutzzonen, Regionen |
+| Welt | Terrain3D-Insel, Natur, Wasser, ✅ Tag/Nacht | dazu Tag/Nacht-Zyklus, Städte als Schutzzonen, Regionen |
 | Gegner | Wolf, Bandit, Brute (Platzhalter) | Menschen, Tiere, Untote, Drachen, Kalistare; Gold nur bei logischen Gegnern |
 | Quests, NPCs, Fraktionen, Gold | fehlen | Quest-System, Dialoge, 6 Fraktionen, Fraktions- und Regionsansehen, Gold |
 
@@ -452,9 +452,21 @@ Stand 15.10.2026, abgeleitet aus diesem Konzept und dem Code im Repository. Zuer
 | M11 | Hauptquest und Raid | Quests durch alle Städte, Erbstücke der Helden, Wendung mit dem Verräter, Raid auf den Zentralberg | M9, M10 |
 | später | Ausbau | Splitter-System, Gilde, Händler, Balancing nach echten Animationen | |
 
+### M5 umgesetzt (15.10.)
+
+- **Charakterlevel 1–100:** EP von Gegnern (Wolf 30, Bandit 45, Sumpfoger 150; ohne Angabe 10 je Gegnerstufe), Bedarf 100 × Level^1,5. Punkte 2/3/4/5 je Level, zusammen 348. Tod kostet 20 % der EP im aktuellen Level.
+- **Attribute:** alle Werte und Schwellen stehen in `data/attributes.json`, Fenster mit Taste **P**. Zahlenboni fließen in die bestehenden Spielerwerte, Mechaniken sind im Code verdrahtet (Unaufhaltsam, Siegesrausch, Erdbeben, Zielruhe, Schneller Finger, Arkane Resonanz, Zahrfluss, Überfluss, Lebensquell, Standhaft, Zäh, Einschüchternd, Unbeugsam, sofortiges Abbauen, doppelte Ausbeute, seltene Funde, Gewicht, Ernte im Umkreis).
+- **Noch ohne Wirkung**, weil das System dafür fehlt (im Fenster markiert): Magieschaden und -abklingzeiten, Elementarmeister und Durchdringung (M7), Durchschlag (Gegner haben noch keine Rüstung), Läuterung (Spieler hat noch keine Schwächungen), Kopftreffer und Spott (M6), Fangqualität. Lebensquell wirkt vorerst auf dich selbst.
+- **Waffen-EP** nach Schadensanteil beim Tod des Gegners; Blutung zählt für die Waffe, die sie verursacht hat. Schwere Angriffe kosten jetzt 12 Ausdauer (für die Stärke-Schwelle 100).
+- **Berufe** auf Skill 0–300 mit 6 Tiers (I–VI), Bedarf zusammen etwa 22 000 EP. Alte Spielstände werden umgerechnet (Stufe 1/2/3 → Skill 0/25/50). Aufspüren zeigt Vorkommen bis 80 m auf dem neuen **Kompass** oben in der Mitte. Bonus-Ausbeute beim Verarbeiten.
+- **Tag/Nacht-Zyklus:** ein Tag dauert 48 Minuten, Sonne von Ost über Süd nach West, nachts schwaches Mondlicht; Uhrzeit unter dem Kompass und im Spielstand.
+- Die Erze heißen im Spiel noch Kupfer und Eisen (Tier 1 und 2); die Umbenennung auf Iron bis Darksteel kommt mit den Erzen in den Minen.
+
+Test: `godot --headless --path godot -- --autotest --character`.
+
 ### Nächster Schritt
 
-M5 beginnt mit `attributes.json` und dem Charakterlevel im Spieler, getestet über einen neuen Autotest-Modus `--character`. Die Entscheidung für M6 ist gefallen, siehe unten.
+M6 Waffen-Umbau. Die Entscheidung dafür ist gefallen, siehe unten.
 
 ### Entscheidung für M6: Einhand- und Zweihand-Varianten
 

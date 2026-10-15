@@ -1,15 +1,25 @@
 extends Node
 ## Globale Spieldaten (aus data/*.json), Hilfsfunktionen und Tastenbelegung.
 
-const MAX_PROFESSION_LEVEL := 50
-const TIER_NAMES := ["I", "II", "III", "IV", "V"]
+## Berufe gehen von Skill 0 bis 300; alle 50 Punkte kommt ein Tier dazu, Aufspüren 25 Punkte später.
+const MAX_PROFESSION_LEVEL := 300
+const SKILL_PER_TIER := 50
+const TRACK_OFFSET := 25
+const TIER_NAMES := ["I", "II", "III", "IV", "V", "VI"]
 const TIER_COLORS := [
 	Color(0.65, 0.65, 0.65),
 	Color(0.4, 0.78, 0.4),
 	Color(0.35, 0.6, 1.0),
 	Color(0.7, 0.45, 0.95),
 	Color(1.0, 0.62, 0.2),
+	Color(0.92, 0.25, 0.3),
 ]
+## Charakterlevel und Attribute (Werte in data/attributes.json)
+const MAX_CHAR_LEVEL := 100
+const DEATH_XP_LOSS := 0.2 # Anteil der Erfahrung im aktuellen Level, der beim Tod verloren geht
+## Tag/Nacht: Länge eines ganzen Tages in Sekunden Spielzeit, Startzeit eines neuen Spiels
+const DAY_LENGTH := 2880.0
+const START_HOUR := 10.0
 
 ## Anzeigenamen der Ausrüstungswerte; Prozentwerte werden als % dargestellt.
 const STAT_NAMES := {
@@ -47,7 +57,11 @@ var gathering: Dictionary = {}
 var professions: Dictionary = {}
 var recipes: Dictionary = {}
 var stations: Dictionary = {}
+var attributes: Dictionary = {} # data/attributes.json
 var _next_uid := 1
+## Uhrzeit in Stunden (0–24) und gezählte Tage; gespeichert im Spielstand, gesteuert von scripts/tageszeit.gd
+var time_of_day := START_HOUR
+var day := 1
 
 
 func _enter_tree() -> void:
@@ -59,6 +73,7 @@ func _enter_tree() -> void:
 	professions = _load_json("res://data/professions.json")
 	recipes = _load_json("res://data/recipes.json")
 	stations = _load_json("res://data/stations.json")
+	attributes = _load_json("res://data/attributes.json")
 	_generate_weapon_items()
 
 
@@ -80,7 +95,7 @@ func _generate_weapon_items() -> void:
 				"description": "%s der Stufe %s." % [w["name"], tier_name(tier)],
 			}
 			recipes[id] = {
-				"station": "engineer" if ranged else "weaponsmith", "level": 1 if tier == 1 else 3,
+				"station": "engineer" if ranged else "weaponsmith", "level": required_skill(tier),
 				"xp": 40 if tier == 1 else 90, "output": id, "ingredients": def.get("ingredients", {}),
 			}
 		var training_id: String = "training_" + type
@@ -89,7 +104,7 @@ func _generate_weapon_items() -> void:
 			"slot": "weapon", "weapon_type": type, "color": [0.7, 0.6, 0.45], "stats": {"damage": [18, 18]},
 			"description": "Kostenlose Übungswaffe vom Waffenständer im Dorf.",
 		}
-		recipes[training_id] = {"station": "armory", "level": 1, "xp": 0, "output": training_id, "ingredients": {}}
+		recipes[training_id] = {"station": "armory", "level": 0, "xp": 0, "output": training_id, "ingredients": {}}
 
 
 # --- Waffen & Skillbäume ------------------------------------------------
@@ -258,35 +273,89 @@ func gear_tooltip(gear: Dictionary) -> String:
 	return "\n".join(lines)
 
 
-## Benötigte Erfahrung, um von `level` auf die nächste Stufe zu kommen.
+## Benötigte Erfahrung für den nächsten Skillpunkt eines Berufs (Skill 0–300, zusammen etwa 22 000 EP).
 func xp_to_next(level: int) -> int:
-	return int(50.0 * pow(level, 1.6))
+	return int(4.0 + 0.02 * pow(level, 1.6))
+
+
+## Skill, ab dem ein Tier abgebaut bzw. hergestellt werden kann (Tier 1 = 0, Tier 2 = 50 … Tier 6 = 250).
+func required_skill(tier: int) -> int:
+	return (clampi(tier, 1, TIER_NAMES.size()) - 1) * SKILL_PER_TIER
+
+
+## Skill, ab dem Vorkommen eines Tiers auf dem Kompass erscheinen (25 Punkte nach dem Abbauen).
+func track_skill(tier: int) -> int:
+	return required_skill(tier) + TRACK_OFFSET
+
+
+# --- Charakterlevel & Attribute -----------------------------------------
+
+## Benötigte Erfahrung von `level` auf das nächste Charakterlevel.
+func char_xp_to_next(level: int) -> int:
+	return int(100.0 * pow(level, 1.5))
+
+
+## Attributspunkte, die das Erreichen von `level` bringt: 2 bis Level 25, dann 3, 4 und ab Level 76 5.
+func attribute_points_for_level(level: int) -> int:
+	if level <= 1:
+		return 0
+	return 2 + int((level - 1) / 25.0) if level <= MAX_CHAR_LEVEL else 0
+
+
+## Alle Attributspunkte bis einschließlich `level` (Level 100 = 348).
+func attribute_points_total(level: int) -> int:
+	var total := 0
+	for l in range(2, mini(level, MAX_CHAR_LEVEL) + 1):
+		total += attribute_points_for_level(l)
+	return total
+
+
+func attribute_ids() -> Array:
+	return attributes.get("order", [])
+
+
+func attribute_def(id: String) -> Dictionary:
+	return attributes.get("attributes", {}).get(id, {})
+
+
+func attribute_name(id: String) -> String:
+	return attribute_def(id).get("name", id)
+
+
+func attribute_base() -> int:
+	return int(attributes.get("base", 5))
 
 
 ## Würfelt Beute aus einer Liste von {item, min, max, chance, level}.
 ## Mit pick_one wird genau ein Eintrag gewichtet nach chance gewählt.
-func roll_drops(entries: Array, level := 1, pick_one := false) -> Dictionary:
+## `rare_mult` erhöht die Chance seltener Einträge (Chance unter 50 %), z. B. durch Attributsschwellen.
+func roll_drops(entries: Array, level := 0, pick_one := false, rare_mult := 1.0) -> Dictionary:
 	var eligible: Array[Dictionary] = []
 	for e in entries:
 		var entry: Dictionary = e
-		if level >= int(entry.get("level", 1)):
+		if level >= int(entry.get("level", 0)):
 			eligible.append(entry)
 	var result := {}
 	if pick_one:
 		var total := 0.0
 		for entry in eligible:
-			total += float(entry.get("chance", 1.0))
+			total += _drop_chance(entry, rare_mult)
 		var roll := randf() * total
 		for entry in eligible:
-			roll -= float(entry.get("chance", 1.0))
+			roll -= _drop_chance(entry, rare_mult)
 			if roll <= 0.0:
 				_add_drop(result, entry)
 				break
 		return result
 	for entry in eligible:
-		if randf() <= float(entry.get("chance", 1.0)):
+		if randf() <= _drop_chance(entry, rare_mult):
 			_add_drop(result, entry)
 	return result
+
+
+func _drop_chance(entry: Dictionary, rare_mult: float) -> float:
+	var chance := float(entry.get("chance", 1.0))
+	return chance * rare_mult if chance < 0.5 else chance
 
 
 func _add_drop(result: Dictionary, entry: Dictionary) -> void:
@@ -314,6 +383,7 @@ func _setup_input() -> void:
 	_add_key("use_food", KEY_2)
 	_add_key("swap_weapon", KEY_X)
 	_add_key("skill_tree", KEY_K)
+	_add_key("character", KEY_P)
 	_add_key("debug_fly", KEY_F3)
 	_add_key("fly_down", KEY_C)
 	_add_key("world_map", KEY_M)

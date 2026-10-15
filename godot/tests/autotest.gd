@@ -114,6 +114,11 @@ func _ready() -> void:
 		player.global_position = Vector3(-24, 0.5, -18)
 		player.cam_yaw = 0.0
 		player.cam_pitch = -0.1
+	# Mit --character: Charakterlevel, Attribute, Waffen-EP, Berufe 0–300, Aufspüren, Tag/Nacht (M5)
+	if OS.get_cmdline_user_args().has("--character"):
+		_character_test()
+		phase = "character_ui"
+		get_tree().current_scene.get_node("HUD").set_character_open.call_deferred(true)
 	# Mit --weapons: alle Waffentypen mit Angriffen und allen Fähigkeiten durchprobieren
 	if OS.get_cmdline_user_args().has("--weapons"):
 		weapon_types = Game.weapons.keys()
@@ -211,6 +216,8 @@ func _save_test() -> void:
 	const PATH := "user://test_save.json"
 	_craft_test()
 	player.global_position = Vector3(12, 0.5, -3)
+	player.add_char_xp(1000)
+	player.add_attribute_points("strength", 3)
 	player.health = 123.0
 	var before: Dictionary = player.to_save()
 	var ok := SaveGame.save(get_tree(), PATH)
@@ -219,11 +226,14 @@ func _save_test() -> void:
 	player.inventory.gear.clear()
 	player.equipment.clear()
 	player.professions["smelting"] = {"level": 1, "xp": 0}
+	player.char_level = 1
+	player.char_xp = 0
+	player.reset_attributes()
 	player.global_position = Vector3.ZERO
 	var loaded := SaveGame.load_into(get_tree(), PATH)
 	var after: Dictionary = player.to_save()
 	print("AUTOTEST Speichern=%s Laden=%s" % [ok, loaded])
-	for key in ["items", "professions", "health"]:
+	for key in ["items", "professions", "health", "char_level", "char_xp", "attributes"]:
 		print("AUTOTEST %s gleich: %s" % [key, JSON.stringify(before[key]) == JSON.stringify(after[key])])
 	var p0: Array = before["position"]
 	var p1: Array = after["position"]
@@ -235,11 +245,177 @@ func _save_test() -> void:
 	print("AUTOTEST Testdatei gelöscht: ", not SaveGame.has_save(PATH))
 
 
+# --- Charaktertest (M5) ---------------------------------------------------
+
+var check_failed := 0
+
+
+func _check(name: String, ok: bool, detail := "") -> void:
+	if not ok:
+		check_failed += 1
+	print("AUTOTEST %s %s%s" % ["OK    " if ok else "FEHLER", name, ("   (" + detail + ")") if detail != "" else ""])
+
+
+func _near(a: float, b: float, eps := 0.001) -> bool:
+	return absf(a - b) <= eps
+
+
+func _character_test() -> void:
+	# Punkte pro Level: 48 / 123 / 223 / 348
+	var totals := [Game.attribute_points_total(25), Game.attribute_points_total(50), Game.attribute_points_total(75),
+		Game.attribute_points_total(100)]
+	_check("Attributspunkte bis Level 25/50/75/100", totals == [48, 123, 223, 348], str(totals))
+
+	# Level-Aufstieg
+	player.add_char_xp(Game.char_xp_to_next(1) + Game.char_xp_to_next(2) + 10)
+	_check("Level 3 nach genug EP", player.char_level == 3 and player.char_xp == 10, "Level %d, %d EP" % [player.char_level, player.char_xp])
+	_check("4 freie Attributspunkte auf Level 3", player.attribute_points_free() == 4, str(player.attribute_points_free()))
+
+	# Tod: −20 % der EP im Level, kein Levelverlust
+	player.char_xp = 100
+	player._die()
+	_check("Tod kostet 20 % EP im Level", player.char_xp == 80 and player.char_level == 3, "%d EP, Level %d" % [player.char_xp, player.char_level])
+	player._respawn()
+	player.char_xp = 0
+	player.char_level = 1
+
+	# Waffen-EP nach Schadensanteil: 35 Schaden Schwert + 35 Kriegsaxt an einem Wolf (70 LP, 30 EP)
+	var wolf = _find(func(n): return n.get("type_id") == "wolf" and n.is_alive())
+	var sword_before := float(player._mastery("sword_1h")["xp"])
+	var axe_before := float(player._mastery("axe_2h")["xp"])
+	wolf.take_damage(35.0, wolf.global_position, 0.0, 0.0, false, "sword_1h")
+	wolf.take_damage(35.0, wolf.global_position, 0.0, 0.0, false, "axe_2h")
+	var sword_gain := float(player._mastery("sword_1h")["xp"]) - sword_before
+	var axe_gain := float(player._mastery("axe_2h")["xp"]) - axe_before
+	_check("Wolf tot, Charakter +30 EP", not wolf.is_alive() and player.char_xp == 30, "%d EP" % player.char_xp)
+	_check("Waffen-EP je zur Hälfte (15/15)", _near(sword_gain, 15.0) and _near(axe_gain, 15.0), "%.1f / %.1f" % [sword_gain, axe_gain])
+
+	# Attribute: Level 100 = 348 Punkte
+	player.char_level = 100
+	player._recalc_stats()
+	_check("348 freie Punkte auf Level 100", player.attribute_points_free() == 348)
+	player.add_attribute_points("strength", 20)
+	_check("Stärke 25: schwere Angriffe +5 %", _near(player.bonus("heavy"), 0.05), str(player.bonus("heavy")))
+	player.add_attribute_points("vitality", 195)
+	_check("Vitalität 200: Leben 150 + 2000", _near(player.max_health, 2150.0), str(player.max_health))
+	_check("Vitalität 200: Standhaft, noch nicht Zäh", player.has_mechanic("standhaft") and not player.has_mechanic("zaeh"))
+	player.add_attribute_points("strength", 125)
+	var expected_damage := 200 * 0.002 + 150 * 0.002 * 0.5 + float(player.passive.get("damage_pct", 0.0))
+	_check("Schadensbonus Einhandschwert (VIT voll, STÄ halb)", _near(player.bonus("damage_pct"), expected_damage),
+		"%.3f statt %.3f" % [player.bonus("damage_pct"), expected_damage])
+	_check("Stärke 150: Erz wiegt 10 % weniger", _near(player.inventory.item_weight("stone"), 0.36), str(player.inventory.item_weight("stone")))
+	_check("Bergbau schneller (150 × 0,1 % + 10 %)", _near(player.bonus("gather_speed:mining"), 0.25), str(player.bonus("gather_speed:mining")))
+	_check("Punkte verbraucht (8 übrig)", player.attribute_points_free() == 8, str(player.attribute_points_free()))
+	_check("Mehr Punkte als frei geht nicht", player.add_attribute_points("dexterity", 50) == "" and player.attribute_points_free() == 0)
+	player.reset_attributes()
+	_check("Zurücksetzen gibt alle Punkte frei", player.attribute_points_free() == 348 and _near(player.max_health, 200.0))
+	player.add_attribute_points("intelligence", 20)
+	_check("Magie-Schwelle wirkt erst ab M7", _near(player.bonus("magic_damage_pct"), 0.0))
+	player.reset_attributes()
+
+	# Schwelle 500 (nur mit Ausrüstung erreichbar, hier direkt gesetzt): Unbeugsam
+	player.attribute_points["vitality"] = 495
+	player._recalc_stats()
+	player.health = 50.0
+	player.iframes = 0.0
+	player.take_damage(100000.0, player.global_position + Vector3(0, 0, -2))
+	_check("Vitalität 500: Unbeugsam überlebt tödlichen Treffer", player.health == 1.0 and player.is_alive())
+	player.attribute_points["vitality"] = 0
+	player._recalc_stats()
+	player.iframes = 0.0
+	player.health = player.max_health
+
+	# Überfluss: Überheilung wird zum Schild
+	player.attribute_points["spirit"] = 195
+	player._recalc_stats()
+	player.health = player.max_health - 10.0
+	player.heal(100.0)
+	_check("Spiritual 200: Überheilung wird Schild", player.shield_hp > 0.0 and player.shield_hp <= player.max_health * 0.1 + 0.01,
+		"Schild %.1f" % player.shield_hp)
+	player.attribute_points["spirit"] = 0
+	player.shield_hp = 0.0
+	player._recalc_stats()
+
+	# Berufe: Skill 0–300, Tiers und Aufspüren
+	var tiers: Array = []
+	for level in [0, 25, 50, 75, 249, 250, 300]:
+		player.professions["mining"]["level"] = level
+		tiers.append("%d:%d/%d" % [level, player.profession_tier("mining"), player.track_tier("mining")])
+	_check("Tier/Aufspüren je Skill", tiers == ["0:1/0", "25:1/1", "50:2/1", "75:2/2", "249:5/5", "250:6/5", "300:6/6"], str(tiers))
+	var xp_sum := 0
+	for level in Game.MAX_PROFESSION_LEVEL:
+		xp_sum += Game.xp_to_next(level)
+	print("AUTOTEST Berufs-EP von 0 bis 300 insgesamt: %d (bis Tier 2: %d)" % [xp_sum, _xp_until(50)])
+	var iron = _nearest_resource("iron_vein")
+	if iron == null:
+		iron = _find(func(n): return n.get("data") is Dictionary and int(n.get("data").get("tier", 1)) == 2)
+	_check("Tier-2-Vorkommen braucht Skill 50", iron != null and iron.get_required_level() == 50,
+		str(iron.get_required_level()) if iron else "kein Tier-2-Vorkommen")
+	var stone = _nearest_resource("stone")
+	player.global_position = stone.global_position + Vector3(3, 0.5, 0)
+	const Kompass := preload("res://scripts/kompass.gd")
+	player.professions["mining"]["level"] = 0
+	var none := Kompass.scan(player).filter(func(t): return t["profession"] == "mining").size()
+	player.professions["mining"]["level"] = 25
+	var some := Kompass.scan(player).filter(func(t): return t["profession"] == "mining").size()
+	_check("Aufspüren erst ab Skill 25", none == 0 and some > 0, "%d bei 0, %d bei 25" % [none, some])
+	player.professions["mining"]["level"] = 0
+
+	# Bonus-Ausbeute beim Verarbeiten: 20 % bei Skill 300
+	player.inventory.capacity = 1000.0
+	player.professions["smelting"]["level"] = 300
+	player.receive_items({"copper_ore": 400})
+	var before: int = player.inventory.count("copper_ingot")
+	var result: String = player.craft("copper_ingot", 100)
+	var made: int = player.inventory.count("copper_ingot") - before
+	_check("Schmelzen 300: Bonus-Ausbeute ~20 %", result == "" and made > 105 and made < 140, "%d Barren aus 100" % made)
+	player.professions["smelting"]["level"] = 0
+
+	# Spielstand von Version 1: Berufsstufe 3 wird Skill 50
+	var old_save: Dictionary = player.to_save()
+	old_save["_version"] = 1
+	old_save["professions"] = {"mining": {"level": 3, "xp": 20}}
+	player.from_save(old_save)
+	_check("Alter Spielstand: Stufe 3 → Skill 50", player.get_profession_level("mining") == 50)
+	player.professions["mining"] = {"level": 0, "xp": 0}
+
+	# Tag/Nacht
+	var main = get_tree().current_scene
+	main.tageszeit.paused = true
+	Game.time_of_day = 12.0
+	main.tageszeit.apply()
+	var sun: DirectionalLight3D = main.tageszeit.sun
+	var noon_energy := sun.light_energy
+	var noon_down := (-sun.global_basis.z).y
+	Game.time_of_day = 0.5
+	main.tageszeit.apply()
+	_check("Mittags helle Sonne von oben", noon_energy > 1.1 and noon_down < -0.6, "Energie %.2f, Richtung y %.2f" % [noon_energy, noon_down])
+	_check("Nachts schwaches Mondlicht", sun.light_energy < 0.3 and main.tageszeit.is_night(), "Energie %.2f" % sun.light_energy)
+	Game.time_of_day = 10.0
+	main.tageszeit.apply()
+	main.tageszeit.paused = false
+
+	# Fürs Bild: Level 12 mit verteilten Punkten
+	player.char_level = 12
+	player.char_xp = Game.char_xp_to_next(12) / 3
+	player.add_attribute_points("strength", 14)
+	player.add_attribute_points("vitality", 6)
+	player.health = player.max_health
+	print("AUTOTEST Charaktertest: %d Fehler" % check_failed)
+
+
+func _xp_until(level: int) -> int:
+	var total := 0
+	for l in level:
+		total += Game.xp_to_next(l)
+	return total
+
+
 func _craft_test() -> void:
 	player.inventory.capacity = 500.0
 	player.receive_items({"copper_ore": 40, "green_wood": 20, "raw_hide": 9, "fiber": 12, "stone": 12, "flint": 3,
 		"healing_herb": 6, "wolf_fang": 2, "perch": 4})
-	player.add_profession_xp("stonecutting", 50) # Schleifstein braucht Steinmetz Stufe 2
+	player.professions["stonecutting"]["level"] = 25 # Schleifstein braucht Steinmetz Skill 25
 	var steps := [
 		["copper_ingot", 10, []], ["timber", 5, []], ["coarse_leather", 3, []], ["linen", 3, []],
 		["stone_block", 3, []], ["whetstone", 1, []], ["copper_sword", 1, ["whetstone"]],
@@ -530,6 +706,9 @@ func _physics_process(delta: float) -> void:
 			if time >= next_action:
 				next_action = time + 0.25
 				_weapon_step()
+		"character_ui":
+			if time > 1.5:
+				get_tree().quit()
 		"craft_ui":
 			if time > 34.6:
 				phase = "inventory"
@@ -621,6 +800,8 @@ func _finish() -> void:
 	print("AUTOTEST Spieler HP=%.0f Zustand=%d" % [player.health, player.state])
 	print("AUTOTEST Inventar: ", player.inventory.items, "  Gewicht=%.1f" % player.inventory.weight())
 	print("AUTOTEST Berufe: ", player.professions)
+	print("AUTOTEST Charakter: Level %d, %d EP, Meisterschaft Einhandschwert %s" % [player.char_level, player.char_xp,
+		str(player.masteries.get("sword_1h", {}).get("xp", 0))])
 	print("AUTOTEST Beutebeutel in der Welt: ", get_tree().current_scene.get_children().filter(
 		func(c): return c.get("items") != null and c.has_method("_process") and c.get("life") != null).size())
 	get_tree().quit()

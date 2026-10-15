@@ -6,6 +6,8 @@ const CraftingUIScript := preload("res://scripts/crafting_ui.gd")
 const PauseMenuScript := preload("res://scripts/pause_menu.gd")
 const SkillTreeUIScript := preload("res://scripts/skill_tree_ui.gd")
 const MinimapScript := preload("res://scripts/minimap.gd")
+const CharakterUIScript := preload("res://scripts/charakter_ui.gd")
+const KompassScript := preload("res://scripts/kompass.gd")
 const NOTIFY_TIME := 3.5
 const MAX_NOTIFICATIONS := 7
 const HELP_TEXT := """Steuerung
@@ -18,7 +20,7 @@ Q / R / F  Fähigkeiten
 E  Sammeln / Häuten / Angeln / Werkstatt
 1  Heiltrank    2  Essen
 Fernkampf: Rechte Maustaste zielen
-X  Waffe wechseln    K  Skillbaum
+X  Waffe wechseln    K  Skillbaum    P  Charakter
 M  Karte    N  Minimap-Zoom
 F3  Debug-Flug (Strg = ×30, Leertaste/C = hoch/runter)
 Tab oder I  Inventar
@@ -32,6 +34,10 @@ var inventory_ui: Control
 var crafting_ui: Control
 var pause_menu: Control
 var skill_tree_ui: Control
+var charakter_ui: Control
+var kompass: Control
+var xp_bar: ProgressBar
+var level_label: Label
 var weapon_label: Label
 var crosshair: Control
 var ranged_label: Label
@@ -69,7 +75,7 @@ func _ready() -> void:
 	bottom.anchor_bottom = 1.0
 	bottom.offset_left = -270
 	bottom.offset_right = 270
-	bottom.offset_top = -170
+	bottom.offset_top = -190
 	bottom.offset_bottom = -24
 	bottom.alignment = BoxContainer.ALIGNMENT_END
 	bottom.add_theme_constant_override("separation", 6)
@@ -102,6 +108,18 @@ func _ready() -> void:
 	hp_bar.add_child(hp_label)
 	stamina_bar = _make_bar(Color(0.85, 0.7, 0.2), 10)
 	bottom.add_child(stamina_bar)
+	# Charakterlevel und Erfahrung
+	var xp_row := HBoxContainer.new()
+	xp_row.add_theme_constant_override("separation", 8)
+	xp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bottom.add_child(xp_row)
+	level_label = _make_label(13, Color(0.85, 0.75, 1.0))
+	xp_row.add_child(level_label)
+	xp_bar = _make_bar(Color(0.6, 0.45, 0.95), 6)
+	xp_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	xp_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	xp_bar.value = 0.0
+	xp_row.add_child(xp_bar)
 
 	message_label = _make_label(26, Color(1.0, 0.9, 0.6))
 	message_label.anchor_left = 0.0
@@ -204,6 +222,8 @@ func _ready() -> void:
 	minimap = MinimapScript.new()
 	minimap.visible = false # wird sichtbar, sobald main.gd eine Karte liefert
 	root.add_child(minimap)
+	kompass = KompassScript.new()
+	root.add_child(kompass)
 
 	inventory_ui = InventoryUIScript.new()
 	root.add_child(inventory_ui)
@@ -211,6 +231,8 @@ func _ready() -> void:
 	root.add_child(crafting_ui)
 	skill_tree_ui = SkillTreeUIScript.new()
 	root.add_child(skill_tree_ui)
+	charakter_ui = CharakterUIScript.new()
+	root.add_child(charakter_ui)
 	pause_menu = PauseMenuScript.new()
 	pause_menu.resume_requested.connect(func() -> void: set_paused(false))
 	root.add_child(pause_menu)
@@ -218,6 +240,7 @@ func _ready() -> void:
 
 func bind_player(p) -> void:
 	player = p
+	kompass.player = p
 	player.message.connect(show_message)
 	player.notify.connect(add_notification)
 	player.station_opened.connect(open_station)
@@ -249,6 +272,7 @@ func set_inventory_open(open: bool) -> void:
 		return
 	crafting_ui.close()
 	skill_tree_ui.close()
+	charakter_ui.close()
 	if open:
 		inventory_ui.open(player)
 	else:
@@ -261,6 +285,7 @@ func set_skill_tree_open(open: bool) -> void:
 		return
 	crafting_ui.close()
 	inventory_ui.close()
+	charakter_ui.close()
 	if open:
 		skill_tree_ui.open(player)
 	else:
@@ -268,9 +293,23 @@ func set_skill_tree_open(open: bool) -> void:
 	_apply_ui_mode()
 
 
+func set_character_open(open: bool) -> void:
+	if player == null:
+		return
+	crafting_ui.close()
+	inventory_ui.close()
+	skill_tree_ui.close()
+	if open:
+		charakter_ui.open(player)
+	else:
+		charakter_ui.close()
+	_apply_ui_mode()
+
+
 func open_station(station_id: String) -> void:
 	inventory_ui.close()
 	skill_tree_ui.close()
+	charakter_ui.close()
 	crafting_ui.open(player, station_id)
 	_apply_ui_mode()
 
@@ -279,12 +318,13 @@ func close_all_windows() -> void:
 	inventory_ui.close()
 	crafting_ui.close()
 	skill_tree_ui.close()
+	charakter_ui.close()
 	minimap.set_big(false)
 	_apply_ui_mode()
 
 
 func _any_window_open() -> bool:
-	return inventory_ui.visible or crafting_ui.visible or skill_tree_ui.visible or minimap.big
+	return inventory_ui.visible or crafting_ui.visible or skill_tree_ui.visible or charakter_ui.visible or minimap.big
 
 
 ## Wird von main.gd aufgerufen, wenn eine Welt mit Übersichtskarte geladen ist.
@@ -298,6 +338,7 @@ func set_world_map_open(open: bool) -> void:
 	inventory_ui.close()
 	crafting_ui.close()
 	skill_tree_ui.close()
+	charakter_ui.close()
 	minimap.set_big(open)
 	_apply_ui_mode()
 
@@ -313,6 +354,7 @@ func set_paused(paused: bool) -> void:
 		inventory_ui.close()
 		crafting_ui.close()
 		skill_tree_ui.close()
+		charakter_ui.close()
 		pause_menu.open()
 	else:
 		pause_menu.close()
@@ -339,6 +381,9 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("skill_tree") and not pause_menu.visible:
 		set_skill_tree_open(not skill_tree_ui.visible)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("character") and not pause_menu.visible:
+		set_character_open(not charakter_ui.visible)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("world_map") and not pause_menu.visible:
 		set_world_map_open(not minimap.big)
@@ -368,7 +413,13 @@ func _process(delta: float) -> void:
 	var hp_ratio: float = player.health / player.max_health
 	hp_bar.value = lerpf(hp_bar.value, hp_ratio, clampf(delta * 12.0, 0.0, 1.0))
 	hp_label.text = "%d / %d" % [ceili(player.health), int(player.max_health)]
+	if player.shield_hp > 0.0:
+		hp_label.text += "   (+%d Schild)" % ceili(player.shield_hp)
 	stamina_bar.value = player.stamina / player.max_stamina
+	var level: int = player.char_level
+	var free_points: int = player.attribute_points_free()
+	level_label.text = "Level %d" % level + ("   ·   %d Punkte frei (P)" % free_points if free_points > 0 else "")
+	xp_bar.value = 1.0 if level >= Game.MAX_CHAR_LEVEL else float(player.char_xp) / Game.char_xp_to_next(level)
 	for i in skill_slots.size():
 		var info: Dictionary = player.get_skill_info(i)
 		var max_cd: float = info["cooldown"]
