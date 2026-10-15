@@ -48,19 +48,6 @@ func _ready() -> void:
 			player.cam_yaw = 0.0
 			player.cam_pitch = 0.3
 			return
-		if OS.get_cmdline_user_args().has("--steine"):
-			# alle fünf Felsbrocken-Größen in einer Reihe vor dem Spieler (Startgebiet, flach)
-			var main = get_tree().current_scene
-			for g in range(1, 6):
-				var stein = load("res://assets/erz/felsbrocken.tscn").instantiate()
-				stein.set("groesse", g)
-				var p: Vector3 = player.global_position + Vector3(-9.0 + g * 3.5, 0, -10.0 - g * 0.8)
-				p.y = main.terrain.get("data").get_height(p)
-				main.add_child(stein)
-				stein.global_position = p
-			player.cam_yaw = 0.0
-			player.cam_pitch = -0.2
-			return
 		if OS.get_cmdline_user_args().has("--aerial"):
 			# Luftbild: eigene Kamera hoch über dem Startgebiet, Blick nach Norden über die Insel
 			var cam := Camera3D.new()
@@ -775,21 +762,32 @@ func _wasser_ansicht(see: bool) -> void:
 	print("AUTOTEST Wasser: Blick von %s auf %s" % [ufer.round(), ziel.round()])
 
 
-## Natur auf der Insel: Spieler in einen Wald nahe dem Startgebiet setzen, alles laden, zählen,
-## einen Baum fällen und eine Pflanze ernten. Mit --write-movie entstehen Bilder vom Waldrand.
+## Natur auf der Insel: Spieler in ein Biom nahe dem Startgebiet setzen (--biom <name>, Standard wald; siehe
+## data/biome.json), alles laden, zählen, einen Baum fällen und eine Pflanze ernten. Mit --write-movie entstehen Bilder.
 func _natur_test() -> void:
 	var natur = get_tree().current_scene.natur
+	var args := OS.get_cmdline_user_args()
+	var gesucht := "wald"
+	if args.has("--biom") and args.find("--biom") + 1 < args.size():
+		gesucht = args[args.find("--biom") + 1]
 	var start := Vector2(player.global_position.x, player.global_position.z)
 	var ort := Vector2.INF
-	var biome: Array = [natur.FELS] if OS.get_cmdline_user_args().has("--fels") else [natur.LAUBWALD, natur.NADELWALD]
 	for r in range(260, 4000, 20):
 		for i in 24:
 			var p := start + Vector2.from_angle(TAU * i / 24.0) * r
-			if natur._biom(p.x, p.y) in biome and not natur._gesperrt(p.x, p.y):
+			# ganz im Biom: auch 12 m ringsum (sonst steht man am Rand)
+			var drin: bool = natur.biom_name(p.x, p.y) == gesucht and (gesucht == "fluss" or not natur._gesperrt(p.x, p.y))
+			for j in 4:
+				var q := p + Vector2.from_angle(TAU * j / 4.0) * (3.0 if gesucht == "fluss" else 12.0)
+				drin = drin and natur.biom_name(q.x, q.y) == gesucht
+			if drin:
 				ort = p
 				break
 		if ort != Vector2.INF:
 			break
+	if ort == Vector2.INF:
+		print("AUTOTEST Natur: kein Ort im Biom %s gefunden" % gesucht)
+		ort = start
 	var h: float = natur._hoehe(ort.x, ort.y)
 	player.global_position = Vector3(ort.x, h + 1.0, ort.y)
 	var t0 := Time.get_ticks_msec()
@@ -801,15 +799,17 @@ func _natur_test() -> void:
 	var t_fern := Time.get_ticks_msec() - t0
 	var zahl := {}
 	for n in natur._nah.values():
-		zahl[n.node_id] = int(zahl.get(n.node_id, 0)) + 1
-	print("AUTOTEST Natur: Ort %s (Höhe %.0f m), %d Objekte im Nahbereich in %d ms, Fernkachel in %d ms" % [ort.round(), h, natur._nah.size(), t_nah, t_fern])
+		var id: String = _natur_id(n)
+		zahl[id] = int(zahl.get(id, 0)) + 1
+	print("AUTOTEST Natur: Biom %s, Ort %s (Höhe %.0f m), %d Objekte im Nahbereich in %d ms, Fernkachel in %d ms" % [
+		gesucht, ort.round(), h, natur._nah.size(), t_nah, t_fern])
 	print("AUTOTEST Natur Arten: ", zahl)
 	# nächsten Baum und nächste Pflanze ernten
-	for gruppe in [["fichte", "kiefer", "eiche"], ["hanf", "beeren", "kraut"], ["felsbrocken"]]:
+	for gruppe in [["fichte", "kiefer", "eiche"], ["hanf", "beeren", "kraut"]]:
 		var best = null
 		var best_d := INF
 		for n in natur._nah.values():
-			if String(n.node_id).get_slice("_", 0) in gruppe:
+			if n.get("node_id") != null and String(n.node_id).get_slice("_", 0) in gruppe:
 				var d: float = n.global_position.distance_to(player.global_position)
 				if d < best_d:
 					best_d = d
@@ -817,26 +817,14 @@ func _natur_test() -> void:
 		if best:
 			best.harvest(player)
 			print("AUTOTEST Natur geerntet: %s (%.0f m entfernt), danach abbaubar: %s" % [best.node_id, best_d, best.is_interactable()])
-	# nächsten uralten Baum fällen (gibt Gereiftes Holz) – vorher Holzfällerstufe 3, sonst ist er gesperrt
-	var uralt = null
-	for n in natur._nah.values():
-		if String(n.node_id).ends_with("_uralt") and (uralt == null or n.global_position.distance_to(player.global_position) < uralt.global_position.distance_to(player.global_position)):
-			uralt = n
-	if uralt:
-		uralt.harvest(player)
-		print("AUTOTEST Natur uralter Baum: %s (%.0f m entfernt), danach abbaubar: %s" % [uralt.node_id, uralt.global_position.distance_to(player.global_position), uralt.is_interactable()])
-	var monolithen := 0
-	for mk_ in natur._mono_cache:
-		monolithen += natur._mono_cache[mk_].size()
-	print("AUTOTEST Natur Monolithen in %d geladenen Fernkacheln: %d" % [natur._mono_cache.size(), monolithen])
 	print("AUTOTEST Natur Inventar: ", player.inventory.items)
 	player.cam_yaw = 0.3
 	player.cam_pitch = -0.12
-	if OS.get_cmdline_user_args().has("--uralt"):
+	if args.has("--uralt"):
 		# vor den nächsten noch stehenden uralten Baum stellen, leicht nach oben schauen
 		var baum = null
 		for n in natur._nah.values():
-			if String(n.node_id).ends_with("_uralt") and n.is_interactable() \
+			if n.get("node_id") != null and String(n.node_id).ends_with("_uralt") and n.is_interactable() \
 					and (baum == null or n.global_position.distance_to(player.global_position) < baum.global_position.distance_to(player.global_position)):
 				baum = n
 		if baum:
@@ -844,51 +832,6 @@ func _natur_test() -> void:
 			player.global_position = Vector3(p.x, natur._hoehe(p.x, p.z) + 1.0, p.z)
 			player.cam_yaw = PI / 2.0
 			player.cam_pitch = 0.18
-	if OS.get_cmdline_user_args().has("--monolith"):
-		# zum nächsten Felsmonolithen (sucht in den Kacheln rund um den Spieler)
-		var best := []
-		var best_d := INF
-		var mk := Vector2i(floori(player.global_position.x / 256.0), floori(player.global_position.z / 256.0))
-		for dz in range(-12, 13):
-			for dx in range(-12, 13):
-				for m in natur._monolithen(mk + Vector2i(dx, dz)):
-					var nur: int = 0 if OS.get_cmdline_user_args().has("--turm") else (2 if OS.get_cmdline_user_args().has("--klippe") else -1)
-					if nur >= 0 and int(m[3]) != nur:
-						continue
-					var d := Vector2(m[0], m[2]).distance_to(Vector2(player.global_position.x, player.global_position.z))
-					if d < best_d:
-						best_d = d
-						best = m
-		if not best.is_empty():
-			var p := Vector3(best[0] + 22.0, 0, best[2] + 8.0)
-			player.global_position = Vector3(p.x, natur._hoehe(p.x, p.z) + 1.0, p.z)
-			var blick := Vector3(best[0], 0, best[2]) - p
-			player.cam_yaw = atan2(-blick.x, -blick.z)
-			player.cam_pitch = 0.1
-			natur._fern_bauen(Vector2i(floori(best[0] / 256.0), floori(best[2] / 256.0)))
-			print("AUTOTEST Monolith: %s bei %s, %.0f m entfernt" % [["Turm", "Gruppe", "Felswand"][int(best[3])], Vector2(best[0], best[2]).round(), best_d])
-	if OS.get_cmdline_user_args().has("--fels"):
-		# vor den nächsten noch stehenden Felsbrocken stellen und hinsehen
-		var stein = null
-		for n in natur._nah.values():
-			if String(n.node_id).begins_with("felsbrocken") and n.is_interactable() \
-					and (stein == null or n.global_position.distance_to(player.global_position) < stein.global_position.distance_to(player.global_position)):
-				stein = n
-		if stein:
-			# Richtung mit dem geringsten Höhenunterschied (sonst drückt der Hang die Kamera weg)
-			var best_dir := Vector3.FORWARD
-			var best_dh := INF
-			for i in 12:
-				var d := Vector3(cos(TAU * i / 12.0), 0, sin(TAU * i / 12.0))
-				var q: Vector3 = stein.global_position + d * 6.0
-				var dh := absf(natur._hoehe(q.x, q.z) - stein.global_position.y)
-				if dh < best_dh:
-					best_dh = dh
-					best_dir = d
-			var p: Vector3 = stein.global_position + best_dir * 6.0
-			player.global_position = Vector3(p.x, natur._hoehe(p.x, p.z) + 1.0, p.z)
-			player.cam_yaw = atan2(best_dir.x, best_dir.z)
-			player.cam_pitch = -0.35
 	phase = "natur"
 
 
@@ -1232,3 +1175,15 @@ func _m7_test() -> void:
 		player.unlock_node("fire_magic", id)
 	player.heat = 64.0
 	player.ultimate_charge = 70.0
+
+
+## Kennung eines Natur-Objekts zum Zählen (abbaubare Quellen: node_id, sonst Modellname)
+func _natur_id(n) -> String:
+	if n.get("node_id") != null:
+		return String(n.node_id)
+	if n is MeshInstance3D:
+		return "pfuetze"
+	for c in n.get_children():
+		if not c is CollisionShape3D:
+			return String(c.name).rstrip("0123456789_").to_lower()
+	return n.get_class()

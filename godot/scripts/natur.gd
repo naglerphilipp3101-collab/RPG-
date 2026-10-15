@@ -1,21 +1,22 @@
 extends Node3D
-## Natur auf der ganzen Insel: Bäume (Fichte, Kiefer, Eiche), Äste-Büsche und Sammelpflanzen (Hanf, Beeren, Kräuter).
+## Natur auf der ganzen Insel nach den Biom-Regeln aus data/biome.json (scripts/biom_regeln.gd):
+## Bäume (Fichte, Kiefer, Eiche, tote Bäume), Äste-Büsche, Sammelpflanzen (Hanf, Beeren, Kräuter) und
+## Bodenobjekte (Stöcke, liegende Stämme, Treibholz, Algen, Pfützen).
 ##
-## Wo etwas wächst, wird aus der Biomkarte des Weltgenerators, dem Gelände und Rauschen berechnet – in Kacheln
-## von 64 m, jede mit eigenem festen Zufall. Dadurch steht bei jedem Laden alles an derselben Stelle, ohne dass
-## Millionen Objekte gespeichert werden müssen. Frei bleiben Meer, Seen, steile Hänge, Siedlungen, Felder, Wege
-## sowie Dorfplatz und Lager des Startgebiets.
+## Wo etwas wächst, bestimmt das Biom an der Stelle (Biomkarte des Weltgenerators, Flüsse aus fluesse.json,
+## Städte/Dörfer aus marker.json), dazu Gelände und Rauschen – in Kacheln von 64 m, jede mit eigenem festen
+## Zufall. Dadurch steht bei jedem Laden alles an derselben Stelle, ohne dass etwas gespeichert werden muss.
+## In Städten und Dörfern, auf Feldern, an Minen/Dungeons/POIs, im Startgebiet, im Meer und in Seen wächst nichts.
 ##
-## Nah (NAH_RADIUS): echte Blender-Modelle, die man fällen/ernten kann (scripts/natur_quelle.gd).
+## Nah (NAH_RADIUS): echte Blender-Modelle, Bäume und Pflanzen kann man fällen/ernten (scripts/natur_quelle.gd).
 ## Fern (bis FERN_RADIUS): nur Bäume, als einfache Formen in MultiMeshes je 256-m-Kachel.
 
 const QuelleScript := preload("res://scripts/natur_quelle.gd")
 const BaumSzene := preload("res://assets/baeume/baum.tscn")
 const BuschSzene := preload("res://assets/baeume/aeste_busch.tscn")
 const PflanzeSzene := preload("res://assets/sammeln/sammelpflanze.tscn")
-const SteinSzene := preload("res://assets/erz/felsbrocken.tscn")
-const SteinMaterial := preload("res://assets/erz/materialien/stein.tres")
 const FernShader := preload("res://scripts/natur_fern.gdshader")
+const Wasser := preload("res://scripts/wasser.gd")
 
 const KACHEL := 64.0
 const FERN_KACHEL := 256.0
@@ -24,17 +25,19 @@ const FERN_RADIUS := 950.0
 const NEU_ZENTRIEREN := 8.0      # Meter Bewegung, ab der der Nahbereich neu sortiert wird
 const BUDGET_US := 4000          # Zeit je Frame für neue Nah-Objekte (ein Modell braucht ~2 ms)
 
-# Biome des Weltgenerators
-enum { STRAND, WIESE, LAUBWALD, NADELWALD, SUMPF, STEPPE, FELS, SCHNEE }
-enum { BAUM, BUSCH, PFLANZE, STEIN }
+enum { BAUM, BUSCH, PFLANZE, TOTBAUM, BODEN }
 ## Baum-Arten wie in assets/baeume/baum.gd: 0 Fichte, 1 Kiefer, 2 Eiche · Größe (Breite, Höhe) je Alter [jung, alt, uralt]
 const BAUM_GROESSE := [[Vector2(2.7, 5.8), Vector2(5.0, 12.9), Vector2(6.6, 20.5)], [Vector2(2.9, 5.2), Vector2(6.8, 11.8), Vector2(8.4, 18.5)],
 	[Vector2(2.9, 5.0), Vector2(7.5, 10.7), Vector2(10.5, 16.8)]]
 const ALTER_ID := ["jung", "alt", "uralt"]
-## Anteil uralter Bäume (untere 2/3 kahl, geben Gereiftes Holz): im Wald und einzeln auf Wiesen
-const URALT_WALD := 0.06
-const URALT_SONST := 0.04
 const BAUM_ID := ["fichte", "kiefer", "eiche"]
+## Bodenobjekte (Modelle assets/natur/modelle/<name>_<n>.glb, Pfützen werden im Code gebaut):
+## Name -> [Rastergröße der Prüfung in Metern, Kollision (Stämme), Ausrichtung am Hang]
+const BODENOBJEKTE := {
+	"stock": [8.0, false, true], "baumstamm": [16.0, true, true], "treibholz": [16.0, false, true],
+	"alge": [4.0, false, false], "pfuetze": [8.0, false, false],
+}
+const MODELL_ORDNER := "res://assets/natur/modelle/"
 
 var terrain                       # Terrain3D (Höhen)
 var ziel: Node3D                  # Spieler
@@ -44,9 +47,11 @@ var zelle := 4.0
 var welt_seed := 0
 var biome := PackedByteArray()
 var seen := PackedByteArray()
+var regeln := {}                  # BiomRegeln.laden()
 var frei: Array = []              # freie Kreise im Startgebiet [Vector2 Mitte, Radius] (Dorfplatz, Lager), von main.gd
-var sperr := {}                   # Vector2i (32-m-Feld) -> Array von Sperrflächen, die das Feld berühren:
-                                  #   ["k", Mitte, Radius] · ["f", Mitte, halbe Größe, Winkel] · ["w", a, b, halbe Breite]
+var sperr := {}                   # Vector2i (32-m-Feld) -> Array von Flächen, die das Feld berühren:
+                                  #   ["k", Mitte, Radius] frei (Mine, Dungeon, POI) · ["s", Mitte, Radius] Stadt/Dorf
+                                  #   ["f", Mitte, halbe Größe, Winkel] Feld · ["w", a, b, halbe Breite] Fluss
 var rauschen := FastNoiseLite.new()
 
 var _daten := {}                  # Vector2i (64-m-Kachel) -> Array der Einträge
@@ -58,14 +63,15 @@ var _fern_offen: Array = []       # noch zu bauende Fernkacheln
 var _fern_material := ShaderMaterial.new()
 var _fern_meshes: Array = []      # je Baumart ein ArrayMesh
 var _wurzel_nah: Node3D
-var _mono_cache := {}              # Vector2i (256-m-Kachel) -> Monolithen (siehe _monolithen)
-var _mono_modelle := {}            # Modellname -> [Mesh, Kollisionsform]
+var _modelle := {}                # Name -> Array von PackedScene (Bodenobjekte, tote Bäume)
+var _pfuetzen: Array = []         # 3 unregelmäßige Wasserflächen
 
 
 ## main = Spielszene (liefert terrain und das Startgebiet), spieler = Mittelpunkt des Streamings
 func setup(main, spieler: Node3D, daten_ordner: String) -> void:
 	terrain = main.terrain
 	ziel = spieler
+	regeln = BiomRegeln.laden()
 	var meta: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(daten_ordner.path_join("welt.json")))
 	welt_m = float(meta["welt_m"])
 	raster = int(meta["raster"])
@@ -75,7 +81,6 @@ func setup(main, spieler: Node3D, daten_ordner: String) -> void:
 	if meta.get("seen") != null:
 		seen = FileAccess.get_file_as_bytes(daten_ordner.path_join(meta["seen"]["datei"]))
 	_marker_laden(daten_ordner.path_join("marker.json"))
-	_wege_laden(daten_ordner.path_join("wege.json"))
 	_fluesse_laden(daten_ordner.path_join("fluesse.json"))
 	rauschen.seed = welt_seed
 	rauschen.frequency = 1.0 / 230.0
@@ -91,31 +96,19 @@ func _marker_laden(pfad: String) -> void:
 	if not FileAccess.file_exists(pfad):
 		return
 	# Wie viel vom Radius um einen Marker frei bleibt (wie im Weltgenerator)
-	var frei := {"stadt": 1.15, "dorf": 1.3, "mine": 0.6, "dungeon": 0.6, "poi": 0.5}
+	var faktor := {"stadt": 1.15, "dorf": 1.3, "mine": 0.6, "dungeon": 0.6, "poi": 0.5}
 	for m in JSON.parse_string(FileAccess.get_file_as_string(pfad)):
 		var typ: String = m["typ"]
 		var mitte := Vector2(float(m["x"]), float(m["z"]))
 		if typ == "feld":
 			var halb := Vector2(float(m["breite"]), float(m["laenge"])) / 2.0 + Vector2(2, 2)
 			_sperre_eintragen(["f", mitte, halb, float(m["winkel"])], mitte - Vector2.ONE * halb.length(), mitte + Vector2.ONE * halb.length())
-		elif frei.has(typ):
-			var r := float(m.get("radius", 30)) * float(frei[typ]) + 4.0
-			_sperre_eintragen(["k", mitte, r], mitte - Vector2(r, r), mitte + Vector2(r, r))
+		elif faktor.has(typ):
+			var r := float(m.get("radius", 30)) * float(faktor[typ]) + 4.0
+			_sperre_eintragen(["s" if typ in ["stadt", "dorf"] else "k", mitte, r], mitte - Vector2(r, r), mitte + Vector2(r, r))
 
 
-func _wege_laden(pfad: String) -> void:
-	if not FileAccess.file_exists(pfad):
-		return
-	for w in JSON.parse_string(FileAccess.get_file_as_string(pfad)):
-		var halb: float = float(w["breite"]) / 2.0 + 2.5
-		var punkte: Array = w["punkte"]
-		for i in range(1, punkte.size()):
-			var a := Vector2(float(punkte[i - 1][0]), float(punkte[i - 1][2]))
-			var b := Vector2(float(punkte[i][0]), float(punkte[i][2]))
-			_sperre_eintragen(["w", a, b, halb], a.min(b) - Vector2(halb, halb), a.max(b) + Vector2(halb, halb))
-
-
-## Flussläufe wie Wege sperren (kein Baum, keine Pflanze, kein Gras im Flussbett)
+## Flussläufe (Biom Fluss: Kiesbett, Algen, kein Gras) – bis 1 m über das Wasser hinaus
 func _fluesse_laden(pfad: String) -> void:
 	if not FileAccess.file_exists(pfad):
 		return
@@ -128,7 +121,7 @@ func _fluesse_laden(pfad: String) -> void:
 			_sperre_eintragen(["w", a, b, halb], a.min(b) - Vector2(halb, halb), a.max(b) + Vector2(halb, halb))
 
 
-## Sperrfläche in alle 32-m-Felder eintragen, die ihr Rechteck (von … bis) berührt
+## Fläche in alle 32-m-Felder eintragen, die ihr Rechteck (von … bis) berührt
 func _sperre_eintragen(eintrag: Array, von: Vector2, bis: Vector2) -> void:
 	for fy in range(floori(von.y / 32.0), floori(bis.y / 32.0) + 1):
 		for fx in range(floori(von.x / 32.0), floori(bis.x / 32.0) + 1):
@@ -140,76 +133,38 @@ func _sperre_eintragen(eintrag: Array, von: Vector2, bis: Vector2) -> void:
 
 # --- Wo darf etwas wachsen? ------------------------------------------------
 
-## Biom an einer Weltposition, -1 außerhalb der Karte oder im See
-func _biom(x: float, z: float) -> int:
+const LEER := {}
+
+## Biom-Regel an einer Weltposition (siehe data/biome.json); leer außerhalb der Karte, im Meer und in Seen.
+## Vorrang: Stadt/Dorf, dann Fluss, dann das Biom des Weltgenerators.
+func _regel(x: float, z: float) -> Dictionary:
 	var cx := int((x + welt_m / 2.0) / zelle)
 	var cz := int((z + welt_m / 2.0) / zelle)
 	if cx < 0 or cz < 0 or cx >= raster or cz >= raster:
-		return -1
+		return LEER
 	var i := cz * raster + cx
 	if not seen.is_empty() and seen[i] != 0:
-		return -1
-	return biome[i]
+		return LEER
+	var feld := Vector2i(floori(x / 32.0), floori(z / 32.0))
+	if sperr.has(feld):
+		var p := Vector2(x, z)
+		var fluss := false
+		for s in sperr[feld]:
+			if s[0] == "s" and p.distance_to(s[1]) < s[2]:
+				return regeln["stadt"]
+			if s[0] == "w" and not fluss and Geometry2D.get_closest_point_to_segment(p, s[1], s[2]).distance_to(p) < s[3]:
+				fluss = true
+		if fluss:
+			return regeln["fluss"]
+	return regeln["generator"].get(int(biome[i]), LEER)
+
+
+## Name des Bioms an einer Stelle ("" = Wasser/außerhalb)
+func biom_name(x: float, z: float) -> String:
+	return String(_regel(x, z).get("biom", ""))
 
 
 func _gesperrt(x: float, z: float) -> bool:
-	return _gesperrt_flaechen(x, z) or _an_monolith(x, z)
-
-
-## Steht hier schon ein Felsmonolith? (Bäume, Pflanzen und Steine halten Abstand)
-func _an_monolith(x: float, z: float) -> bool:
-	var k := Vector2i(floori(x / FERN_KACHEL), floori(z / FERN_KACHEL))
-	for dz in range(-1, 2):
-		for dx in range(-1, 2):
-			for m in _monolithen(k + Vector2i(dx, dz)):
-				if Vector2(x, z).distance_to(Vector2(m[0], m[2])) < float(m[6]):
-					return true
-	return false
-
-
-## Felsmonolithen einer 256-m-Kachel (fest je Kachel): [x, Höhe, z, Typ (0 Turm, 1 Gruppe), Variante, Drehung, Freiraum]
-## Häufig auf Fels, seltener auf Wiese/Steppe/im Wald. Werden mit den fernen Bäumen gebaut, sind also weit sichtbar.
-func _monolithen(k: Vector2i) -> Array:
-	if _mono_cache.has(k):
-		return _mono_cache[k]
-	var out: Array = []
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(Vector3i(k.x, k.y, welt_seed + 991))
-	for versuch in 3:
-		var x := (k.x + 0.1 + 0.8 * rng.randf()) * FERN_KACHEL
-		var z := (k.y + 0.1 + 0.8 * rng.randf()) * FERN_KACHEL
-		var r := rng.randf()
-		var typ := 0 if rng.randf() < 0.45 else 1 # 0 Felsturm, 1 Felsgruppe
-		var variante := rng.randi_range(1, 3)
-		var dreh := rng.randf() * TAU
-		var b := _biom(x, z)
-		var chance := 0.0
-		match b:
-			FELS:
-				chance = 0.3
-			WIESE, STEPPE:
-				chance = 0.07
-			LAUBWALD, NADELWALD:
-				chance = 0.05
-			SCHNEE:
-				chance = 0.05
-		if r > chance or _gesperrt_flaechen(x, z):
-			continue
-		var h := _boden(x, z, 0.9)
-		if is_nan(h):
-			continue
-		var frei := 11.0 if typ == 0 else 13.0
-		var zu_nah := false
-		for m in out:
-			if Vector2(x, z).distance_to(Vector2(m[0], m[2])) < 40.0:
-				zu_nah = true
-		if not zu_nah:
-			out.append([x, h, z, typ, variante, dreh, frei])
-	_mono_cache[k] = out
-	return out
-
-
-func _gesperrt_flaechen(x: float, z: float) -> bool:
 	var p := Vector2(x, z)
 	for f in frei:
 		if p.distance_to(f[0]) < f[1]:
@@ -219,19 +174,20 @@ func _gesperrt_flaechen(x: float, z: float) -> bool:
 		return false
 	for s in sperr[feld]:
 		match s[0]:
-			"k":
+			"k", "s":
 				if p.distance_to(s[1]) < s[2]:
 					return true
 			"f":
-				var d: Vector2 = p - s[1]
-				var c := cos(float(s[3]))
-				var sn := sin(float(s[3]))
-				if absf(d.x * c + d.y * sn) <= s[2].x and absf(-d.x * sn + d.y * c) <= s[2].y:
-					return true
-			"w":
-				if Geometry2D.get_closest_point_to_segment(p, s[1], s[2]).distance_to(p) < s[3]:
+				if _in_feld(p, s, 0.0):
 					return true
 	return false
+
+
+func _in_feld(p: Vector2, s: Array, rand: float) -> bool:
+	var d: Vector2 = p - s[1]
+	var c := cos(float(s[3]))
+	var sn := sin(float(s[3]))
+	return absf(d.x * c + d.y * sn) <= s[2].x - rand and absf(-d.x * sn + d.y * c) <= s[2].y - rand
 
 
 ## Liegt der Punkt in einem Feld (für das Gras)?
@@ -241,23 +197,7 @@ func _im_feld(x: float, z: float) -> bool:
 		return false
 	var p := Vector2(x, z)
 	for s in sperr[feld]:
-		if s[0] == "f":
-			var d: Vector2 = p - s[1]
-			var c := cos(float(s[3]))
-			var sn := sin(float(s[3]))
-			if absf(d.x * c + d.y * sn) <= s[2].x - 2.0 and absf(-d.x * sn + d.y * c) <= s[2].y - 2.0:
-				return true
-	return false
-
-
-## Liegt der Punkt auf einer Straße / einem Weg (für das Gras)?
-func _auf_weg(x: float, z: float) -> bool:
-	var feld := Vector2i(floori(x / 32.0), floori(z / 32.0))
-	if not sperr.has(feld):
-		return false
-	var p := Vector2(x, z)
-	for s in sperr[feld]:
-		if s[0] == "w" and Geometry2D.get_closest_point_to_segment(p, s[1], s[2]).distance_to(p) < float(s[3]) - 1.5:
+		if s[0] == "f" and _in_feld(p, s, 2.0):
 			return true
 	return false
 
@@ -276,10 +216,36 @@ func _boden(x: float, z: float, max_steigung: float) -> float:
 	return NAN if st > max_steigung else h
 
 
+## Eintrag aus einer Chancen-Tabelle {Name: Anteil} nach r (0–1, auf die Summe bezogen)
+func _wahl(tabelle: Dictionary, r: float) -> String:
+	var summe := 0.0
+	for k in tabelle:
+		summe += float(tabelle[k])
+	var t := r * summe
+	for k in tabelle:
+		t -= float(tabelle[k])
+		if t <= 0.0:
+			return k
+	return tabelle.keys()[-1] if not tabelle.is_empty() else ""
+
+
+## Vorhandene Modelle eines Bodenobjekts bzw. toten Baums (<name>_1.glb, _2.glb …), einmal gesucht
+func _modell_liste(name_: String) -> Array:
+	if not _modelle.has(name_):
+		var liste: Array = []
+		for n in range(1, 7):
+			var pfad := MODELL_ORDNER + "%s_%d.glb" % [name_, n]
+			if ResourceLoader.exists(pfad):
+				liste.append(load(pfad))
+		_modelle[name_] = liste
+	return _modelle[name_]
+
+
 # --- Kacheln erzeugen -------------------------------------------------------
 
-## Einträge einer 64-m-Kachel: [Art (BAUM/BUSCH/PFLANZE), x, y, z, a, b, Drehung]
-## Bäume: a = Baumart, b = Alter · Pflanzen: a = Art (Hanf/Beeren/Kraut), b = Farbe · Steine: a = Größe 1–5
+## Einträge einer 64-m-Kachel: [Art, x, y, z, a, b, Drehung]
+## Bäume: a = Baumart, b = Alter · Pflanzen: a = Art (Hanf/Beeren/Kraut), b = Farbe · tote Bäume: a = Variante
+## Bodenobjekte: a = Name (String), b = Variante
 func _kachel(k: Vector2i) -> Array:
 	if _daten.has(k):
 		return _daten[k]
@@ -288,7 +254,7 @@ func _kachel(k: Vector2i) -> Array:
 	rng.seed = hash(Vector3i(k.x, k.y, welt_seed))
 	var x0 := k.x * KACHEL
 	var z0 := k.y * KACHEL
-	# Bäume: gestreutes 7-m-Raster
+	# Bäume und tote Bäume: gestreutes 7-m-Raster
 	var n := 9
 	var s := KACHEL / n
 	for gz in n:
@@ -299,37 +265,28 @@ func _kachel(k: Vector2i) -> Array:
 			var r_chance := rng.randf()
 			var r_alter := rng.randf()
 			var r_dreh := rng.randf() * TAU
-			var b := _biom(x, z)
-			if b < 0:
+			var regel := _regel(x, z)
+			if regel.is_empty():
 				continue
+			var bm: Dictionary = regel.get("baeume", {})
 			var d := 0.5 + 0.5 * rauschen.get_noise_2d(x, z) # Lichtungen und dichte Stellen
-			var chance := 0.0
-			var art := 0
-			match b:
-				LAUBWALD:
-					chance = 0.55 + 0.45 * d
-					art = 2 if r_art < 0.7 else 1
-				NADELWALD:
-					chance = 0.6 + 0.4 * d
-					art = 0 if r_art < 0.65 else 1
-				WIESE:
-					chance = 0.025 * d
-					art = 2 if r_art < 0.6 else 1
-				SUMPF:
-					chance = 0.08
-					art = 1
-				STEPPE:
-					chance = 0.01
-					art = 1
-			if r_chance > chance or _gesperrt(x, z):
+			var chance: float = float(bm.get("dichte", 0.0)) + float(bm.get("rauschen", 0.0)) * d
+			var tot: float = float(regel.get("totbaeume", 0.0))
+			if r_chance >= chance + tot or _gesperrt(x, z):
 				continue
 			var h := _boden(x, z, 0.7)
 			if is_nan(h):
 				continue
-			var uralt := URALT_WALD if b == LAUBWALD or b == NADELWALD else URALT_SONST
-			var alter := 2 if r_alter < uralt else (1 if r_alter < 0.62 else 0)
-			out.append([BAUM, x, h, z, art, alter, r_dreh])
-	# Äste-Büsche: 16-m-Raster, an Waldrändern, in Wäldern und auf Wiesen
+			if r_chance < chance:
+				var art := BAUM_ID.find(_wahl(bm.get("arten", {}), r_art))
+				if art < 0:
+					continue
+				var uralt: float = float(bm.get("uralt", 0.0))
+				var alter := 2 if r_alter < uralt else (1 if r_alter < 0.62 else 0)
+				out.append([BAUM, x, h, z, art, alter, r_dreh])
+			elif not _modell_liste("totbaum").is_empty():
+				out.append([TOTBAUM, x, h, z, int(r_art * 1000.0), 0, r_dreh])
+	# Äste-Büsche: 16-m-Raster
 	n = 4
 	s = KACHEL / n
 	for gz in n:
@@ -338,21 +295,13 @@ func _kachel(k: Vector2i) -> Array:
 			var z := z0 + (gz + 0.1 + 0.8 * rng.randf()) * s
 			var r := rng.randf()
 			var r_dreh := rng.randf() * TAU
-			var b := _biom(x, z)
-			var chance := 0.0
-			match b:
-				LAUBWALD, NADELWALD:
-					chance = 0.35
-				WIESE:
-					chance = 0.12
-				SUMPF, STEPPE:
-					chance = 0.06
-			if r > chance or _gesperrt(x, z):
+			var regel := _regel(x, z)
+			if regel.is_empty() or r >= float(regel.get("buesche", 0.0)) or _gesperrt(x, z):
 				continue
 			var h := _boden(x, z, 0.6)
 			if not is_nan(h):
 				out.append([BUSCH, x, h, z, 0, 0, r_dreh])
-	# Sammelpflanzen: 16-m-Raster. Hanf in kleinen Gruppen auf Wiese/Steppe, Beeren in Wiese/Laubwald, Kräuter überall im Grünen
+	# Sammelpflanzen: 16-m-Raster. Hanf in kleinen Gruppen (gehäuft, wo das Rauschen hoch ist), Beeren und Kräuter einzeln
 	for gz in n:
 		for gx in n:
 			var x := x0 + (gx + 0.1 + 0.8 * rng.randf()) * s
@@ -360,58 +309,48 @@ func _kachel(k: Vector2i) -> Array:
 			var r := rng.randf()
 			var r_farbe := rng.randi_range(0, 3)
 			var r_anzahl := rng.randi_range(3, 6)
-			var b := _biom(x, z)
-			if b < 0 or b == STRAND or b == FELS or b == SCHNEE or r >= 0.42 or _gesperrt(x, z):
+			var regel := _regel(x, z)
+			if regel.is_empty() or _gesperrt(x, z):
 				continue
-			if (b == WIESE or b == STEPPE) and r < 0.06 + 0.12 * (0.5 + 0.5 * rauschen.get_noise_2d(x * 3.0, z * 3.0)):
+			var pf: Dictionary = regel.get("pflanzen", {})
+			var hanf: float = float(pf.get("hanf", 0.0)) * (0.5 + 0.5 * rauschen.get_noise_2d(x * 3.0, z * 3.0) + 0.5)
+			var beeren: float = float(pf.get("beeren", 0.0))
+			var kraut: float = float(pf.get("kraut", 0.0))
+			if r < hanf:
 				for i in r_anzahl:
 					var hx := x + rng.randf_range(-3.0, 3.0)
 					var hz := z + rng.randf_range(-3.0, 3.0)
 					var h := _boden(hx, hz, 0.5)
-					if not is_nan(h):
+					if not is_nan(h) and _regel(hx, hz) == regel:
 						out.append([PFLANZE, hx, h, hz, 0, 0, rng.randf() * TAU])
-			elif (b == WIESE or b == LAUBWALD) and r < 0.2:
+			elif r < hanf + beeren:
 				var h := _boden(x, z, 0.5)
 				if not is_nan(h):
 					out.append([PFLANZE, x, h, z, 1, r_farbe, 0.0])            # Beeren: rot/blau/schwarz/gelb
-			elif (b == WIESE or b == SUMPF or b == LAUBWALD or b == NADELWALD) and r < 0.42:
+			elif r < hanf + beeren + kraut:
 				var h := _boden(x, z, 0.5)
 				if not is_nan(h):
 					out.append([PFLANZE, x, h, z, 2, [4, 3, 5, 0][r_farbe], 0.0]) # Kräuter: weiß/gelb/lila/rot
-	# Felsbrocken (Stein, Feuerstein): 16-m-Raster, vor allem auf Fels und an Hängen, sonst vereinzelt
-	for gz in n:
-		for gx in n:
-			var x := x0 + (gx + 0.1 + 0.8 * rng.randf()) * s
-			var z := z0 + (gz + 0.1 + 0.8 * rng.randf()) * s
-			var r := rng.randf()
-			var r_groesse := rng.randf()
-			var b := _biom(x, z)
-			var chance := 0.0
-			match b:
-				FELS:
-					chance = 0.3
-				SCHNEE:
-					chance = 0.06
-				STEPPE:
-					chance = 0.07
-				WIESE, LAUBWALD, NADELWALD:
-					chance = 0.025
-				STRAND, SUMPF:
-					chance = 0.012
-			if r > chance * 2.0 or _gesperrt(x, z):
-				continue
-			var h := _hoehe(x, z)
-			if h < 0.6:
-				continue
-			var st := maxf(absf(_hoehe(x + 2.0, z) - h), absf(_hoehe(x, z + 2.0) - h)) / 2.0
-			# an Hängen doppelt so viele Brocken, an Steilwänden keine
-			if st > 1.2 or r > chance * (1.0 + minf(st / 0.4, 1.0)):
-				continue
-			# meist mittelgroß, große vor allem auf Fels, ganz kleine selten
-			var groesse := 2 + int(r_groesse * r_groesse * (4.0 if b == FELS else 2.5))
-			if r_groesse < 0.08:
-				groesse = 1
-			out.append([STEIN, x, h, z, mini(groesse, 5), 0, 0.0])
+	# Bodenobjekte: je Art ein eigenes Raster (Stöcke dicht, Stämme selten)
+	for name_ in BODENOBJEKTE:
+		var raster_m: float = BODENOBJEKTE[name_][0]
+		var m := int(KACHEL / raster_m)
+		var hat_modell: bool = name_ == "pfuetze" or not _modell_liste(name_).is_empty()
+		for gz in m:
+			for gx in m:
+				var x := x0 + (gx + 0.1 + 0.8 * rng.randf()) * raster_m
+				var z := z0 + (gz + 0.1 + 0.8 * rng.randf()) * raster_m
+				var r := rng.randf()
+				var r_var := rng.randi_range(0, 999)
+				var r_dreh := rng.randf() * TAU
+				if not hat_modell:
+					continue
+				var regel := _regel(x, z)
+				if regel.is_empty() or r >= float(regel.get("bodenobjekte", {}).get(name_, 0.0)) or _gesperrt(x, z):
+					continue
+				var h := _boden(x, z, 0.12 if name_ == "pfuetze" else 0.6)
+				if not is_nan(h):
+					out.append([BODEN, x, h, z, name_, r_var, r_dreh])
 	_daten[k] = out
 	return out
 
@@ -485,6 +424,11 @@ func _nah_zentrieren(p: Vector2) -> void:
 
 
 func _nah_erzeugen(e: Array) -> Node3D:
+	match int(e[0]):
+		TOTBAUM:
+			return _totbaum(e)
+		BODEN:
+			return _bodenobjekt(e)
 	var q = QuelleScript.new()
 	q.position = Vector3(e[1], e[2], e[3])
 	var modell: Node3D
@@ -497,11 +441,6 @@ func _nah_erzeugen(e: Array) -> Node3D:
 		BUSCH:
 			modell = BuschSzene.instantiate()
 			q.setup("aeste_busch", modell, 1.5)
-		STEIN:
-			modell = SteinSzene.instantiate()
-			var g := int(e[4])
-			modell.set("groesse", g)
-			q.setup(["felsbrocken_klein", "felsbrocken_klein", "felsbrocken", "felsbrocken_gross", "felsbrocken_gross"][g - 1], modell, 1.3 + 0.55 * g)
 		_:
 			modell = PflanzeSzene.instantiate()
 			modell.set("art", int(e[4]))
@@ -512,6 +451,162 @@ func _nah_erzeugen(e: Array) -> Node3D:
 			q.setup(id, modell, 1.5)
 	_wurzel_nah.add_child(q)
 	return q
+
+
+## Toter Baum (Moor): kahler Stamm mit Ästen, mit Kollision, nicht fällbar
+func _totbaum(e: Array) -> Node3D:
+	var liste := _modell_liste("totbaum")
+	var koerper := StaticBody3D.new()
+	koerper.name = "Totbaum"
+	koerper.position = Vector3(e[1], float(e[2]) - 0.15, e[3])
+	koerper.rotation.y = float(e[6])
+	koerper.add_child(_mit_materialien((liste[int(e[4]) % liste.size()] as PackedScene).instantiate(), true))
+	var form := CollisionShape3D.new()
+	var zyl := CylinderShape3D.new()
+	zyl.radius = 0.35
+	zyl.height = 6.0
+	form.shape = zyl
+	form.position.y = 3.0
+	koerper.add_child(form)
+	_wurzel_nah.add_child(koerper)
+	return koerper
+
+
+## Bodenobjekt: Modell flach auf den Boden gelegt (am Hang mitgeneigt); liegende Stämme mit Kollision
+func _bodenobjekt(e: Array) -> Node3D:
+	var name_: String = e[4]
+	var x: float = e[1]
+	var z: float = e[3]
+	var h: float = e[2]
+	var knoten: Node3D
+	if name_ == "pfuetze":
+		knoten = MeshInstance3D.new()
+		(knoten as MeshInstance3D).mesh = _pfuetze_mesh(int(e[5]) % 3)
+		(knoten as MeshInstance3D).material_override = _pfuetzen_material()
+		knoten.position = Vector3(x, _tiefster_punkt(x, z, 1.6) + 0.06, z)
+		knoten.rotation.y = float(e[6])
+		knoten.scale = Vector3.ONE * (0.9 + 0.9 * (int(e[5]) % 7) / 6.0)
+		_wurzel_nah.add_child(knoten)
+		return knoten
+	var liste := _modell_liste(name_)
+	var modell: Node3D = _mit_materialien((liste[int(e[5]) % liste.size()] as PackedScene).instantiate(), false)
+	var info: Array = BODENOBJEKTE[name_]
+	if info[1]:
+		knoten = StaticBody3D.new()
+		var aabb := _aabb(modell)
+		var form := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = aabb.size * Vector3(1.0, 0.8, 0.8)
+		form.shape = box
+		form.position = aabb.get_center()
+		knoten.add_child(form)
+	else:
+		knoten = Node3D.new()
+	knoten.add_child(modell)
+	var basis := Basis(Vector3.UP, float(e[6]))
+	if info[2]: # am Hang mitneigen
+		var nx := _hoehe(x + 1.0, z) - _hoehe(x - 1.0, z)
+		var nz := _hoehe(x, z + 1.0) - _hoehe(x, z - 1.0)
+		var normale := Vector3(-nx, 2.0, -nz).normalized()
+		basis = Basis(Quaternion(Vector3.UP, normale)) * basis
+	knoten.transform = Transform3D(basis, Vector3(x, h - 0.04, z))
+	_wurzel_nah.add_child(knoten)
+	return knoten
+
+
+## Material-Slots der Modelle (assets/natur/blender/natur_modelle.py) durch die Spielmaterialien ersetzen:
+## Rinde (Scan, wenn vorhanden), Schnittfläche, Moos, ausgebleichtes Treibholz, Algen. Tote Bäume: graue Rinde.
+var _mats := {}
+func _mit_materialien(n: Node3D, tot: bool) -> Node3D:
+	if _mats.is_empty():
+		var rinde: Material = Baum._scan_rinde("bark_brown_02")
+		if rinde == null:
+			rinde = load("res://assets/baeume/materialien/eiche_rinde.tres")
+		var grau: Material = Baum._scan_rinde("knotted_pine_bark", Color(0.78, 0.76, 0.72))
+		if grau == null:
+			grau = (load("res://assets/baeume/materialien/kiefer_rinde.tres") as StandardMaterial3D).duplicate()
+			grau.albedo_color = Color(0.7, 0.68, 0.64)
+		var moos := StandardMaterial3D.new()
+		moos.albedo_color = Color(0.26, 0.36, 0.13)
+		moos.roughness = 1.0
+		moos.normal_enabled = true
+		moos.normal_texture = load("res://assets/baeume/texturen/eiche_rinde_normal.png")
+		var bleich := (rinde as StandardMaterial3D).duplicate()
+		bleich.albedo_color = Color(1.55, 1.45, 1.3)
+		var alge := StandardMaterial3D.new()
+		alge.albedo_color = Color(0.17, 0.32, 0.1)
+		alge.roughness = 0.5
+		alge.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_mats = {"rinde": rinde, "rinde_tot": grau, "schnitt": load("res://assets/baeume/materialien/schnitt.tres"),
+			"moos": moos, "treibholz": bleich, "alge": alge}
+	for mi in n.find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = (mi as MeshInstance3D).mesh
+		for i in mesh.get_surface_count():
+			var m := mesh.surface_get_material(i)
+			if m == null:
+				continue
+			var name_ := m.resource_name
+			if tot and name_ == "rinde":
+				name_ = "rinde_tot"
+			if _mats.has(name_):
+				(mi as MeshInstance3D).set_surface_override_material(i, _mats[name_])
+		(mi as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if not tot and n.name.begins_with("alge") \
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	return n
+
+
+func _aabb(n: Node3D) -> AABB:
+	var box := AABB()
+	var erste := true
+	for mi in n.find_children("*", "MeshInstance3D", true, false):
+		var b: AABB = (mi as MeshInstance3D).get_aabb()
+		box = b if erste else box.merge(b)
+		erste = false
+	return box
+
+
+## Tiefste Geländehöhe im Umkreis (Pfützen liegen in Mulden und sollen nirgends schweben)
+func _tiefster_punkt(x: float, z: float, r: float) -> float:
+	var h := _hoehe(x, z)
+	for i in 8:
+		var p := Vector2.from_angle(TAU * i / 8.0) * r
+		h = minf(h, _hoehe(x + p.x, z + p.y))
+	return h
+
+
+## Dunkles, spiegelndes Moorwasser (leicht durchsichtig, damit der Schlamm durchscheint)
+var _pfuetzen_mat: StandardMaterial3D
+func _pfuetzen_material() -> StandardMaterial3D:
+	if _pfuetzen_mat == null:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.07, 0.08, 0.06, 0.88)
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.roughness = 0.04
+		m.metallic_specular = 0.9
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_pfuetzen_mat = m
+	return _pfuetzen_mat
+
+
+## Unregelmäßige flache Wasserfläche (etwa 2–4 m), drei Formen
+func _pfuetze_mesh(v: int) -> ArrayMesh:
+	if _pfuetzen.is_empty():
+		for form in 3:
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			var rand: Array[Vector3] = []
+			var stufen := 14
+			for i in stufen:
+				var a := TAU * i / stufen
+				var r := 1.4 + 0.45 * sin(a * 2.0 + form * 1.7) + 0.3 * sin(a * 3.0 + form * 0.9)
+				rand.append(Vector3(cos(a) * r * (1.3 if form == 1 else 1.0), 0.0, sin(a) * r))
+			for i in stufen:
+				for p in [Vector3.ZERO, rand[i], rand[(i + 1) % stufen]]:
+					st.set_normal(Vector3.UP)
+					st.set_uv(Vector2(p.x, p.z))
+					st.add_vertex(p)
+			_pfuetzen.append(st.commit())
+	return _pfuetzen[v]
 
 
 func _fern_aktualisieren(p: Vector2) -> void:
@@ -559,8 +654,6 @@ func _fern_bauen(k: Vector2i) -> void:
 	var knoten := Node3D.new()
 	knoten.name = "Fern_%d_%d" % [k.x, k.y]
 	add_child(knoten)
-	for m in _monolithen(k):
-		knoten.add_child(_monolith_bauen(m))
 	_fern[k] = knoten
 	for form in 6:
 		var liste: Array = je_art[form]
@@ -581,48 +674,6 @@ func _fern_bauen(k: Vector2i) -> void:
 		mmi.material_override = _fern_material
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		knoten.add_child(mmi)
-
-
-## Felsmonolith mit Kollision (Dreiecksnetz, je Modell einmal berechnet), leicht eingesunken
-func _monolith_bauen(m: Array) -> Node3D:
-	var name_ := "monolith_%s_%d" % ["turm" if int(m[3]) == 0 else "gruppe", int(m[4])]
-	if not _mono_modelle.has(name_):
-		var szene: PackedScene = load("res://assets/erz/modelle/%s.glb" % name_)
-		var probe := szene.instantiate()
-		var mesh: Mesh = (probe.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
-		probe.free()
-		_mono_modelle[name_] = [mesh, mesh.create_trimesh_shape()]
-	var daten: Array = _mono_modelle[name_]
-	var koerper := StaticBody3D.new()
-	koerper.position = Vector3(m[0], float(m[1]) - 0.4, m[2])
-	koerper.rotation.y = float(m[5])
-	var mi := MeshInstance3D.new()
-	mi.mesh = daten[0]
-	mi.material_override = _fels_material()
-	koerper.add_child(mi)
-	var form := CollisionShape3D.new()
-	form.shape = daten[1]
-	koerper.add_child(form)
-	return koerper
-
-
-## Material der Felstürme/-gruppen: Fels-Scan triplanar, wenn die Scans da sind, sonst das alte Steinmaterial
-var _fels_mat: Material
-func _fels_material() -> Material:
-	if _fels_mat:
-		return _fels_mat
-	var basis := "res://assets/scans/rock_face_03/rock_face_03_"
-	if ResourceLoader.exists(basis + "diffuse_2k.jpg"):
-		var mat := ShaderMaterial.new()
-		mat.shader = preload("res://scripts/fels_triplanar.gdshader")
-		mat.set_shader_parameter("farbe", load(basis + "diffuse_2k.jpg"))
-		mat.set_shader_parameter("normale", load(basis + "nor_gl_2k.jpg"))
-		mat.set_shader_parameter("rauheit", load(basis + "rough_2k.jpg"))
-		mat.set_shader_parameter("groesse", 4.0)
-		_fels_mat = mat
-	else:
-		_fels_mat = SteinMaterial
-	return _fels_mat
 
 
 # --- einfache Baumformen für die Ferne (Höhe 1, Breite 1, Fuß bei y = 0) ----

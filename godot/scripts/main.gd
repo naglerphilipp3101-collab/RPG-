@@ -92,7 +92,7 @@ func _ready() -> void:
 	add_child(player)
 	if terrain:
 		terrain.set_camera(player.camera)
-	# Dorfplatz und Lager des Startgebiets bleiben frei von Bäumen, Steinen, Pflanzen und Gras
+	# Dorfplatz und Lager des Startgebiets bleiben frei von Bäumen, Pflanzen und Gras
 	var frei: Array = []
 	var platz := area.position + VILLAGE_CENTER
 	frei.append([Vector2(platz.x, platz.z), VILLAGE_RADIUS + 3.5])
@@ -100,7 +100,7 @@ func _ready() -> void:
 		var c: Vector3 = area.position + Vector3(camp["pos"])
 		frei.append([Vector2(c.x, c.z), 10.5 if camp["style"] == "lair" else 7.5])
 	if island:
-		# Bäume, Büsche, Steine und Sammelpflanzen auf der ganzen Insel (rund um den Spieler nachgeladen)
+		# Bäume, Büsche, Sammelpflanzen und Bodenobjekte nach den Biom-Regeln (rund um den Spieler nachgeladen)
 		natur = NaturScript.new()
 		natur.name = "Natur"
 		natur.setup(self, player, ISLAND_DATA)
@@ -214,8 +214,6 @@ func _build_island() -> void:
 				c.visible = false
 	welt._seen_importieren(Wasser.material("see"))
 	welt._fluesse_importieren(Wasser.material("fluss"))
-	welt._wege_importieren() # Wegverläufe und Brücken (das Gelände unter den Wegen ist schon eingeebnet)
-	welt._hoehe_bild = null # Höhendaten wurden nur für die Brückenpfeiler gebraucht
 
 	# Terrain3D lädt seine Regionen erst in den nächsten Frames
 	for i in 3:
@@ -341,7 +339,7 @@ func _add_resource(id: String, pos: Vector3, scale_factor := 1.0, rock_size := V
 
 
 func _scatter_nature() -> void:
-	# Auf der Insel wachsen Bäume, Steine und Pflanzen aus scripts/natur.gd; hier nur die Erzadern
+	# Auf der Insel wachsen Bäume und Pflanzen aus scripts/natur.gd; hier nur die Erzadern
 	if island:
 		_scatter_ore()
 		return

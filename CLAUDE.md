@@ -20,8 +20,10 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
 - `erz|baeume|sammeln/`: abbaubare Ressourcen. Modelle per Blender-Python (`blender/*.py`, bpy 5.2.2), Materialien als .tres/.gdshader.
   Skripte: `erz_vorkommen.gd` (ErzVorkommen: tier 0–5, groesse 1–5), `baum.gd` (Baum: art Fichte/Kiefer/Eiche, alter jung/alt, variante),
   `aeste_busch.gd` (AesteBusch), `sammelpflanze.gd` (Sammelpflanze: art Hanf/Beeren/Kräuter, farbe, drop).
-- `welt/`: Import der Weltgenerator-Exporte in Terrain3D (`welt_import.gd`), Marker, Wege/Brücken, Ressourcen-Streamer (`welt_ressourcen.gd`).
-  Biom-/Textur-IDs: 0 Sand, 1 Wiese, 2 Laubboden, 3 Nadelboden, 4 Sumpf, 5 Steppe, 6 Fels, 7 Schnee, 8 Weg.
+- `welt/`: Import der Weltgenerator-Exporte in Terrain3D (`welt_import.gd`), Marker, Ressourcen-Streamer (`welt_ressourcen.gd`).
+  Terrain3D-Textur-IDs: 0 Sand, 1 Wiese, 2 Laubboden, 3 Nadelboden, 4 Sumpf, 5 Steppe, 6 Fels, 7 Schnee, 8 Kies (Flussbett).
+  Der Import ordnet die Böden nach den Biom-Regeln neu zu, ersetzt alte Weg-Pixel (ID 8 in alten Exporten) und legt Kies unter die Flüsse.
+- `natur/`: Bodenobjekte und tote Bäume (Blender `natur/blender/natur_modelle.py` → `natur/modelle/`: totbaum, baumstamm, stock, treibholz, alge), nur Deko.
 - Terrain3D ist ein Plugin aus der AssetLib und liegt **nicht** im Repository (muss unter `godot/addons/` installiert werden).
 - **6 Erz-Tiers:** Iron, Palladium, Mithril, Glacialore, Sungold, Darksteel. Das Repository ist der neuere Stand und hat bei Abweichungen Vorrang (Nutzerentscheidung).
 
@@ -81,7 +83,7 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
   und Sperrflächen (Siedlungen, Felder, Wege, Seen, Startgebiet) – fester Zufall je Kachel, nichts wird gespeichert.
   Nah (110 m): Blender-Modelle aus `assets/` über `scripts/natur_quelle.gd` abbaubar (Werte in `gathering.json`: fichte_/kiefer_/eiche_jung|alt,
   aeste_busch, hanf, beeren, kraut, kraut_selten). Fern (950 m): einfache Bäume als MultiMesh, Shader `natur_fern.gdshader` blendet sie im Nahbereich aus.
-  Erze bewusst nicht – die kommen später vor allem in die Minen. Test: `--island --natur` (mit Fenster: misst auch die FPS).
+  Erze bewusst nicht – die kommen später vor allem in die Minen. Test: `--island --natur` (mit Fenster: misst auch die FPS). Stand 15.10. siehe Biome unten.
 - ✅ Grafik-Runde (13.10.2026): Wasser-Shader für Meer/Seen/Flüsse (`scripts/wasser.gd(shader)`, Flüsse aus `fluesse.json`),
   Felsbrocken abbaubar (`assets/erz/felsbrocken.gd`, Stein/Feuerstein), Bodenbewuchs Gras/Farn/Kraut/Blumen (`scripts/gras.gd`),
   Bodentexturen ohne Farbkarte, Wege sichtbar. Karte M zoombar, Wege auf Karte/Minimap, keine Wege am Zentralberg.
@@ -99,6 +101,14 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
    abbaubare Moosfelsen (felsbrocken.gd), Fels-Triplanar auf Monolithen, Gras/Farn/Blumen-Scans mit Alpha (gras.gd).
    Bäume: Blender-Formen mit Scan-Rinde (baum.gd `_scan_rinde`) und aus Atlanten geschnittenen Zweigen
    (`tests/baum_scans_umwandeln.gd` → `assets/baeume/texturen_scan/`). Ohne Scans fällt alles auf die eigenen Texturen zurück.
+- ✅ (15.10.) Karte aufgeräumt, **Biome neu** (Nutzerentscheidung): keine Straßen/Brücken mehr (Dörfer und Städte werden später gebaut),
+  keine Steine/Felsbrocken/Monolithen (warten auf gute Modelle und eine Verteil-Logik). **6 Biome plus Stadt** in `data/biome.json`
+  (gelesen von `scripts/biom_regeln.gd`): Wald (Variante laub/nadel), Wiese (inkl. alter Steppe), Fluss (Kies, nur Algen), Strand (Sand, Treibholz),
+  Berg (Variante fels/schnee), Moor (Kräuter, Büsche, Beeren, tote Bäume, Pfützen), Stadt (nichts spawnt). Jedes Biom legt Boden, Bäume, Büsche,
+  Sammelpflanzen, Bodenobjekte und Gras fest; Stein/Feuerstein/Erz stehen als `geplant` drin. Die Generator-Biome werden über `generator` abgebildet.
+  Nach Änderungen an Böden muss der Weltimport neu laufen. Vorschau ohne Terrain3D: `tests/biom_vorschau.gd` (2D-Karten, Zählung) und
+  `tests/biom_3d.tscn` (3D, `-- --biom moor [--luft] [--blick 120] [--objekt Totbaum]`, mit `--rendering-method gl_compatibility`; Sand/Kies wirken dort überbelichtet).
+  Test im Spiel: `--island --natur [--biom wald|moor|…] [--uralt]`.
 - Weiter offen: Gegner/Tiere (wartet auf Modelle + Animationen), feindliche Lager, Schwierigkeit, Erze in Minen, Siedlungen, Regionsgrenzen auf der Karte.
 - Spielfigur, NPCs und Gegner aus fertigen Paketen (Quaternius/KayKit + Mixamo). Downloads macht der Nutzer selbst.
 - Danach geht es nach dem Umsetzungsplan in KONZEPT.md weiter: ✅ M6 Waffen-Umbau, ✅ M7 Magie, als Nächstes M8 Startgebiet …

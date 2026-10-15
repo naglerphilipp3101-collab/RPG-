@@ -1,4 +1,4 @@
-"""Erzeugt 8 kachelbare Bodentexturen für Terrain3D (1024x1024).
+"""Erzeugt 10 kachelbare Bodentexturen für Terrain3D (1024x1024).
 Je Boden 2 Dateien: <name>_albedo_hoehe.png (RGB Farbe, A Höhe) und <name>_normal_rauheit.png (RGB Normale OpenGL, A Rauheit).
 Aufruf: python boden_texturen.py <zielordner>"""
 import sys, os, math, random
@@ -167,6 +167,28 @@ def weg(out):
     farbe *= (0.9 + 0.2 * fein)[..., None]
     speichern(out, "weg", farbe, h, 4, 0.9)
 
+def kies(out):
+    # Flussbett: runde, glatte Kiesel in drei Größen (grau bis beige), dazwischen dunkler nasser Sand
+    sand_ = rauschen(60, 60, 91); fein = rauschen(260, 260, 92); fleck = rauschen(5, 5, 94)
+    farben = np.array([(116, 112, 104), (134, 128, 118), (98, 95, 90), (140, 130, 112), (120, 108, 96), (88, 86, 82), (150, 146, 136)], float)
+    h = 0.18 * sand_ + 0.08 * fein
+    farbe = verlauf(sand_, [(0, (64, 58, 48)), (1, (96, 86, 70))])
+    for zellen, seed, staerke, anteil in ((9, 93, 1.0, 0.5), (20, 95, 0.8, 0.8), (44, 97, 0.55, 0.95), (90, 99, 0.35, 0.95)):
+        verz = (rauschen(10, 10, seed + 7) - 0.5) * 0.35, (rauschen(10, 10, seed + 8) - 0.5) * 0.35
+        f1, f2, wid = voronoi(zellen, seed, verzerrung=verz)
+        radius = 0.24 + 0.18 * ((wid * 7.31) % 1.0)             # je Kiesel eigene Größe (in Zellgrößen)
+        t = np.clip(1 - (f1 / radius) ** 2, 0, 1)
+        kuppe = np.sqrt(t) * (wid < anteil)                       # nicht jede Zelle hat einen Kiesel
+        neu = kuppe * staerke > h
+        idx = (wid * 997).astype(int) % len(farben)
+        c = farben[idx] * (0.72 + 0.38 * kuppe)[..., None] * (0.94 + 0.1 * fein)[..., None]
+        m = (neu * np.clip(kuppe * 4, 0, 1))[..., None]
+        farbe = farbe * (1 - m) + c * m
+        h = np.where(neu, kuppe * staerke, h)
+    farbe *= (0.9 + 0.2 * fleck)[..., None]
+    h = norm(h)
+    speichern(out, "kies", farbe, h, 6, 0.5 + 0.4 * (1 - h))
+
 if __name__ == "__main__":
     out = sys.argv[-1]; os.makedirs(out, exist_ok=True)
     sand(out)
@@ -178,4 +200,5 @@ if __name__ == "__main__":
     fels(out)
     schnee(out)
     weg(out)
+    kies(out)
     print(sorted(os.listdir(out)))
