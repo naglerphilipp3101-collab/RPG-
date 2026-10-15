@@ -444,7 +444,7 @@ Stand 15.10.2026, abgeleitet aus diesem Konzept und dem Code im Repository. Zuer
 | # | Meilenstein | Inhalt | Wartet auf |
 | --- | --- | --- | --- |
 | M5 | Charakterkern | Charakterlevel 1–100 mit steigenden Punkten, Attribute und alle Schwellenboni datengetrieben (`attributes.json`), Attribut-Fenster, Tod −20 % EP, Waffen-EP nach Schadensanteil, Berufe auf 0–300 und 6 Tiers, Aufspüren, Bonus-Ausbeute, Tag/Nacht-Zyklus | nichts |
-| M6 | Waffen-Umbau | Waffenliste auf das Konzept umstellen, 2 Seiten mit Passiven, 4 Fähigkeiten + Ultimative je Seite, Ultimative-Leiste, 3. Waffenplatz vorbereiten | Entscheidung zu den Einhand-/Zweihand-Varianten |
+| M6 | Waffen-Umbau | Waffenliste auf das Konzept umstellen, 2 Seiten mit Passiven, 4 Fähigkeiten + Ultimative je Seite, Ultimative-Leiste, 3. Waffenplatz vorbereiten | M5 |
 | M7 | Magie | Blitz, Feuer, Eis mit Ladung, Hitze und Frost; Lebens- und Leerenmagie (Heilung, Beschwörungen); Arkanes Sanktum stellt Magiewaffen her | M6 |
 | M8 | Startgebiet | Quest-System, NPCs und Dialoge, Schiffbruch-Einstieg, Dorf-Tutorial mit 5 Sammelberufen, erste Stadt mit Verarbeitung und den 5 Herstellungs-Stationen, Gold, Level-Freischaltungsquests (Rucksäcke, Slots) | Spielfigur- und NPC-Modelle für die echte Optik, Platzhalter gehen vorher |
 | M9 | Fraktionen und Regionen | 6 Fraktionen mit Farben, Beitritt und Wechsel, Fraktionsansehen, Rangquests, Fraktionsshop (Ansehen + Gold), Städte als Schutzzone, PvP-Schalter, Regionsansehen bis 20, Lagernetz, Auto-Fill, Hausrecht | M8 |
@@ -454,11 +454,11 @@ Stand 15.10.2026, abgeleitet aus diesem Konzept und dem Code im Repository. Zuer
 
 ### Nächster Schritt
 
-M5 beginnt mit `attributes.json` und dem Charakterlevel im Spieler, getestet über einen neuen Autotest-Modus `--character`. Vorher braucht M6 eine Entscheidung, siehe unten.
+M5 beginnt mit `attributes.json` und dem Charakterlevel im Spieler, getestet über einen neuen Autotest-Modus `--character`. Die Entscheidung für M6 ist gefallen, siehe unten.
 
 ### Entscheidung für M6: Einhand- und Zweihand-Varianten
 
-Der Code hat Einhandschwert, Beil, Streitkolben, Zweihänder, Kriegsaxt, Kriegshammer und Dolche; das Konzept hat Schwert und Schild, Axt, Hammer, Großschwert und Messer. Empfehlung: zusammenlegen. Das Einhandschwert wird Schwert und Schild, die Kriegsaxt wird die Axt, der Kriegshammer wird der Hammer, der Zweihänder wird das Großschwert und die Dolche werden das Messer. Beil und Streitkolben entfallen, ihre Fähigkeiten wandern in die neuen Waffen.
+Der Code hat Einhandschwert, Beil, Streitkolben, Zweihänder, Kriegsaxt, Kriegshammer und Dolche; das Konzept hat Schwert und Schild, Axt, Hammer, Großschwert und Messer. Entschieden (15.10.): zusammenlegen. Das Einhandschwert wird Schwert und Schild, die Kriegsaxt wird die Axt, der Kriegshammer wird der Hammer, der Zweihänder wird das Großschwert und die Dolche werden das Messer. Beil und Streitkolben entfallen, ihre Fähigkeiten wandern in die neuen Waffen.
 
 ---
 
