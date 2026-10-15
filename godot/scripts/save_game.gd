@@ -2,7 +2,7 @@ extends RefCounted
 ## Speichern und Laden des Spielstands als JSON-Datei.
 ## Ort unter Windows: %APPDATA%\Godot\app_userdata\RPG\savegame.json
 
-const VERSION := 2 # 2: Berufe als Skill 0–300, Charakterlevel, Attribute, Tageszeit
+const VERSION := 3 # 2: Berufe als Skill 0–300, Charakterlevel, Attribute, Tageszeit. 3: Waffen mit 2 Seiten (M6)
 
 
 static func has_save(path: String) -> bool:

@@ -43,12 +43,21 @@ func _physics_process(delta: float) -> void:
 			continue
 		var center: Vector3 = enemy.get_center()
 		var closest := Geometry3D.get_closest_point_to_segment(center, from, end)
-		if closest.distance_to(center) <= float(enemy.radius) + HIT_RADIUS:
+		# Kopftreffer: die Flugbahn streift die Kopfkugel (zählt auch, wenn sie den Körper verfehlt)
+		var head: Array = enemy.get_head()
+		var head_point := Geometry3D.get_closest_point_to_segment(head[0], from, end)
+		var headshot: bool = head_point.distance_to(head[0]) <= float(head[1]) + HIT_RADIUS * 0.5
+		if headshot or closest.distance_to(center) <= float(enemy.radius) + HIT_RADIUS:
 			hit_list.append(enemy)
 			if float(hit_data.get("explode", 0.0)) > 0.0:
 				_explode(closest)
 				return
-			shooter.on_projectile_hit(enemy, hit_data, from)
+			var data := hit_data
+			if headshot:
+				data = hit_data.duplicate()
+				data["headshot"] = true
+				FX.popup(get_tree(), head[0] + Vector3(0, 0.5, 0), "Kopftreffer", Color(1.0, 0.4, 0.3), 40)
+			shooter.on_projectile_hit(enemy, data, from)
 			if not hit_data.get("pierce", false):
 				queue_free()
 				return

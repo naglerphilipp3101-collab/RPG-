@@ -322,9 +322,10 @@ EP der Waffe = EP des Monsters × Schaden der Waffe ÷ Schaden aller Waffen des 
 ### Aufbau einer Seite
 
 - **Passive:** verändert, wie die Waffe spielt (die Axt-Blutung ist das Maß), keine reine Prozentzahl.
-- **4 Fähigkeiten** pro Seite, davon 3 gleichzeitig ausgerüstet (Tasten 1 bis 3).
-- **1 Ultimative** pro Seite (Taste R), lädt sich durch Schaden und Treffer auf.
+- **4 Fähigkeiten** pro Seite, davon 3 gleichzeitig ausgerüstet (Tasten Q, E, R).
+- **1 Ultimative** pro Seite (Taste X), lädt sich durch Schaden und Treffer auf.
 - Die Punkte reichen für eine Seite ganz und die andere halb, damit Entscheidungen nötig bleiben.
+- **Tasten** (Philipp, 15.10.): Q/E/R Fähigkeiten, X Ultimative, 1–4 Essen und Tränke. Dafür liegt Interagieren auf F und der Waffenwechsel auf T und dem Mausrad.
 
 Bei 15 Waffen sind das 120 Fähigkeiten plus 30 Ultimative.
 
@@ -424,7 +425,7 @@ Zurzeit sind keine Fragen offen.
 
 ## Umsetzungsplan
 
-Stand 15.10.2026, abgeleitet aus diesem Konzept und dem Code im Repository. M5 ist umgesetzt (siehe unten). Zuerst kommt der Charakterkern, weil Level, Attribute und Tiers fast alle späteren Systeme berühren; Inhalte mit Gegnermodellen warten auf die Modellpakete.
+Stand 15.10.2026, abgeleitet aus diesem Konzept und dem Code im Repository. M5 und M6 sind umgesetzt (siehe unten). Zuerst kommt der Charakterkern, weil Level, Attribute und Tiers fast alle späteren Systeme berühren; Inhalte mit Gegnermodellen warten auf die Modellpakete.
 
 ### Was der Code heute schon kann und was sich ändert
 
@@ -432,7 +433,7 @@ Stand 15.10.2026, abgeleitet aus diesem Konzept und dem Code im Repository. M5 i
 | --- | --- | --- |
 | Charakter | ✅ M5: Level 1–100, 5 Attribute mit Schwellen, Tod −20 % EP | Level 1–100, 5 Attribute mit Schwellen 25–500, Tod −20 % EP |
 | Waffen-EP | ✅ M5: nach Schadensanteil | EP des Monsters beim Tod nach Schadensanteil verteilt |
-| Waffen | 12 Typen + Schild, je 2 Äste, 3 Fähigkeiten aktiv (Q/R/F), Meisterschaft bis 20 | 15 Waffen inkl. 5 Magiearten, 2 Seiten mit je 1 Passiven (eine aktiv), 4 Fähigkeiten (3 ausgerüstet) + Ultimative |
+| Waffen | ✅ M6: 10 Waffen ohne Magie, 2 Seiten mit Passive, 4 Fähigkeiten (3 auf Q/E/R) + Ultimative (X), Meisterschaft bis 20 | 15 Waffen inkl. 5 Magiearten, 2 Seiten mit je 1 Passiven (eine aktiv), 4 Fähigkeiten (3 ausgerüstet) + Ultimative |
 | Berufe | ✅ M5: 16 Berufe, Skill 0–300, Tiers I–VI, Aufspüren, Bonus-Ausbeute (Erze heißen noch Kupfer, Eisen) | 17 Berufe, Skill 0–300, 6 Tiers (Iron bis Darksteel), Aufspüren, Bonus-Ausbeute |
 | Stationen | 12 (u. a. Waffenschmiede, Rüstungsschmiede, Juwelier getrennt) | 5 Verarbeitung + 5 Herstellung (Schmiede, Schneiderei, Werkstatt, Arkanes Sanktum, Küche) |
 | Welt | Terrain3D-Insel, Natur, Wasser, ✅ Tag/Nacht | dazu Tag/Nacht-Zyklus, Städte als Schutzzonen, Regionen |
@@ -464,9 +465,23 @@ Stand 15.10.2026, abgeleitet aus diesem Konzept und dem Code im Repository. M5 i
 
 Test: `godot --headless --path godot -- --autotest --character`.
 
+### M6 umgesetzt (15.10.)
+
+- **10 Waffen** statt 12: Schwert und Schild, Axt, Hammer, Großschwert, Degen, Speer, Messer, Bogen, Armbrust, Muskete. Die Magiearten folgen mit M7. Alle Werte stehen in `data/weapons.json`.
+- **2 Seiten je Waffe** mit Passive, 4 Fähigkeiten und Ultimative, Namen und Passiven wie in der Übersicht oben. Nur eine Passive ist aktiv, im Skillbaum (K) umschaltbar. Die 20 Passiven sind alle als eigene Mechanik umgesetzt (Trotz, Spott, Blutung verbrauchen, Leben gegen Abklingzeit, Rüstungsbruch, Betäubungsleiste, Schwung, Abklingzeit-Verkürzung, Riposte, Rhythmus, Anlauf, Speerspitze, Tarnung, Gift, Distanzgift, Ausweich-Schuss, Durchschlag, Magazin, Zielen auf den Kopf, Markieren und Fallen).
+- **Punkte:** Meisterschaft Stufe n gibt n Punkte, die erste Fähigkeit ist frei. Passive und Fähigkeiten kosten 2, die Ultimative 3 und braucht die Passive und 2 Fähigkeiten ihrer Seite. Mit Stufe 20 reicht es für eine Seite ganz und für die zweite Passive + 3 Fähigkeiten oder Passive + 2 Fähigkeiten + Ultimative.
+- **Ultimative (X):** eine Ladeleiste für alle Waffen, sie füllt sich durch Treffer (3 je Treffer) und erlittenen Schaden. Keine Abklingzeit.
+- **Neue Effekte auf Gegnern:** Betäubung, Spott (der Gegner lässt nicht mehr ab), Rüstungsbruch (+3 % Schaden je Stapel, bis 10), Gift (stapelt bis 10), Tarnung des Spielers (Gegner bemerken dich nicht, der erste Treffer beendet sie). **Kopftreffer** mit Fernwaffen machen 150 % Schaden (Geschicklichkeit 500: +25 %).
+- **Tasten:** Q/E/R, X, F, T und Mausrad, 1 Trank, 2 Essen. Platz 3 und 4 sind sichtbar, aber gesperrt (2. Mahlzeit ab Level 10, 2. Trank ab Level 20, per Level-Quest in M8).
+- **3. Waffenplatz** ist vorbereitet (Wechsel reihum vor und zurück), bleibt bis zur Level-40-Quest gesperrt.
+- **Alte Spielstände:** Waffen bekommen ihre neue Art (Einhandschwert → Schwert und Schild usw.), je neuer Waffe zählt die höchste alte Meisterschaft, Skillpunkte werden erstattet.
+- Balancing bleibt offen (siehe „Offen“), die Werte sind ein erster Wurf.
+
+Tests: `godot --headless --path godot -- --autotest --m6` (19 Prüfungen) und `--weapons` (alle Seiten mit Fähigkeiten und Ultimativen).
+
 ### Nächster Schritt
 
-M6 Waffen-Umbau. Die Entscheidung dafür ist gefallen, siehe unten.
+M7 Magie.
 
 ### Entscheidung für M6: Einhand- und Zweihand-Varianten
 

@@ -43,6 +43,21 @@ var bleed_time := 0.0
 var bleed_tick := 0.0
 var bleed_source := "" # Waffenart, die die Blutung verursacht hat
 var damage_by_source: Dictionary = {} # Waffenart -> Schaden in diesem Leben (für Waffen-EP nach Schadensanteil)
+# Schwächungen durch Waffen (M6)
+const MAX_STACKS := 10
+const SUNDER_PER_STACK := 0.03 # Rüstungsbruch: +3 % erlittener Schaden je Stapel
+const SUNDER_TIME := 8.0
+const POISON_TIME := 6.0
+var sunder_stacks := 0
+var sunder_time := 0.0
+var poison_stacks := 0
+var poison_dps := 0.0 # Schaden je Stapel und Sekunde
+var poison_time := 0.0
+var poison_tick := 0.0
+var poison_source := ""
+var stun_time := 0.0
+var stun_meter := 0.0 # Erschütterung (Hammer): bei 1 betäubt
+var taunt_time := 0.0
 var slow_pct := 0.0 # Verlangsamung durch Fähigkeiten
 var slow_time := 0.0
 var expose_pct := 0.0 # erhöhter erlittener Schaden
@@ -268,7 +283,7 @@ func _physics_process(delta: float) -> void:
 		State.STRIKE:
 			desired = _do_strike()
 		State.RECOVER, State.STAGGER:
-			if state_timer <= 0.0:
+			if state_timer <= 0.0 and stun_time <= 0.0:
 				_set_state(State.CHASE)
 		State.RETURN:
 			desired = _do_return()
@@ -323,7 +338,7 @@ func _do_idle() -> Vector3:
 	# Geschicklichkeit 450: Wildtiere bemerken den Spieler erst auf halbe Entfernung
 	if _player_valid() and data.get("shape", "") == "beast" and player.has_mechanic("wildtiere_scheu"):
 		aggro_range *= float(player.attr_mechanics["wildtiere_scheu"])
-	if _player_valid() and _flat_to_player().length() < aggro_range:
+	if _player_valid() and not player.is_stealthed() and _flat_to_player().length() < aggro_range:
 		_aggro()
 		return Vector3.ZERO
 	wander_timer -= dt
@@ -340,6 +355,8 @@ func _do_idle() -> Vector3:
 
 
 func _aggro() -> void:
+	if stun_time > 0.0:
+		return
 	_set_state(State.CHASE)
 	# Andere Gegner in der Nähe werden mit alarmiert
 	for node in get_tree().get_nodes_in_group("enemies"):
@@ -349,7 +366,9 @@ func _aggro() -> void:
 
 
 func _do_chase() -> Vector3:
-	if not _player_valid() or global_position.distance_to(home) > LEASH_DISTANCE:
+	# Getarnte Spieler verliert der Gegner aus den Augen, verspottete Gegner bleiben dran
+	var lost: bool = not _player_valid() or (player.is_stealthed() and not is_taunted())
+	if lost or (global_position.distance_to(home) > LEASH_DISTANCE and not is_taunted()):
 		_set_state(State.RETURN)
 		return Vector3.ZERO
 	var to := _flat_to_player()
@@ -426,7 +445,7 @@ func _resolve_strike() -> void:
 	var arc: float = data.get("attack_arc", 100.0)
 	if to.length() > 0.3 and rad_to_deg(_forward().angle_to(to.normalized())) > arc * 0.5:
 		return
-	player.take_damage(float(data.get("damage", 10.0)), global_position, bool(data.get("unblockable", false)))
+	player.take_damage(float(data.get("damage", 10.0)), global_position, bool(data.get("unblockable", false)), self)
 
 
 func _do_return() -> Vector3:
@@ -494,6 +513,14 @@ func apply_bleed(dps: float, duration: float, source := "") -> void:
 func _update_bleed(delta: float) -> void:
 	slow_time = maxf(slow_time - delta, 0.0)
 	expose_time = maxf(expose_time - delta, 0.0)
+	stun_time = maxf(stun_time - delta, 0.0)
+	taunt_time = maxf(taunt_time - delta, 0.0)
+	sunder_time -= delta
+	if sunder_time <= 0.0:
+		sunder_stacks = 0
+	_update_poison(delta)
+	if state == State.DEAD:
+		return
 	if bleed_time <= 0.0:
 		return
 	bleed_time -= delta
@@ -508,11 +535,112 @@ func _update_bleed(delta: float) -> void:
 		_die()
 
 
+# --- Schwächungen durch Waffen -------------------------------------------
+
+## Betäubung: der Gegner kann sich nicht bewegen und nicht angreifen.
+func apply_stun(duration: float) -> void:
+	if state == State.DEAD or duration <= 0.0:
+		return
+	if stun_time <= 0.0:
+		FX.popup(get_tree(), global_position + Vector3(0, _bar_height() + 0.4, 0), "Betäubt", Color(1.0, 0.9, 0.3), 44)
+	stun_time = maxf(stun_time, duration)
+	stun_meter = 0.0
+	move_velocity = Vector3.ZERO
+	_set_state(State.STAGGER, stun_time)
+	_kill_anim()
+	body_material.emission_energy_multiplier = 0.0
+	if weapon_pivot:
+		weapon_pivot.rotation_degrees = WEAPON_REST
+	anim_tween = create_tween()
+	anim_tween.tween_property(model, "rotation_degrees:x", 18.0, 0.15)
+	anim_tween.tween_interval(maxf(stun_time - 0.3, 0.0))
+	anim_tween.tween_property(model, "rotation_degrees:x", 0.0, 0.15)
+
+
+func is_stunned() -> bool:
+	return stun_time > 0.0
+
+
+## Erschütterung (Hammer): füllt die Betäubungsleiste, bei 100 % folgt eine Betäubung.
+func add_stun_meter(amount: float, stun_duration: float) -> void:
+	if is_stunned():
+		return
+	stun_meter += amount
+	if stun_meter >= 1.0:
+		apply_stun(stun_duration)
+
+
+## Spott: der Gegner greift nur noch den Spieler an und lässt sich nicht abschütteln.
+func apply_taunt(duration: float) -> void:
+	if state == State.DEAD:
+		return
+	if taunt_time <= 0.0:
+		FX.popup(get_tree(), global_position + Vector3(0, _bar_height() + 0.4, 0), "Verspottet", Color(1.0, 0.5, 0.3), 40)
+	taunt_time = maxf(taunt_time, duration)
+	if state == State.IDLE or state == State.RETURN:
+		_aggro()
+
+
+func is_taunted() -> bool:
+	return taunt_time > 0.0 and state != State.DEAD
+
+
+func add_sunder(stacks: int) -> void:
+	sunder_stacks = mini(sunder_stacks + stacks, MAX_STACKS)
+	sunder_time = SUNDER_TIME
+
+
+## Gift: stapelt bis 10, jeder Stapel macht `dps` Schaden pro Sekunde, 6 s ab dem letzten Treffer.
+func add_poison(stacks: int, dps: float, source := "") -> void:
+	if poison_stacks == 0:
+		FX.popup(get_tree(), global_position + Vector3(0, _bar_height() + 0.4, 0), "Vergiftet", Color(0.45, 0.9, 0.3), 40)
+	poison_stacks = mini(poison_stacks + stacks, MAX_STACKS)
+	poison_dps = maxf(poison_dps, dps)
+	poison_time = POISON_TIME
+	poison_source = source
+
+
+func _update_poison(delta: float) -> void:
+	if poison_stacks <= 0:
+		return
+	poison_time -= delta
+	if poison_time <= 0.0:
+		poison_stacks = 0
+		return
+	poison_tick -= delta
+	if poison_tick > 0.0:
+		return
+	poison_tick = 1.0
+	var amount := poison_dps * poison_stacks
+	health -= amount
+	_track_damage(poison_source, amount)
+	FX.popup(get_tree(), global_position + Vector3(0, _bar_height(), 0), str(roundi(amount)), Color(0.45, 0.9, 0.3), 46)
+	if health <= 0.0:
+		_die()
+
+
+## Blutrausch (Axt): beendet die Blutung und gibt ihren restlichen Schaden zurück, der sofort trifft.
+func consume_bleed() -> float:
+	if bleed_time <= 0.0:
+		return 0.0
+	var rest := bleed_dps * ceilf(bleed_time)
+	bleed_time = 0.0
+	return rest
+
+
+## Kopf für Kopftreffer: Mittelpunkt und Radius in Weltkoordinaten.
+func get_head() -> Array:
+	if data.get("shape", "humanoid") == "beast":
+		return [model.global_transform * Vector3(0, 0.85, -0.75), 0.3 * base_scale]
+	return [global_position + Vector3(0, 1.66 * base_scale, 0), 0.24 * base_scale]
+
+
 func take_damage(amount: float, from_pos: Vector3, knockback: float, stagger: float, crit := false, source := "") -> void:
 	if state == State.DEAD:
 		return
 	if expose_time > 0.0:
 		amount *= 1.0 + expose_pct
+	amount *= 1.0 + sunder_stacks * SUNDER_PER_STACK
 	health -= amount
 	_track_damage(source, amount)
 	var heavy := stagger >= 0.6
@@ -524,6 +652,8 @@ func take_damage(amount: float, from_pos: Vector3, knockback: float, stagger: fl
 		return
 	if state == State.IDLE or state == State.RETURN:
 		_aggro()
+	if stun_time > 0.0:
+		return # betäubt: keine weitere Reaktion nötig
 
 	var away := global_position - from_pos
 	away.y = 0.0
@@ -608,6 +738,11 @@ func _remove_corpse(for_life: int) -> void:
 func _respawn() -> void:
 	corpse_present = false
 	damage_by_source.clear()
+	sunder_stacks = 0
+	poison_stacks = 0
+	stun_time = 0.0
+	stun_meter = 0.0
+	taunt_time = 0.0
 	bleed_time = 0.0
 	slow_time = 0.0
 	expose_time = 0.0

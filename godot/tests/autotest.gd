@@ -109,7 +109,7 @@ func _ready() -> void:
 	if OS.get_cmdline_user_args().has("--showcase"):
 		phase = "showcase"
 		player.equipment["weapon"] = Game.roll_gear("training_bow", [])
-		player.equipment["weapon2"] = Game.roll_gear("training_sword_2h", [])
+		player.equipment["weapon2"] = Game.roll_gear("training_greatsword", [])
 		player._recalc_stats()
 		player.global_position = Vector3(-24, 0.5, -18)
 		player.cam_yaw = 0.0
@@ -119,6 +119,11 @@ func _ready() -> void:
 		_character_test()
 		phase = "character_ui"
 		get_tree().current_scene.get_node("HUD").set_character_open.call_deferred(true)
+	# Mit --m6: Waffen mit 2 Seiten, Passive, Ultimative, Effekte, Tasten, alte Spielstände (M6)
+	if OS.get_cmdline_user_args().has("--m6"):
+		_m6_test()
+		phase = "character_ui" # beendet nach 1,5 s; mit --write-movie entsteht ein Bild vom Skillbaum
+		get_tree().current_scene.get_node("HUD").set_skill_tree_open.call_deferred(true)
 	# Mit --weapons: alle Waffentypen mit Angriffen und allen Fähigkeiten durchprobieren
 	if OS.get_cmdline_user_args().has("--weapons"):
 		weapon_types = Game.weapons.keys()
@@ -135,10 +140,21 @@ var weapon_damage_start := 0.0
 var weapon_results: Array[String] = []
 
 
+var side_damage_start := 0.0
+var side_passive := ""
+
+
+func _side_result() -> void:
+	if side_passive != "":
+		weapon_results.append("    Seite mit %-15s %d Schaden" % [side_passive + ":", roundi(player.damage_dealt_total - side_damage_start)])
+	side_passive = ""
+
+
 func _next_weapon() -> void:
 	if weapon_index >= 0:
+		_side_result()
 		var type: String = weapon_types[weapon_index]
-		weapon_results.append("%-10s Schaden gesamt: %d" % [type, roundi(player.damage_dealt_total - weapon_damage_start)])
+		weapon_results.append("%-12s Schaden gesamt: %d" % [type, roundi(player.damage_dealt_total - weapon_damage_start)])
 	weapon_index += 1
 	if weapon_index >= weapon_types.size():
 		for line in weapon_results:
@@ -163,9 +179,16 @@ func _next_weapon() -> void:
 		weapon_steps.append_array(["fire", "fire", "fire"])
 	else:
 		weapon_steps.append_array(["light", "light", "light", "heavy"])
-	for node in Game.tree_nodes(type):
-		if node["type"] == "active":
+	# Beide Seiten: Passive aktivieren, normale Angriffe, 4 Fähigkeiten und die Ultimative
+	for side in Game.weapon_sides(type):
+		weapon_steps.append("passive:" + String(side["passive"]["id"]))
+		if player.is_ranged():
+			weapon_steps.append_array(["fire", "fire"])
+		else:
+			weapon_steps.append_array(["light", "light", "heavy"])
+		for node in side["skills"]:
 			weapon_steps.append("skill:" + String(node["id"]))
+		weapon_steps.append("ult:" + String(side["ultimate"]["id"]))
 	weapon_steps.append("end")
 
 
@@ -202,6 +225,20 @@ func _weapon_step() -> void:
 		else:
 			player.ranged_loaded = true
 			player._fire_ranged(1.0)
+	elif step_name.begins_with("passive:"):
+		_side_result()
+		player.toggle_skill(player.weapon_type, step_name.substr(8))
+		if player.passive_mech == "":
+			log_lines.append("FEHLER: Passive %s ohne Mechanik" % step_name.substr(8))
+		side_damage_start = player.damage_dealt_total
+		side_passive = player.passive_mech
+	elif step_name.begins_with("ult:"):
+		var ult_id := step_name.substr(4)
+		player.toggle_skill(player.weapon_type, ult_id)
+		player.ultimate_charge = Game.ULTIMATE_CHARGE
+		player._try_ultimate()
+		if player.state != player.State.ACTION or player.ultimate_charge > 0.0:
+			log_lines.append("FEHLER: Ultimative %s startet nicht" % ult_id)
 	elif step_name.begins_with("skill:"):
 		var node_id := step_name.substr(6)
 		player._mastery(player.weapon_type)["equipped"] = [node_id]
@@ -233,7 +270,7 @@ func _save_test() -> void:
 	var loaded := SaveGame.load_into(get_tree(), PATH)
 	var after: Dictionary = player.to_save()
 	print("AUTOTEST Speichern=%s Laden=%s" % [ok, loaded])
-	for key in ["items", "professions", "health", "char_level", "char_xp", "attributes"]:
+	for key in ["items", "professions", "health", "char_level", "char_xp", "attributes", "masteries", "ultimate_charge"]:
 		print("AUTOTEST %s gleich: %s" % [key, JSON.stringify(before[key]) == JSON.stringify(after[key])])
 	var p0: Array = before["position"]
 	var p1: Array = after["position"]
@@ -281,12 +318,12 @@ func _character_test() -> void:
 
 	# Waffen-EP nach Schadensanteil: 35 Schaden Schwert + 35 Kriegsaxt an einem Wolf (70 LP, 30 EP)
 	var wolf = _find(func(n): return n.get("type_id") == "wolf" and n.is_alive())
-	var sword_before := float(player._mastery("sword_1h")["xp"])
-	var axe_before := float(player._mastery("axe_2h")["xp"])
-	wolf.take_damage(35.0, wolf.global_position, 0.0, 0.0, false, "sword_1h")
-	wolf.take_damage(35.0, wolf.global_position, 0.0, 0.0, false, "axe_2h")
-	var sword_gain := float(player._mastery("sword_1h")["xp"]) - sword_before
-	var axe_gain := float(player._mastery("axe_2h")["xp"]) - axe_before
+	var sword_before := float(player._mastery("sword_shield")["xp"])
+	var axe_before := float(player._mastery("axe")["xp"])
+	wolf.take_damage(35.0, wolf.global_position, 0.0, 0.0, false, "sword_shield")
+	wolf.take_damage(35.0, wolf.global_position, 0.0, 0.0, false, "axe")
+	var sword_gain := float(player._mastery("sword_shield")["xp"]) - sword_before
+	var axe_gain := float(player._mastery("axe")["xp"]) - axe_before
 	_check("Wolf tot, Charakter +30 EP", not wolf.is_alive() and player.char_xp == 30, "%d EP" % player.char_xp)
 	_check("Waffen-EP je zur Hälfte (15/15)", _near(sword_gain, 15.0) and _near(axe_gain, 15.0), "%.1f / %.1f" % [sword_gain, axe_gain])
 
@@ -301,7 +338,7 @@ func _character_test() -> void:
 	_check("Vitalität 200: Standhaft, noch nicht Zäh", player.has_mechanic("standhaft") and not player.has_mechanic("zaeh"))
 	player.add_attribute_points("strength", 125)
 	var expected_damage := 200 * 0.002 + 150 * 0.002 * 0.5 + float(player.passive.get("damage_pct", 0.0))
-	_check("Schadensbonus Einhandschwert (VIT voll, STÄ halb)", _near(player.bonus("damage_pct"), expected_damage),
+	_check("Schadensbonus Schwert und Schild (VIT voll, STÄ halb)", _near(player.bonus("damage_pct"), expected_damage),
 		"%.3f statt %.3f" % [player.bonus("damage_pct"), expected_damage])
 	_check("Stärke 150: Erz wiegt 10 % weniger", _near(player.inventory.item_weight("stone"), 0.36), str(player.inventory.item_weight("stone")))
 	_check("Bergbau schneller (150 × 0,1 % + 10 %)", _near(player.bonus("gather_speed:mining"), 0.25), str(player.bonus("gather_speed:mining")))
@@ -402,6 +439,205 @@ func _character_test() -> void:
 	player.add_attribute_points("vitality", 6)
 	player.health = player.max_health
 	print("AUTOTEST Charaktertest: %d Fehler" % check_failed)
+
+
+func _m6_test() -> void:
+	# Daten: 10 Waffen, je 2 Seiten mit Passive (Mechanik), 4 Fähigkeiten und Ultimative
+	var bad: Array[String] = []
+	for type in Game.weapons:
+		var sides := Game.weapon_sides(type)
+		if sides.size() != 2:
+			bad.append(type)
+		for side in sides:
+			if side["skills"].size() != 4 or String(side["passive"].get("mechanic", "")) == "" or not side.has("ultimate"):
+				bad.append(type + "/" + String(side["id"]))
+	_check("10 Waffen mit je 2 vollständigen Seiten", Game.weapons.size() == 10 and bad.is_empty(), str(bad))
+
+	# Tasten
+	var keys := {}
+	for action in ["skill_1", "skill_2", "skill_3", "ultimate", "interact", "swap_weapon", "quick_1", "quick_4"]:
+		var ev: InputEventKey = InputMap.action_get_events(action)[0]
+		keys[action] = OS.get_keycode_string(ev.physical_keycode)
+	_check("Tasten Q/E/R, X, F, T, 1–4", keys == {"skill_1": "Q", "skill_2": "E", "skill_3": "R", "ultimate": "X",
+		"interact": "F", "swap_weapon": "T", "quick_1": "1", "quick_4": "4"}, str(keys))
+
+	# Meisterschaft: Stufe n = n + 1 Punkte, Startfähigkeit kostenlos auf Q
+	player.equipment["weapon"] = Game.roll_gear("training_axe", [])
+	player._recalc_stats()
+	player.masteries.erase("axe")
+	var m: Dictionary = player._mastery("axe")
+	_check("Stufe 1: 1 Punkt frei, Startfähigkeit auf Q", player.mastery_points_free("axe") == 1 and m["equipped"] == ["ax_split"],
+		"%d Punkte, %s" % [player.mastery_points_free("axe"), str(m["equipped"])])
+	m["level"] = Game.MAX_MASTERY_LEVEL
+	var ult_error: String = player.unlock_node("axe", "ax_feast")
+	player.unlock_node("axe", "ax_blutrausch")
+	player.unlock_node("axe", "ax_rend")
+	var ult_ok: String = player.unlock_node("axe", "ax_feast")
+	_check("Ultimative erst nach Passive + 2 Fähigkeiten", ult_error != "" and ult_ok == "" and m["ultimate"] == "ax_feast",
+		"%s / %s" % [ult_error, ult_ok])
+	player.unlock_node("axe", "ax_throw")
+	player.unlock_node("axe", "ax_frenzy")
+	_check("Stufe 20: ganze Seite kostet 11, 9 bleiben", player.mastery_points_free("axe") == 9, str(player.mastery_points_free("axe")))
+	_check("Höchstens 3 Fähigkeiten auf Q/E/R", m["equipped"].size() == 3, str(m["equipped"]))
+	player.unlock_node("axe", "ax_berserker")
+	var first_mech: String = player.passive_mech
+	player.toggle_skill("axe", "ax_berserker")
+	_check("Nur eine Passive aktiv, umschaltbar", first_mech == "blutrausch" and player.passive_mech == "berserker",
+		"%s → %s" % [first_mech, player.passive_mech])
+
+	# Berserker: Fähigkeit kostet 6 % LP, halbe Abklingzeit
+	player.health = player.max_health
+	player.skill_cooldowns.clear()
+	player._try_skill(0)
+	var cost: float = player.max_health - player.health
+	_check("Berserker: Fähigkeit kostet 6 % LP, halbe Abklingzeit", _near(cost, player.max_health * 0.06, 0.5)
+		and _near(float(player.skill_cooldowns["ax_split"]), 5.0, 0.01), "%.1f LP, %.1f s" % [cost, player.skill_cooldowns["ax_split"]])
+	player._end_action(false)
+
+	# Ultimative: lädt durch Treffer, X löst bei voller Leiste aus
+	var wolf = _find(func(n): return n.get("type_id") == "wolf" and n.is_alive())
+	player.ultimate_charge = 0.0
+	wolf.health = 10000.0
+	wolf.max_health = 10000.0
+	player._deal_damage(wolf, 1.0, 0.0, 0.0, {}, false, player.global_position)
+	var charged: float = player.ultimate_charge
+	player._try_ultimate()
+	var blocked: bool = player.state == player.State.NORMAL
+	player.ultimate_charge = Game.ULTIMATE_CHARGE
+	player._try_ultimate()
+	_check("Ultimative lädt durch Treffer und startet nur voll", charged > 0.0 and blocked and player.state == player.State.ACTION
+		and player.ultimate_charge == 0.0, "Ladung %.1f" % charged)
+	player._end_action(false)
+
+	# Effekte: Betäubung, Spott, Rüstungsbruch, Gift
+	player._apply_effects(wolf, {"stun": 1.0, "taunt": 4.0, "sunder": 3, "poison": 2}, "axe", false)
+	_check("Betäubung, Spott, Rüstungsbruch 3, Gift 2", wolf.is_stunned() and wolf.is_taunted() and wolf.sunder_stacks == 3
+		and wolf.poison_stacks == 2, "%s %s %d %d" % [wolf.is_stunned(), wolf.is_taunted(), wolf.sunder_stacks, wolf.poison_stacks])
+	player.buffs.clear()
+	player.health = player.max_health
+	seed(7)
+	var hp: float = wolf.health
+	player._deal_damage(wolf, 1.0, 0.0, 0.0, {}, false, player.global_position)
+	var hit_sundered: float = hp - wolf.health
+	wolf.sunder_stacks = 0
+	player.health = player.max_health
+	seed(7)
+	hp = wolf.health
+	player._deal_damage(wolf, 1.0, 0.0, 0.0, {}, false, player.global_position)
+	var hit_plain: float = hp - wolf.health
+	_check("Rüstungsbruch: +3 % Schaden je Stapel", _near(hit_sundered / hit_plain, 1.09, 0.005), "%.3f" % (hit_sundered / hit_plain))
+
+	# Kopftreffer ×1,5 (Muskete)
+	player.equipment["weapon"] = Game.roll_gear("training_musket", [])
+	player._recalc_stats()
+	seed(3)
+	hp = wolf.health
+	player._deal_damage(wolf, 1.0, 0.0, 0.0, {}, false, player.global_position, "musket", {"headshot": true})
+	var head_hit: float = hp - wolf.health
+	seed(3)
+	hp = wolf.health
+	player._deal_damage(wolf, 1.0, 0.0, 0.0, {}, false, player.global_position, "musket", {})
+	var body_hit: float = hp - wolf.health
+	_check("Kopftreffer ×1,5", _near(head_hit / body_hit, 1.5, 0.005), "%.3f" % (head_hit / body_hit))
+
+	# Tarnung: Treffer beendet sie; Schatten: Angriff aus der Tarnung ist kritisch
+	player._set_stealth(3.0)
+	var hidden: bool = player.is_stealthed()
+	player._deal_damage(wolf, 1.0, 0.0, 0.0, {}, false, player.global_position)
+	_check("Tarnung bis zum ersten Treffer", hidden and not player.is_stealthed())
+
+	# Repetierer: Magazin mit 4 Bolzen, schnelles Nachladen
+	player.equipment["weapon"] = Game.roll_gear("training_crossbow", [])
+	player._recalc_stats()
+	player._mastery("crossbow")["level"] = Game.MAX_MASTERY_LEVEL
+	player.unlock_node("crossbow", "cb_repetierer")
+	player.toggle_skill("crossbow", "cb_repetierer")
+	var full: int = player.magazine
+	player.state = player.State.NORMAL
+	player._fire_ranged(1.0)
+	player._end_action(false)
+	player._start_reload()
+	var quick: float = player.action["duration"]
+	player._end_action(false)
+	_check("Repetierer: 4 Bolzen, 0,3 s Nachladen", full == 4 and player.magazine == 3 and _near(quick, 0.3, 0.01),
+		"%d → %d, %.2f s" % [full, player.magazine, quick])
+
+	# Riposte: Treffer während des Ausweichens macht den nächsten Angriff kritisch
+	player.equipment["weapon"] = Game.roll_gear("training_rapier", [])
+	player._recalc_stats()
+	player._mastery("rapier")["level"] = Game.MAX_MASTERY_LEVEL
+	player.unlock_node("rapier", "ra_riposte_p")
+	player.iframes = 0.3
+	player.take_damage(20.0, wolf.global_position)
+	_check("Riposte nach perfektem Ausweichen", player.crit_ready)
+	player.iframes = 0.0
+	player.crit_ready = false
+
+	# Trotz (Schwert und Schild): 5 geblockte Treffer, dann betäubt die nächste Fähigkeit
+	player.equipment["weapon"] = Game.roll_gear("training_sword_shield", [])
+	player._recalc_stats()
+	player._mastery("sword_shield")["level"] = Game.MAX_MASTERY_LEVEL
+	player.unlock_node("sword_shield", "ss_trotz")
+	player.blocking = true
+	player.state = player.State.NORMAL
+	var front: Vector3 = player.global_position + player._forward() * 2.0
+	for i in 5:
+		player.stamina = player.max_stamina
+		player.take_damage(10.0, front)
+	player.blocking = false
+	_check("Trotz lädt durch Blocken", player.trotz == 5, str(player.trotz))
+
+	# Drei Waffenplätze reihum wechseln (dritter Platz später per Quest)
+	player.weapon_slots = 3
+	player.equipment["weapon"] = Game.roll_gear("training_axe", [])
+	player.equipment["weapon2"] = Game.roll_gear("training_bow", [])
+	player.equipment["weapon3"] = Game.roll_gear("training_spear", [])
+	player.swap_weapons()
+	var after_next: String = player.weapon_type
+	player.swap_weapons(-1)
+	player.swap_weapons(-1)
+	_check("3 Waffenplätze: vor und zurück", after_next == "bow" and player.weapon_type == "spear",
+		"%s, %s" % [after_next, player.weapon_type])
+	player.equipment.erase("weapon3")
+	player.weapon_slots = 2
+
+	# Schnellplatz 3 ist noch gesperrt
+	var messages: Array[String] = []
+	var collect := func(t: String) -> void: messages.append(t)
+	player.message.connect(collect)
+	player.use_quick_slot(2)
+	player.message.disconnect(collect)
+	_check("Schnellplatz 3 gesperrt", not messages.is_empty() and messages[0].contains("gesperrt"), str(messages))
+
+	# Alter Spielstand (Version 2, Einhand/Zweihand getrennt)
+	var old_save: Dictionary = player.to_save()
+	old_save["_version"] = 2
+	old_save["masteries"] = {"sword_1h": {"level": 5, "xp": 10.0, "unlocked": ["s1_a"], "equipped": ["s1_a"]},
+		"sword_2h": {"level": 7, "xp": 0.0, "unlocked": [], "equipped": []},
+		"axe_1h": {"level": 3, "xp": 0.0, "unlocked": [], "equipped": []},
+		"axe_2h": {"level": 9, "xp": 0.0, "unlocked": [], "equipped": []}}
+	old_save["equipment"] = {"weapon": {"id": "copper_hatchet", "uid": 9001, "stats": {"damage": 25}},
+		"weapon2": {"id": "training_daggers", "uid": 9002, "stats": {"damage": 18}}}
+	old_save["gear"] = []
+	player.from_save(old_save)
+	var ms: Dictionary = player.masteries
+	_check("Alter Spielstand: Waffen und Meisterschaften übernommen",
+		player.equipment["weapon"]["id"] == "copper_greataxe" and player.equipment["weapon2"]["id"] == "training_knife"
+		and int(ms["sword_shield"]["level"]) == 5 and int(ms["greatsword"]["level"]) == 7 and int(ms["axe"]["level"]) == 9
+		and ms["sword_shield"]["unlocked"] == ["ss_bash"],
+		"%s %s, Stufen %s/%s/%s" % [player.equipment["weapon"]["id"], player.equipment["weapon2"]["id"],
+		ms.get("sword_shield", {}).get("level"), ms.get("greatsword", {}).get("level"), ms.get("axe", {}).get("level")])
+
+	# Fürs Bild: Axt mit Blutrausch-Seite, beide Passiven und eine Ultimative
+	player.equipment["weapon"] = Game.roll_gear("training_axe", [])
+	player._recalc_stats()
+	var am: Dictionary = player._mastery("axe")
+	am["level"] = 14
+	for id in ["ax_blutrausch", "ax_rend", "ax_throw", "ax_feast", "ax_berserker", "ax_maelstrom"]:
+		player.unlock_node("axe", id)
+	player.ultimate_charge = 64.0
+	player.health = player.max_health
+	print("AUTOTEST M6-Test: %d Fehler" % check_failed)
 
 
 func _xp_until(level: int) -> int:
@@ -689,16 +925,16 @@ func _physics_process(delta: float) -> void:
 					player._fire_ranged(1.0)
 			elif time < 2.1 and player.weapon_type == "bow":
 				player.swap_weapons()
-				var m: Dictionary = player._mastery("sword_2h")
+				var m: Dictionary = player._mastery("greatsword")
 				m["level"] = 6
-				player.unlock_node("sword_2h", "gs_p1")
-				player.unlock_node("sword_2h", "gs_p2")
-				player.unlock_node("sword_2h", "gs_whirl")
+				player.unlock_node("greatsword", "gs_klingensturm")
+				player.unlock_node("greatsword", "gs_whirl")
+				player.ultimate_charge = 70.0
 			elif time > 2.5 and time < 2.6 and player.state == player.State.NORMAL:
 				var enemy = _find(func(n): return n.has_method("take_damage") and n.is_alive())
 				player.global_position = enemy.global_position + Vector3(0, 0.3, 2)
 				player.cam_yaw = 0.0
-				player._mastery("sword_2h")["equipped"] = ["gs_whirl"]
+				player._mastery("greatsword")["equipped"] = ["gs_whirl", "gs_wide"]
 				player._try_skill(0)
 			elif time > 3.4 and time < 3.5:
 				get_tree().current_scene.get_node("HUD").set_skill_tree_open(true)
@@ -800,8 +1036,8 @@ func _finish() -> void:
 	print("AUTOTEST Spieler HP=%.0f Zustand=%d" % [player.health, player.state])
 	print("AUTOTEST Inventar: ", player.inventory.items, "  Gewicht=%.1f" % player.inventory.weight())
 	print("AUTOTEST Berufe: ", player.professions)
-	print("AUTOTEST Charakter: Level %d, %d EP, Meisterschaft Einhandschwert %s" % [player.char_level, player.char_xp,
-		str(player.masteries.get("sword_1h", {}).get("xp", 0))])
+	print("AUTOTEST Charakter: Level %d, %d EP, Meisterschaft Schwert und Schild %s" % [player.char_level, player.char_xp,
+		str(player.masteries.get("sword_shield", {}).get("xp", 0))])
 	print("AUTOTEST Beutebeutel in der Welt: ", get_tree().current_scene.get_children().filter(
 		func(c): return c.get("items") != null and c.has_method("_process") and c.get("life") != null).size())
 	get_tree().quit()

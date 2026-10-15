@@ -34,13 +34,37 @@ const STAT_NAMES := {
 const PERCENT_STATS := ["damage_pct", "crit", "bleed", "heavy", "gather", "attack_speed", "cooldown_pct",
 	"stamina_regen_pct", "damage_reduction", "move_speed_pct", "block_pct", "dodge_cost_pct", "reload_pct", "crit_damage"]
 const SLOT_NAMES := {
-	"weapon": "Waffe", "weapon2": "Zweitwaffe", "shield": "Schild", "head": "Kopf", "chest": "Brust", "legs": "Beine",
+	"weapon": "Waffe", "weapon2": "Zweitwaffe", "weapon3": "Drittwaffe", "shield": "Schild", "head": "Kopf", "chest": "Brust", "legs": "Beine",
 	"ring": "Ring", "tool": "Werkzeug",
 }
 const MAX_MASTERY_LEVEL := 20
-const DEFAULT_WEAPON_TYPE := "sword_1h" # ohne angelegte Waffe kämpft man mit einem einfachen Schwert
+const DEFAULT_WEAPON_TYPE := "sword_shield" # ohne angelegte Waffe kämpft man mit einem einfachen Schwert
 const WEAPON_DAMAGE_BY_TIER := {1: [22, 27], 2: [30, 36]}
-const SKILL_KEYS := ["Q", "R", "F"]
+const SKILL_KEYS := ["Q", "E", "R"]
+const ULTIMATE_KEY := "X"
+const ULTIMATE_CHARGE := 100.0
+## Schnellplätze auf 1–4. Platz 3 und 4 werden in M8 über Level-Quests freigeschaltet.
+const QUICK_SLOTS := [
+	{"kind": "potion", "name": "Trank"},
+	{"kind": "food", "name": "Essen"},
+	{"kind": "food", "name": "2. Mahlzeit", "unlock": "Level-Quest ab Level 10"},
+	{"kind": "potion", "name": "2. Trank", "unlock": "Level-Quest ab Level 20"},
+]
+## Kosten der Skillbaum-Knoten: Meisterschaft Stufe n gibt n Punkte (Stufe 20 = 20), die Startfähigkeit ist frei.
+## Eine ganze Seite kostet dann 11, für die zweite bleiben 9: Passive + 3 Fähigkeiten oder Passive + 2 + Ultimative.
+const NODE_COSTS := {"passive": 2, "active": 2, "ultimate": 3}
+## Waffen vor M6 (Einhand/Zweihand getrennt) -> heutige Waffe; gilt für Spielstände und Gegenstände
+const OLD_WEAPON_TYPES := {
+	"sword_1h": "sword_shield", "axe_1h": "axe", "axe_2h": "axe", "mace_1h": "hammer", "mace_2h": "hammer",
+	"sword_2h": "greatsword", "daggers": "knife",
+}
+const OLD_ITEM_IDS := {
+	"copper_hatchet": "copper_greataxe", "iron_hatchet": "iron_greataxe",
+	"copper_mace": "copper_warhammer", "iron_morningstar": "iron_warhammer",
+	"training_sword_1h": "training_sword_shield", "training_axe_1h": "training_axe", "training_axe_2h": "training_axe",
+	"training_mace_1h": "training_hammer", "training_mace_2h": "training_hammer", "training_sword_2h": "training_greatsword",
+	"training_daggers": "training_knife",
+}
 const BASE_TOOL_POWER := 10.0
 const SAVE_PATH := "user://savegame.json"
 const AUTOSAVE_INTERVAL := 60.0
@@ -75,6 +99,7 @@ func _enter_tree() -> void:
 	stations = _load_json("res://data/stations.json")
 	attributes = _load_json("res://data/attributes.json")
 	_generate_weapon_items()
+	_build_weapon_trees()
 
 
 ## Erzeugt aus data/weapons.json die Waffen-Gegenstände, ihre Rezepte und die Übungswaffen.
@@ -100,7 +125,7 @@ func _generate_weapon_items() -> void:
 			}
 		var training_id: String = "training_" + type
 		items[training_id] = {
-			"name": "Übungs-" + String(w["name"]), "tier": 1, "weight": 1.0, "category": w["name"],
+			"name": "Übungswaffe (%s)" % w["name"], "tier": 1, "weight": 1.0, "category": w["name"],
 			"slot": "weapon", "weapon_type": type, "color": [0.7, 0.6, 0.45], "stats": {"damage": [18, 18]},
 			"description": "Kostenlose Übungswaffe vom Waffenständer im Dorf.",
 		}
@@ -121,11 +146,38 @@ func mastery_xp_to_next(level: int) -> int:
 	return int(80.0 * pow(level, 1.4))
 
 
-## Alle Knoten eines Skillbaums als flache Liste (beide Äste).
+## Ergänzt jede Waffenseite um eine flache Knotenliste: Passive, 4 Fähigkeiten, Ultimative.
+## Jeder Knoten bekommt "type" (passive/active/ultimate) und "side" (0 oder 1).
+func _build_weapon_trees() -> void:
+	for type in weapons:
+		var sides: Array = weapons[type].get("sides", [])
+		for i in sides.size():
+			var side: Dictionary = sides[i]
+			var nodes: Array = []
+			var passive: Dictionary = side["passive"]
+			passive["type"] = "passive"
+			nodes.append(passive)
+			for s in side["skills"]:
+				var skill: Dictionary = s
+				skill["type"] = "active"
+				nodes.append(skill)
+			var ult: Dictionary = side["ultimate"]
+			ult["type"] = "ultimate"
+			nodes.append(ult)
+			for n in nodes:
+				n["side"] = i
+			side["nodes"] = nodes
+
+
+func weapon_sides(type: String) -> Array:
+	return weapon_def(type).get("sides", [])
+
+
+## Alle Knoten eines Skillbaums als flache Liste (beide Seiten).
 func tree_nodes(type: String) -> Array:
 	var result: Array = []
-	for branch in weapon_def(type).get("tree", []):
-		result.append_array(branch.get("nodes", []))
+	for side in weapon_sides(type):
+		result.append_array(side.get("nodes", []))
 	return result
 
 
@@ -137,30 +189,32 @@ func tree_node(type: String, node_id: String) -> Dictionary:
 
 
 func node_cost(node: Dictionary) -> int:
-	return int(node.get("cost", 1))
+	return int(node.get("cost", NODE_COSTS.get(node.get("type", "active"), 2)))
+
+
+## Mechanik-Parameter der Passiven (aus weapons.json "params").
+func passive_param(node: Dictionary, key: String, fallback := 0.0) -> float:
+	return float(node.get("params", {}).get(key, fallback))
 
 
 ## Beschreibung eines Skillbaum-Knotens für Tooltips und Anzeige.
 func describe_node(node: Dictionary) -> String:
-	if node.get("type", "") == "active":
-		var skill: Dictionary = node.get("skill", {})
-		return "%s\n%s\nAbklingzeit %d s" % [node.get("name", ""), node.get("desc", ""), int(skill.get("cooldown", 10))]
-	var parts: Array[String] = []
-	var stats: Dictionary = node.get("stats", {})
-	for stat in stats:
-		parts.append(format_stat(stat, stats[stat]))
-	var title: String = node.get("name", "Passiv")
-	return title + "\n" + "\n".join(parts)
+	var kind: String = node.get("type", "")
+	var lines: Array[String] = [String(node.get("name", "")), String(node.get("desc", ""))]
+	if kind == "active":
+		lines.append("Abklingzeit %d s" % int(node.get("skill", {}).get("cooldown", 10)))
+	elif kind == "ultimate":
+		lines.append("Ultimative (Taste %s): lädt sich durch Treffer und erlittenen Schaden auf" % ULTIMATE_KEY)
+	elif kind == "passive":
+		var stats: Dictionary = node.get("stats", {})
+		for stat in stats:
+			lines.append(format_stat(stat, stats[stat]))
+		lines.append("Nur eine Passive je Waffe ist aktiv.")
+	return "\n".join(lines)
 
 
 func node_short_name(node: Dictionary) -> String:
-	if node.has("name"):
-		return node["name"]
-	var parts: Array[String] = []
-	var stats: Dictionary = node.get("stats", {})
-	for stat in stats:
-		parts.append(format_stat(stat, stats[stat]))
-	return ", ".join(parts)
+	return String(node.get("name", node.get("id", "")))
 
 
 func _load_json(path: String) -> Dictionary:
@@ -376,12 +430,17 @@ func _setup_input() -> void:
 	_add_key("dodge", KEY_SHIFT)
 	_add_key("sprint", KEY_CTRL)
 	_add_key("skill_1", KEY_Q)
-	_add_key("skill_2", KEY_R)
-	_add_key("skill_3", KEY_F)
-	_add_key("interact", KEY_E)
-	_add_key("use_potion", KEY_1)
-	_add_key("use_food", KEY_2)
-	_add_key("swap_weapon", KEY_X)
+	_add_key("skill_2", KEY_E)
+	_add_key("skill_3", KEY_R)
+	_add_key("ultimate", KEY_X)
+	_add_key("interact", KEY_F)
+	_add_key("quick_1", KEY_1)
+	_add_key("quick_2", KEY_2)
+	_add_key("quick_3", KEY_3)
+	_add_key("quick_4", KEY_4)
+	_add_key("swap_weapon", KEY_T)
+	_add_mouse("weapon_next", MOUSE_BUTTON_WHEEL_DOWN)
+	_add_mouse("weapon_prev", MOUSE_BUTTON_WHEEL_UP)
 	_add_key("skill_tree", KEY_K)
 	_add_key("character", KEY_P)
 	_add_key("debug_fly", KEY_F3)

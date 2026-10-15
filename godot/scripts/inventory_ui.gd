@@ -3,7 +3,7 @@ extends Control
 
 const COLUMNS := 8
 const MIN_SLOTS := 40
-const EQUIP_ORDER := ["weapon", "weapon2", "shield", "head", "chest", "legs", "ring"]
+const EQUIP_ORDER := ["weapon", "weapon2", "weapon3", "shield", "head", "chest", "legs", "ring"]
 const PROFESSION_GROUPS := {"gathering": "Sammeln", "refining": "Veredeln", "crafting": "Herstellen"}
 
 var player = null
@@ -157,6 +157,8 @@ func _clear(box: Node) -> void:
 func _refresh_equipment() -> void:
 	_clear(equip_box)
 	for key in EQUIP_ORDER:
+		if key in player.WEAPON_SLOTS and not key in player.active_weapon_slots():
+			continue # dritter Waffenplatz erst nach der Level-40-Quest
 		equip_box.add_child(_make_equip_row(key, Game.SLOT_NAMES[key]))
 	equip_box.add_child(_label("Werkzeuge", 15, Color(1.0, 0.85, 0.5)))
 	for id in Game.professions:

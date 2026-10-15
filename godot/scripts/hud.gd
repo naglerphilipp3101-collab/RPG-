@@ -16,11 +16,12 @@ Strg  Sprinten          Leertaste  Springen
 Shift  Ausweichrolle
 Linke Maustaste  Angriff (halten = schwer)
 Rechte Maustaste  Blocken
-Q / R / F  Fähigkeiten
-E  Sammeln / Häuten / Angeln / Werkstatt
-1  Heiltrank    2  Essen
+Q / E / R  Fähigkeiten    X  Ultimative
+F  Sammeln / Häuten / Angeln / Werkstatt
+1  Heiltrank    2  Essen    (3, 4 später)
 Fernkampf: Rechte Maustaste zielen
-X  Waffe wechseln    K  Skillbaum    P  Charakter
+T / Mausrad  Waffe wechseln
+K  Skillbaum    P  Charakter
 M  Karte    N  Minimap-Zoom
 F3  Debug-Flug (Strg = ×30, Leertaste/C = hoch/runter)
 Tab oder I  Inventar
@@ -86,18 +87,19 @@ func _ready() -> void:
 	skills_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	skills_row.add_theme_constant_override("separation", 10)
 	bottom.add_child(skills_row)
-	for i in 3:
-		skills_row.add_child(_make_skill_slot())
+	# Q/E/R und die Ultimative (X)
+	for i in 4:
+		skills_row.add_child(_make_skill_slot(i == 3))
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(14, 0)
 	skills_row.add_child(gap)
-	# Schnellplätze für Heiltrank (1) und Essen (2)
-	for i in 2:
+	# Schnellplätze 1–4 für Tränke und Essen (3 und 4 kommen später)
+	for i in Game.QUICK_SLOTS.size():
 		skills_row.add_child(_make_skill_slot())
-	quick_slots = skill_slots.slice(3)
-	skill_slots = skill_slots.slice(0, 3)
-	quick_slots[0]["key"].text = "1"
-	quick_slots[1]["key"].text = "2"
+	quick_slots = skill_slots.slice(4)
+	skill_slots = skill_slots.slice(0, 4)
+	for i in quick_slots.size():
+		quick_slots[i]["key"].text = str(i + 1)
 
 	hp_bar = _make_bar(Color(0.78, 0.16, 0.14), 24)
 	bottom.add_child(hp_bar)
@@ -424,10 +426,15 @@ func _process(delta: float) -> void:
 		var info: Dictionary = player.get_skill_info(i)
 		var max_cd: float = info["cooldown"]
 		var cd: float = info["remaining"]
-		skill_slots[i]["name"].text = info["name"]
+		skill_slots[i]["name"].text = info["name"] if info["name"] != "" or not info.get("ultimate", false) else "Ultimative\n(K)"
 		skill_slots[i]["key"].text = info["key"]
 		skill_slots[i]["overlay"].anchor_bottom = cd / max_cd if max_cd > 0.0 else 0.0
-		skill_slots[i]["cd"].text = str(ceili(cd)) if cd > 0.0 else ""
+		if info.get("ultimate", false):
+			var charge := 1.0 - cd / max_cd
+			skill_slots[i]["cd"].text = "%d%%" % floori(charge * 100.0) if cd > 0.0 else ""
+			skill_slots[i]["panel"].modulate = Color(1.3, 1.15, 0.8) if cd <= 0.0 and info["name"] != "" else Color.WHITE
+		else:
+			skill_slots[i]["cd"].text = str(ceili(cd)) if cd > 0.0 else ""
 	_update_weapon_display()
 	if death_label.visible:
 		death_label.text = "Du bist gestorben\nWiederbelebung in %d …" % ceili(player.state_timer)
@@ -444,7 +451,7 @@ func _update_weapon_display() -> void:
 	if points > 0:
 		text += "   ·   %d Skillpunkt%s frei (K)" % [points, "" if points == 1 else "e"]
 	if player.equipment.has("weapon2"):
-		text += "   ·   X: %s" % Game.item_name(player.equipment["weapon2"]["id"])
+		text += "   ·   T: %s" % Game.item_name(player.equipment["weapon2"]["id"])
 	weapon_label.text = text
 
 	crosshair.visible = player.is_ranged() and not player.ui_open
@@ -479,6 +486,12 @@ func _update_quick_slots() -> void:
 	quick_slots[1]["name"].text = "%s\n×%d" % [names["food"], counts["food"]]
 	quick_slots[1]["overlay"].anchor_bottom = 0.0
 	quick_slots[1]["cd"].text = "%ds" % ceili(player.food_time) if player.food_time > 0.0 else ""
+	for i in range(2, quick_slots.size()):
+		var slot: Dictionary = Game.QUICK_SLOTS[i]
+		var locked: bool = i >= player.quick_slots
+		quick_slots[i]["name"].text = "%s\n%s" % [slot["name"], "gesperrt" if locked else ""]
+		quick_slots[i]["overlay"].anchor_bottom = 1.0 if locked else 0.0
+		quick_slots[i]["cd"].text = ""
 
 
 func _update_gather_display() -> void:
@@ -497,10 +510,10 @@ func _update_gather_display() -> void:
 		prompt_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.75))
 	elif player.state == player.State.FISH:
 		if player.fish_phase == "bite":
-			prompt_label.text = "Biss!  Jetzt [E] drücken!"
+			prompt_label.text = "Biss!  Jetzt [F] drücken!"
 			prompt_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 		else:
-			prompt_label.text = "Warte auf einen Biss …   ([E] Angel einholen)"
+			prompt_label.text = "Warte auf einen Biss …   ([F] Angel einholen)"
 	else:
 		prompt_label.text = player.get_focus_prompt()
 		if player.focus_blocked():
@@ -539,12 +552,12 @@ func _make_bar(color: Color, height: float) -> ProgressBar:
 	return bar
 
 
-func _make_skill_slot() -> Control:
+func _make_skill_slot(ultimate := false) -> Control:
 	var panel := Panel.new()
-	panel.custom_minimum_size = Vector2(84, 68)
+	panel.custom_minimum_size = Vector2(96, 68) if ultimate else Vector2(84, 68)
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.1, 0.12, 0.85)
-	style.border_color = Color(0.75, 0.62, 0.35)
+	style.bg_color = Color(0.16, 0.1, 0.06, 0.9) if ultimate else Color(0.1, 0.1, 0.12, 0.85)
+	style.border_color = Color(1.0, 0.6, 0.2) if ultimate else Color(0.75, 0.62, 0.35)
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(6)
 	panel.add_theme_stylebox_override("panel", style)
@@ -574,5 +587,5 @@ func _make_skill_slot() -> Control:
 	key_label.position = Vector2(6, 2)
 	panel.add_child(key_label)
 
-	skill_slots.append({"name": name_label, "overlay": overlay, "cd": cd_label, "key": key_label})
+	skill_slots.append({"name": name_label, "overlay": overlay, "cd": cd_label, "key": key_label, "panel": panel})
 	return panel
