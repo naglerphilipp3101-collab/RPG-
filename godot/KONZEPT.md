@@ -1,11 +1,11 @@
-# Spielkonzept
+# Morvane: Spielkonzept
 
-Stand 15.10.2026. Arbeitsdokument mit Kommentaren: [Spieldesign-Dokument RPG](https://claude.ai/code/artifact/9511e16c-0bc2-48e4-b6e4-5be8fe69de1c).
+Stand 15.10.2026. Arbeitsdokument mit Kommentaren: [Morvane: Spieldesign-Dokument](https://claude.ai/code/artifact/9511e16c-0bc2-48e4-b6e4-5be8fe69de1c).
 Mit *Vorschlag* markierte Punkte sind Ideen von Claude und noch nicht entschieden; alles andere stammt von Philipp.
 
 ## Überblick
 
-Ein klassenloses Einzelspieler-RPG auf einer Insel, Vorbild New World: Die Waffe bestimmt die Rolle, Berufe tragen die Ausrüstung, und sechs verfeindete Fraktionen kämpfen um den Berg in der Inselmitte. Der rote Faden ist das Zahr, eine magische Ressource aus diesem Berg.
+Morvane ist ein klassenloses Einzelspieler-RPG auf der gleichnamigen Insel, Vorbild New World: Die Waffe bestimmt die Rolle, Berufe tragen die Ausrüstung, und sechs verfeindete Fraktionen kämpfen um den Berg in der Inselmitte. Der rote Faden ist das Zahr, eine magische Ressource aus diesem Berg.
 
 Das Spiel ruht auf vier Säulen:
 
@@ -416,10 +416,11 @@ Philipp hat die offenen Fragen am 15.10.2026 beantwortet.
 | Tod | kostet 20 % der Charakter-Erfahrung des aktuellen Levels, man kann kein Level verlieren |
 | Tag/Nacht-Zyklus | ja |
 | Hunger | nein |
+| Name des Spiels und der Insel | Morvane |
 
 ## Offene Fragen
 
-1. **Name des Spiels.**
+Zurzeit sind keine Fragen offen.
 
 ---
 
