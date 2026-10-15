@@ -73,9 +73,10 @@ Sechs Fraktionen, je eine pro Held. Wer beitritt, sammelt Fraktionsansehen, stei
 | Aktion | Wirkung auf Fraktionsansehen |
 | --- | --- |
 | Fraktionsquest abschließen | + Ansehen |
-| NPC einer feindlichen Fraktion töten | + Ansehen |
-| Durch eine feindliche Fraktion sterben | − Ansehen |
+| NPC einer feindlichen Fraktion töten (PvP-Schalter an) | + Ansehen |
+| Durch eine feindliche Fraktion sterben (PvP-Schalter an) | − Ansehen |
 | Rangquest starten | kostet Ansehen |
+| Im Fraktionsshop kaufen | kostet Ansehen und Gold |
 
 **Aufstieg:** Mit genug Ansehen startet man eine Rangquest. Wer sie abschließt, steigt einen Rang auf. Jeder der 5 Ränge schaltet mehr im Fraktionsshop frei.
 
@@ -86,15 +87,24 @@ Sechs Fraktionen, je eine pro Held. Wer beitritt, sammelt Fraktionsansehen, stei
 - In Städten kann nicht gekämpft werden. Wer die Stadt verlässt, ist noch 10 s geschützt.
 - **PvP-Schalter an:** Jeder feindliche Fraktions-NPC greift dich an, dafür gibt es 1,5-fache Erfahrung auf alles.
 - **PvP-Schalter aus:** Feindliche Fraktions-NPCs lassen dich in Ruhe.
-- *Vorschlag*: Ansehen für Kills und Verlust durch Tod zählen nur mit Schalter an, und umstellen lässt er sich nur in Städten, damit man ihn nicht mitten im Kampf ausschaltet.
+- Der Schalter lässt sich nur in Städten umstellen. Ansehen für Kills und Verlust durch Tod gibt es nur mit Schalter an.
 - *Vorschlag*: Ohne Fraktion ist der Spieler für alle neutral; der Beitritt wird nach dem Stadt-Tutorial freigeschaltet.
 - *Vorschlag* für Rangnamen: Anwärter, Gefolgsmann, Streiter, Hauptmann, Erbe des Helden.
 
 ### Regionsansehen
 
-Regionsansehen bekommt man für Monster, die man in einer Region tötet, und für Quests, die man in der Region annimmt, egal wo man sie abschließt.
+Regionsansehen bekommt man für Monster, die man in einer Region tötet, und für Quests, die man in der Region annimmt, egal wo man sie abschließt. Jede Region hat eigene Stufen bis maximal 20. Auf Stufe 3, 5 und 10 gibt es eine feste Belohnung, auf allen anderen Stufen wählt man einen von 3 Boni.
 
-*Vorschlag*, wofür es gut ist: Stufen je Region schalten dort Rabatte in Werkstätten, einen Schnellreisepunkt, ein Lager in der Stadt und einen Sammelbonus frei.
+| Stufe | Belohnung |
+| --- | --- |
+| 3 | **Auto-Fill:** Beim Herstellen kommen passende Items direkt aus dem Lager, erst aus dem Stadtlager, dann aus den verbundenen Lagern |
+| 5 | Recht, in der Region ein Haus zu besitzen |
+| 10 | **Regionsübergreifendes Lager:** Das Lager dieser Region verbindet sich mit allen Regionen, die ebenfalls Stufe 10 haben |
+| alle anderen | Wahl aus 3 Boni: größeres Lager in den Städten der Region, mehr Erfahrung, schnelleres Sammeln, mehr Fraktionsansehen |
+
+**Lagernetz:** Jede Stadt hat ein Lager. Alle Städte einer Region teilen sich ein Lager, man kann in jeder davon einlagern und entnehmen. Ab Stufe 10 verbinden sich alle Regionen mit Stufe 10; wer überall Stufe 10 hat, kann überall alles einlagern und entnehmen.
+
+*Vorschlag* für die Stärke der Boni je Wahl: +2 % Erfahrung, +3 % Sammelgeschwindigkeit, +3 % Fraktionsansehen oder +25 Lagerplätze.
 
 ### Gold
 
@@ -373,7 +383,7 @@ So unterscheiden sich die drei: Blitz gewinnt durch Bewegung, Feuer durch Schade
 
 ## Entscheidungen
 
-Philipp hat die ersten offenen Fragen am 15.10.2026 beantwortet.
+Philipp hat die offenen Fragen am 15.10.2026 beantwortet.
 
 | Frage | Entscheidung |
 | --- | --- |
@@ -381,7 +391,10 @@ Philipp hat die ersten offenen Fragen am 15.10.2026 beantwortet.
 | Ankunft des Spielers | Schiffbruch |
 | Fähigkeiten pro Seite | 4, davon 3 ausgerüstet, plus Ultimative |
 | Ansehen und Währung | Fraktionsansehen und Regionsansehen getrennt, Währung ist Gold |
-| Städte | kein Kampf in Städten, 10 s Schutz nach dem Verlassen, PvP-Schalter mit 1,5-facher Erfahrung |
+| Fraktionsshop | bezahlt mit Ansehen und Gold, der Rang schaltet Waren frei |
+| Regionsansehen | Stufen bis 20: Stufe 3 Auto-Fill, 5 Hausrecht, 10 regionsübergreifendes Lager, sonst Wahl aus 3 Boni |
+| Städte | kein Kampf in Städten, 10 s Schutz nach dem Verlassen |
+| PvP-Schalter | 1,5-fache Erfahrung, nur in Städten umstellbar, Ansehen durch Kills nur mit Schalter an |
 | Fraktionswechsel | jederzeit, Ansehen und Rang gehen verloren |
 | Level | maximal 100, Punkte pro Level steigen |
 | Mana | kein Mana, nur Abklingzeiten plus Ladung, Hitze und Frost |
@@ -391,10 +404,9 @@ Philipp hat die ersten offenen Fragen am 15.10.2026 beantwortet.
 
 ## Offene Fragen
 
-1. **Bezahlung im Fraktionsshop:** mit Fraktionsansehen wie in der ersten Beschreibung, oder mit Gold? Empfehlung: Gold, der Rang schaltet die Waren frei, Ansehen bleibt für Rangquests.
-2. **Nutzen von Regionsansehen:** Rabatte, Schnellreise, Lager und Sammelbonus in der Region? Empfehlung: ja.
-3. **PvP-Schalter:** nur in Städten umstellbar, und Ansehen durch Kills nur mit Schalter an? Empfehlung: ja.
-4. **Namen der sechs Helden und Fraktionen.** Vorschlag für die Zuordnung, Namen folgen:
+1. **Wahl aus 3 bei vier Boni:** Es gibt vier Boni (Lager, Erfahrung, Sammeln, Fraktionsansehen), gewählt wird aus 3. Empfehlung: Das Lager wächst mit jeder Stufe von selbst, gewählt wird zwischen Erfahrung, Sammeln und Fraktionsansehen.
+2. **Gelten die Boni nur in ihrer Region?** Empfehlung: ja, dann hat jede Region ihren eigenen Wert und man levelt nicht nur eine.
+3. **Namen der sechs Helden und Fraktionen.** Vorschlag für die Zuordnung, Namen folgen:
 
 | Held steht für | Waffengruppe |
 | --- | --- |
@@ -405,7 +417,7 @@ Philipp hat die ersten offenen Fragen am 15.10.2026 beantwortet.
 | Weisheit | Blitz-, Feuer- und Eismagie |
 | Hingabe | Lebens- und Leerenmagie |
 
-5. **Aus dem alten Konzept noch offen:** Name des Spiels; was man beim Tod verliert; Tag/Nacht-Zyklus und Hunger.
+4. **Aus dem alten Konzept noch offen:** Name des Spiels; was man beim Tod verliert; Tag/Nacht-Zyklus und Hunger.
 
 ---
 
