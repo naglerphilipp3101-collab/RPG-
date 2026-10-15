@@ -68,6 +68,17 @@ Der Spieler gehört zur Expedition, die das Zahr wiederentdeckt hat, und erleide
 
 Sechs Fraktionen, je eine pro Held. Wer beitritt, sammelt Fraktionsansehen, steigt in fünf Rängen auf und schaltet den Fraktionsshop frei. Getrennt davon gibt es Regionsansehen, und die einzige Währung ist Gold.
 
+### Die sechs Helden
+
+| Held | Rolle in der Gruppe | Wesen | Fraktion | Farbe |
+| --- | --- | --- | --- | --- |
+| Idarin | Heilerin | besonnen und gütig | New Light | Weiß |
+| Ivancor | Zauberer | mächtig und zielstrebig | Eternal Wrath | Blau |
+| Nemesis | Assassine | geduldig und scharfsinnig | Deaths Dance | Schwarz |
+| Himena | Bogenschützin | präzise und taktisch | Archo's Legacy | Grün |
+| Novac | Barbar | brutal und ohne Reue | Sentinels | Rot |
+| Sanura | Schwert und Schild (Tank) | standhaft und rechtschaffen | Obex | Gelb |
+
 ### Fraktionsansehen
 
 | Aktion | Wirkung auf Fraktionsansehen |
@@ -399,7 +410,7 @@ Philipp hat die offenen Fragen am 15.10.2026 beantwortet.
 | Fraktionswechsel | jederzeit, Ansehen und Rang gehen verloren |
 | Level | maximal 100, Punkte pro Level steigen |
 | Mana | kein Mana, nur Abklingzeiten plus Ladung, Hitze und Frost |
-| Helden und Fraktionen | jeder Held steht für eine Waffengruppe oder Tugend, Namen noch offen |
+| Helden und Fraktionen | Idarin (New Light), Ivancor (Eternal Wrath), Nemesis (Deaths Dance), Himena (Archo's Legacy), Novac (Sentinels), Sanura (Obex) |
 | Berufs-Skills | Schmelzen, Weben, Gerben, Station Schneiderei |
 | Fischen im Dorf-Tutorial | ja |
 | Tod | kostet 20 % der Charakter-Erfahrung des aktuellen Levels, man kann kein Level verlieren |
@@ -408,18 +419,7 @@ Philipp hat die offenen Fragen am 15.10.2026 beantwortet.
 
 ## Offene Fragen
 
-1. **Namen der sechs Helden und Fraktionen.** Vorschlag für die Zuordnung, Namen folgen:
-
-| Held steht für | Waffengruppe |
-| --- | --- |
-| Standhaftigkeit | Schwert und Schild, Hammer |
-| Mut | Axt, Großschwert, Speer |
-| Gewandtheit | Degen, Messer |
-| Wachsamkeit | Bogen, Armbrust, Muskete |
-| Weisheit | Blitz-, Feuer- und Eismagie |
-| Hingabe | Lebens- und Leerenmagie |
-
-2. **Name des Spiels** (aus dem alten Konzept noch offen).
+1. **Name des Spiels.**
 
 ---
 
