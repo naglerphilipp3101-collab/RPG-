@@ -422,6 +422,44 @@ Philipp hat die offenen Fragen am 15.10.2026 beantwortet.
 
 Zurzeit sind keine Fragen offen.
 
+## Umsetzungsplan
+
+Stand 15.10.2026, abgeleitet aus diesem Konzept und dem Code im Repository. Zuerst kommt der Charakterkern, weil Level, Attribute und Tiers fast alle späteren Systeme berühren; Inhalte mit Gegnermodellen warten auf die Modellpakete.
+
+### Was der Code heute schon kann und was sich ändert
+
+| Bereich | Heute im Code | Laut Konzept |
+| --- | --- | --- |
+| Charakter | kein Charakterlevel, keine Attribute | Level 1–100, 5 Attribute mit Schwellen 25–500, Tod −20 % EP |
+| Waffen-EP | 0,5 EP je Schadenspunkt (`player.gd`) | EP des Monsters beim Tod nach Schadensanteil verteilt |
+| Waffen | 12 Typen + Schild, je 2 Äste, 3 Fähigkeiten aktiv (Q/R/F), Meisterschaft bis 20 | 15 Waffen inkl. 5 Magiearten, 2 Seiten mit je 1 Passiven (eine aktiv), 4 Fähigkeiten (3 ausgerüstet) + Ultimative |
+| Berufe | 16 Berufe, Stufe bis 50, Tiers I–V (Kupfer, Eisen) | 17 Berufe, Skill 0–300, 6 Tiers (Iron bis Darksteel), Aufspüren, Bonus-Ausbeute |
+| Stationen | 12 (u. a. Waffenschmiede, Rüstungsschmiede, Juwelier getrennt) | 5 Verarbeitung + 5 Herstellung (Schmiede, Schneiderei, Werkstatt, Arkanes Sanktum, Küche) |
+| Welt | Terrain3D-Insel, Natur, Wasser, feste Sonne | dazu Tag/Nacht-Zyklus, Städte als Schutzzonen, Regionen |
+| Gegner | Wolf, Bandit, Brute (Platzhalter) | Menschen, Tiere, Untote, Drachen, Kalistare; Gold nur bei logischen Gegnern |
+| Quests, NPCs, Fraktionen, Gold | fehlen | Quest-System, Dialoge, 6 Fraktionen, Fraktions- und Regionsansehen, Gold |
+
+### Meilensteine
+
+| # | Meilenstein | Inhalt | Wartet auf |
+| --- | --- | --- | --- |
+| M5 | Charakterkern | Charakterlevel 1–100 mit steigenden Punkten, Attribute und alle Schwellenboni datengetrieben (`attributes.json`), Attribut-Fenster, Tod −20 % EP, Waffen-EP nach Schadensanteil, Berufe auf 0–300 und 6 Tiers, Aufspüren, Bonus-Ausbeute, Tag/Nacht-Zyklus | nichts |
+| M6 | Waffen-Umbau | Waffenliste auf das Konzept umstellen, 2 Seiten mit Passiven, 4 Fähigkeiten + Ultimative je Seite, Ultimative-Leiste, 3. Waffenplatz vorbereiten | Entscheidung zu den Einhand-/Zweihand-Varianten |
+| M7 | Magie | Blitz, Feuer, Eis mit Ladung, Hitze und Frost; Lebens- und Leerenmagie (Heilung, Beschwörungen); Arkanes Sanktum stellt Magiewaffen her | M6 |
+| M8 | Startgebiet | Quest-System, NPCs und Dialoge, Schiffbruch-Einstieg, Dorf-Tutorial mit 5 Sammelberufen, erste Stadt mit Verarbeitung und den 5 Herstellungs-Stationen, Gold, Level-Freischaltungsquests (Rucksäcke, Slots) | Spielfigur- und NPC-Modelle für die echte Optik, Platzhalter gehen vorher |
+| M9 | Fraktionen und Regionen | 6 Fraktionen mit Farben, Beitritt und Wechsel, Fraktionsansehen, Rangquests, Fraktionsshop (Ansehen + Gold), Städte als Schutzzone, PvP-Schalter, Regionsansehen bis 20, Lagernetz, Auto-Fill, Hausrecht | M8 |
+| M10 | Lebendige Welt | Strategieebene, Stadteroberung, Notrufe, Events, Kalistare-Angriffe | M9, Gegnermodelle |
+| M11 | Hauptquest und Raid | Quests durch alle Städte, Erbstücke der Helden, Wendung mit dem Verräter, Raid auf den Zentralberg | M9, M10 |
+| später | Ausbau | Splitter-System, Gilde, Händler, Balancing nach echten Animationen | |
+
+### Nächster Schritt
+
+M5 beginnt mit `attributes.json` und dem Charakterlevel im Spieler, getestet über einen neuen Autotest-Modus `--character`. Vorher braucht M6 eine Entscheidung, siehe unten.
+
+### Entscheidung für M6: Einhand- und Zweihand-Varianten
+
+Der Code hat Einhandschwert, Beil, Streitkolben, Zweihänder, Kriegsaxt, Kriegshammer und Dolche; das Konzept hat Schwert und Schild, Axt, Hammer, Großschwert und Messer. Empfehlung: zusammenlegen. Das Einhandschwert wird Schwert und Schild, die Kriegsaxt wird die Axt, der Kriegshammer wird der Hammer, der Zweihänder wird das Großschwert und die Dolche werden das Messer. Beil und Streitkolben entfallen, ihre Fähigkeiten wandern in die neuen Waffen.
+
 ---
 
 ## Aus dem bisherigen Konzept (weiterhin gültig)
@@ -462,16 +500,4 @@ Die Welt läuft auch ohne den Spieler weiter:
 
 ### Meilensteine
 
-Alles **datengetrieben**: Items, Rezepte, Gegner, Quests und Fraktionen liegen in Datendateien.
-
-| # | Meilenstein | Inhalt |
-|---|---|---|
-| M1 ✅ | Spielbarer Kern | Third-Person-Steuerung, Kamera, Ausweichen, Schwert & Schild, 3 Gegnertypen, Leben/Tod |
-| M2 ✅ | Sammeln & Inventar | 5 Sammelberufe (Tier 1–2), Inventar mit Gewicht, Beute, Berufslevel |
-| M3 ✅ | Crafting | 11 Werkstätten, Rezepte Tier 1–2, Zusatzmaterialien, Ausrüstung mit Zufallswerten, Tränke & Essen |
-| M4 ✅ | Waffen & Skills | 12 Waffentypen + Schild, Fernkampf, Skillbaum pro Waffe, Meisterschaft bis 20, 2 Waffenplätze |
-| M4.5 | Grafik & Welt | Terrain3D-Insel, Natur, Scans (läuft) |
-| M5 | Startgebiet | Tutorial-Dorf und erste Stadt nach dem Spielablauf oben, NPCs, Dialoge |
-| M6 | Erste Fraktionsregion | Städte, Fraktionen, Ansehen, Level-Freischaltungen |
-| M7 | Lebendige Welt v1 | Strategieebene, Stadteroberung, Notrufe, Events |
-| M8+ | Ausbau | weitere Regionen, Gilde, Splitter-System, Kalistare, Raid auf den Zentralberg |
+M1 bis M4 sind umgesetzt, M4.5 (Grafik und Welt) läuft. Die weiteren Meilensteine stehen im Umsetzungsplan oben. Alles bleibt **datengetrieben**: Items, Rezepte, Gegner, Quests und Fraktionen liegen in Datendateien.

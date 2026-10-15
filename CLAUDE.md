@@ -83,7 +83,7 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
   Sand/Wiese/Waldboden-Texturen unausgereift → Vorschlag: CC0-Fotoscans (Poly Haven, ambientCG); Downloads nur mit Bestätigung.
 
 **Nächste Schritte (vom Nutzer festgelegt, 13.10.2026):**
-1. ✅ (15.10.) Spieldesign in `godot/KONZEPT.md`: Lore (Zahr, Kalistare, 6 Helden), Spielablauf, Fraktions-/Regionsansehen, Gold, Level 100 mit Attributsschwellen, Berufe, 15 Waffen mit je 2 Seiten (4 Fähigkeiten + Ultimative), Magie ohne Mana. Umsetzungsplan daraus noch ableiten.
+1. ✅ (15.10.) Spieldesign in `godot/KONZEPT.md`: Lore (Zahr, Kalistare, 6 Helden), Spielablauf, Fraktions-/Regionsansehen, Gold, Level 100 mit Attributsschwellen, Berufe, 15 Waffen mit je 2 Seiten (4 Fähigkeiten + Ultimative), Magie ohne Mana. Umsetzungsplan steht dort (M5 Charakterkern, M6 Waffen-Umbau, M7 Magie, M8 Startgebiet, M9 Fraktionen/Regionen, M10 Lebendige Welt, M11 Hauptquest/Raid).
 2. ✅ (14.10.) Bäume: alle jungen/alten Bäume geben „Frischholz“ (green_wood, Menge nach Größe); neue uralte Bäume
    (`*_uralt_*.glb`, Blender `kahle_aeste()` in kiefer.py; ~6 % im Wald) geben „Gereiftes Holz“ (aged_wood).
    Felsmonolithen (`assets/erz/modelle/monolith_turm|gruppe_1-3.glb`, Blender `monolith.py`) stehen je 256-m-Kachel in natur.gd
