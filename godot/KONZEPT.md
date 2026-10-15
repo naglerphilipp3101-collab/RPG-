@@ -402,6 +402,9 @@ Philipp hat die offenen Fragen am 15.10.2026 beantwortet.
 | Helden und Fraktionen | jeder Held steht für eine Waffengruppe oder Tugend, Namen noch offen |
 | Berufs-Skills | Schmelzen, Weben, Gerben, Station Schneiderei |
 | Fischen im Dorf-Tutorial | ja |
+| Tod | kostet 20 % der Charakter-Erfahrung des aktuellen Levels, man kann kein Level verlieren |
+| Tag/Nacht-Zyklus | ja |
+| Hunger | nein |
 
 ## Offene Fragen
 
@@ -416,7 +419,7 @@ Philipp hat die offenen Fragen am 15.10.2026 beantwortet.
 | Weisheit | Blitz-, Feuer- und Eismagie |
 | Hingabe | Lebens- und Leerenmagie |
 
-2. **Aus dem alten Konzept noch offen:** Name des Spiels; was man beim Tod verliert; Tag/Nacht-Zyklus und Hunger.
+2. **Name des Spiels** (aus dem alten Konzept noch offen).
 
 ---
 
