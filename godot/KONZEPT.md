@@ -100,11 +100,12 @@ Regionsansehen bekommt man für Monster, die man in einer Region tötet, und fü
 | 3 | **Auto-Fill:** Beim Herstellen kommen passende Items direkt aus dem Lager, erst aus dem Stadtlager, dann aus den verbundenen Lagern |
 | 5 | Recht, in der Region ein Haus zu besitzen |
 | 10 | **Regionsübergreifendes Lager:** Das Lager dieser Region verbindet sich mit allen Regionen, die ebenfalls Stufe 10 haben |
-| alle anderen | Wahl aus 3 Boni: größeres Lager in den Städten der Region, mehr Erfahrung, schnelleres Sammeln, mehr Fraktionsansehen |
+| alle anderen | Wahl aus 3 Boni, die nur in dieser Region gelten: mehr Erfahrung, schnelleres Sammeln, mehr Fraktionsansehen |
+| jede Stufe | Das Lager in den Städten der Region wächst von selbst |
 
 **Lagernetz:** Jede Stadt hat ein Lager. Alle Städte einer Region teilen sich ein Lager, man kann in jeder davon einlagern und entnehmen. Ab Stufe 10 verbinden sich alle Regionen mit Stufe 10; wer überall Stufe 10 hat, kann überall alles einlagern und entnehmen.
 
-*Vorschlag* für die Stärke der Boni je Wahl: +2 % Erfahrung, +3 % Sammelgeschwindigkeit, +3 % Fraktionsansehen oder +25 Lagerplätze.
+*Vorschlag* für die Stärke: je Wahl +2 % Erfahrung, +3 % Sammelgeschwindigkeit oder +3 % Fraktionsansehen; das Lager wächst um 25 Plätze je Stufe.
 
 ### Gold
 
@@ -392,7 +393,7 @@ Philipp hat die offenen Fragen am 15.10.2026 beantwortet.
 | Fähigkeiten pro Seite | 4, davon 3 ausgerüstet, plus Ultimative |
 | Ansehen und Währung | Fraktionsansehen und Regionsansehen getrennt, Währung ist Gold |
 | Fraktionsshop | bezahlt mit Ansehen und Gold, der Rang schaltet Waren frei |
-| Regionsansehen | Stufen bis 20: Stufe 3 Auto-Fill, 5 Hausrecht, 10 regionsübergreifendes Lager, sonst Wahl aus 3 Boni |
+| Regionsansehen | Stufen bis 20: Stufe 3 Auto-Fill, 5 Hausrecht, 10 regionsübergreifendes Lager, sonst Wahl aus Erfahrung, Sammeln oder Fraktionsansehen (gilt nur in der Region), das Lager wächst mit jeder Stufe |
 | Städte | kein Kampf in Städten, 10 s Schutz nach dem Verlassen |
 | PvP-Schalter | 1,5-fache Erfahrung, nur in Städten umstellbar, Ansehen durch Kills nur mit Schalter an |
 | Fraktionswechsel | jederzeit, Ansehen und Rang gehen verloren |
@@ -404,9 +405,7 @@ Philipp hat die offenen Fragen am 15.10.2026 beantwortet.
 
 ## Offene Fragen
 
-1. **Wahl aus 3 bei vier Boni:** Es gibt vier Boni (Lager, Erfahrung, Sammeln, Fraktionsansehen), gewählt wird aus 3. Empfehlung: Das Lager wächst mit jeder Stufe von selbst, gewählt wird zwischen Erfahrung, Sammeln und Fraktionsansehen.
-2. **Gelten die Boni nur in ihrer Region?** Empfehlung: ja, dann hat jede Region ihren eigenen Wert und man levelt nicht nur eine.
-3. **Namen der sechs Helden und Fraktionen.** Vorschlag für die Zuordnung, Namen folgen:
+1. **Namen der sechs Helden und Fraktionen.** Vorschlag für die Zuordnung, Namen folgen:
 
 | Held steht für | Waffengruppe |
 | --- | --- |
@@ -417,7 +416,7 @@ Philipp hat die offenen Fragen am 15.10.2026 beantwortet.
 | Weisheit | Blitz-, Feuer- und Eismagie |
 | Hingabe | Lebens- und Leerenmagie |
 
-4. **Aus dem alten Konzept noch offen:** Name des Spiels; was man beim Tod verliert; Tag/Nacht-Zyklus und Hunger.
+2. **Aus dem alten Konzept noch offen:** Name des Spiels; was man beim Tod verliert; Tag/Nacht-Zyklus und Hunger.
 
 ---
 
