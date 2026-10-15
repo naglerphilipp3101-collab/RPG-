@@ -62,6 +62,7 @@ const SWING_STYLES := {
 	"overhead": [Vector3(110, 0, 0), Vector3(-45, 0, 0)],
 	"big_overhead": [Vector3(130, 0, 0), Vector3(-60, 0, 0)],
 	"diag": [Vector3(80, -70, 0), Vector3(-30, 60, 0)],
+	"cast": [Vector3(80, 0, 0), Vector3(-10, 0, 0)], # Zauber: Stab hochreißen und nach vorn stoßen
 }
 
 enum State { NORMAL, ACTION, DODGE, STAGGER, DEAD, GATHER, FISH }
@@ -164,6 +165,31 @@ var magazine := 0 # Repetierer
 var aim_time := 0.0 # Scharfschütze
 var block_start := -10.0 # Zeitpunkt (s), an dem der Block begonnen hat (Parade)
 var _skill_ctx: Dictionary = {} # Zusatzwerte der gerade ausgelösten Fähigkeit
+
+# Magie (M7): Hitze (Feuer), Ladungen (Blitz), Beschwörungen (Leere); Frost und Brennen liegen auf den Gegnern
+const HEAT_BASIC := 6.0
+const HEAT_SKILL := 15.0
+const HEAT_ULTIMATE := 25.0
+const HEAT_DECAY := 12.0 # pro Sekunde, nach 1,5 s ohne Feuerzauber
+const OVERHEAT_SILENCE := 3.0
+const OVERHEAT_DAMAGE := 0.08 # Überhitzung ohne Glutherz kostet 8 % LP
+const MAX_CHARGES := 5
+const CHARGE_TIME := 6.0
+const CHARGE_BONUS := 0.1 # je Ladung, die eine Fähigkeit verbraucht
+const BURN_DPS_FACTOR := 0.25 # Brandschaden je Sekunde, relativ zum Waffenschaden
+const FROST_TIME := 4.0
+const SummonScript := preload("res://scripts/beschwoerung.gd")
+var heat := 0.0
+var heat_idle := 0.0
+var overheat_ready := false # Glutherz: der nächste Zauber ist doppelt, danach Stille
+var silence_time := 0.0
+var charges := 0
+var charge_time := 0.0
+var cast_cooldown := 0.0
+var summons: Array = []
+var dodge_speed_mult := 1.0
+var _dodge_start := Vector3.ZERO
+var _winter_tick := 0.0
 var damage_dealt_total := 0.0 # nur für Tests/Statistik
 
 # Charakter: Level 1–100, Attribute mit Schwellenboni (data/attributes.json)
@@ -507,6 +533,12 @@ func on_enemy_killed(enemy, xp: int, damage_by_source: Dictionary) -> void:
 	for source in damage_by_source:
 		if Game.weapons.has(source):
 			add_mastery_xp(source, xp * float(damage_by_source[source]) / total)
+	if passive_mech == "inferno" and enemy.burn_time > 0.0:
+		_inferno_explosion(enemy.global_position)
+	if passive_mech == "beschwoerer":
+		for summon in summons:
+			if is_instance_valid(summon) and summon.kind == "wesen":
+				summon.time_left += _pp("kill_extend")
 	if has_mechanic("siegesrausch") and not is_ranged():
 		buffs.append({"stats": {"damage_pct": float(attr_mechanics["siegesrausch"])}, "time": 5.0})
 		FX.popup(get_tree(), global_position + Vector3(0, 2.3, 0), "Siegesrausch", Color(1.0, 0.5, 0.3), 48)
@@ -519,7 +551,11 @@ func heal(amount: float, on_self := true) -> float:
 		factor += bonus("heal_low_pct")
 	if on_self:
 		factor += bonus("self_heal_pct")
+	if passive_mech == "heiler": # je weniger Leben, desto stärker
+		factor += (1.0 - health / max_health) * _pp("max")
 	amount *= factor
+	if passive_mech == "segner" and amount >= 1.0:
+		_bless()
 	var missing := max_health - health
 	health = minf(health + amount, max_health)
 	if amount > missing and has_mechanic("ueberfluss"):
@@ -819,6 +855,8 @@ func _skill_cooldown(node: Dictionary) -> float:
 	var cd := float(node.get("skill", {}).get("cooldown", 10.0)) * (1.0 - clampf(bonus("cooldown_pct"), 0.0, 0.6))
 	if passive_mech == "berserker":
 		cd *= _pp("cooldown_mult", 1.0)
+	if is_magic():
+		cd *= 1.0 - clampf(bonus("magic_cooldown_pct"), 0.0, 0.5)
 	return cd
 
 
@@ -1207,7 +1245,7 @@ func _build_weapon_visual() -> void:
 		child.queue_free()
 	for child in offhand_pivot.get_children():
 		child.queue_free()
-	WeaponModels.build(weapon_def.get("model", "sword"), weapon_pivot)
+	WeaponModels.build(weapon_def.get("model", "sword"), weapon_pivot, Game.element_color(element()))
 	if weapon_def.get("dual", false):
 		WeaponModels.build(weapon_def.get("model", "dagger"), offhand_pivot)
 	weapon_pivot.position = _weapon_rest_pos()
@@ -1404,6 +1442,7 @@ func _update_timers(delta: float) -> void:
 		if rhythm_timer <= 0.0:
 			rhythm_stacks = 0
 	charge_ready_time = maxf(charge_ready_time - delta, 0.0)
+	_update_magic(delta)
 	if state == State.DEAD:
 		return
 	if stamina_delay > 0.0:
@@ -1715,6 +1754,13 @@ func _handle_ranged_input() -> void:
 			swallow_click = false
 		return
 	var r: Dictionary = weapon_def.get("ranged", {})
+	if r.get("kind", "") == "magic": # Zauberstab: gedrückt halten zaubert fortlaufend
+		if state == State.NORMAL and Input.is_action_pressed("attack") and cast_cooldown <= 0.0:
+			if silence_time <= 0.0:
+				_fire_ranged(1.0)
+			elif Input.is_action_just_pressed("attack"):
+				_can_cast()
+		return
 	if state == State.NORMAL and Input.is_action_just_pressed("attack"):
 		if r.get("kind", "") == "bow":
 			_begin_action({"kind": "draw", "duration": INF, "hits": []})
@@ -1733,6 +1779,10 @@ func _fire_ranged(charge: float) -> void:
 	var r: Dictionary = weapon_def.get("ranged", {})
 	model.rotation.y = cam_yaw
 	var mult := float(r.get("mult", 1.0)) * charge * _shot_bonus()
+	var magic: bool = r.get("kind", "") == "magic"
+	if magic:
+		mult *= _cast_heat(HEAT_BASIC)
+		cast_cooldown = float(r.get("cast", 0.5)) / (1.0 + bonus("attack_speed"))
 	if passive_mech == "repetierer":
 		magazine -= 1
 		if magazine <= 0: # der letzte Bolzen im Magazin trifft doppelt
@@ -1741,11 +1791,12 @@ func _fire_ranged(charge: float) -> void:
 		"mult": mult, "speed": float(r.get("speed", 60)) * (0.6 + 0.4 * charge),
 		"gravity": float(r.get("gravity", 0.0)), "projectile": r.get("projectile", "arrow"),
 		"kb": float(r.get("kb", 1.0)), "stag": float(r.get("stag", 0.3)), "aim_bonus": _aim_bonus(),
+		"effects": r.get("effects", {}), "heal_on_hit": float(r.get("heal_on_hit", 0.0)),
 	})
-	if r.get("kind", "") != "bow":
+	if r.get("kind", "") != "bow" and not magic:
 		ranged_loaded = false
 		shake = maxf(shake, 0.15)
-	_begin_action({"kind": "fire", "duration": 0.25 if r.get("kind", "") == "bow" else 0.35, "hits": []})
+	_begin_action({"kind": "fire", "duration": 0.25 if r.get("kind", "") in ["bow", "magic"] else 0.35, "hits": []})
 	_kill_anim(false)
 	anim_tween = create_tween()
 	anim_tween.tween_property(weapon_pivot, "rotation_degrees:x", 12.0, 0.06)
@@ -1808,6 +1859,8 @@ func _spawn_projectiles(shot: Dictionary) -> void:
 		var p = ProjectileScript.new()
 		p.shooter = self
 		p.kind = shot.get("projectile", "arrow")
+		p.color = Game.element_color(element())
+		p.life = float(shot.get("life", 3.0))
 		p.velocity = dir.rotated(Vector3.UP, angle) * speed
 		p.gravity = gravity
 		p.hit_data = {
@@ -1816,6 +1869,7 @@ func _spawn_projectiles(shot: Dictionary) -> void:
 			"pierce": shot.get("pierce", false) or (passive_mech == "belagerer" and is_ranged()),
 			"source": weapon_type, "resonance": _skill_resonance, "skill": shot.get("skill", false),
 			"always_crit": shot.get("always_crit", false), "aim_bonus": float(shot.get("aim_bonus", 0.0)),
+			"chain": int(shot.get("chain", 0)), "heal_on_hit": float(shot.get("heal_on_hit", 0.0)),
 		}
 		p.position = muzzle
 		get_tree().current_scene.add_child(p)
@@ -1842,7 +1896,8 @@ func on_projectile_hit(enemy, hit_data: Dictionary, from_pos: Vector3) -> void:
 		if hit_data.get("resonance", false) else 1.0)
 	var ctx := {"skill": hit_data.get("skill", false), "always_crit": hit_data.get("always_crit", false),
 		"headshot": hit_data.get("headshot", false), "aim_bonus": float(hit_data.get("aim_bonus", 0.0)),
-		"trap": hit_data.get("trap", false)}
+		"trap": hit_data.get("trap", false), "chain": int(hit_data.get("chain", 0)),
+		"heal_on_hit": float(hit_data.get("heal_on_hit", 0.0))}
 	_deal_damage(enemy, mult, float(hit_data.get("kb", 1.0)),
 		float(hit_data.get("stag", 0.3)), hit_data.get("effects", {}), false, from_pos, String(hit_data.get("source", "")), ctx)
 	combat_timer = 6.0
@@ -1859,6 +1914,8 @@ func _try_skill(index: int) -> void:
 	var node := Game.tree_node(weapon_type, equipped[index])
 	if float(skill_cooldowns.get(node["id"], 0.0)) > 0.0:
 		message.emit("%s ist noch nicht bereit" % node.get("name", ""))
+		return
+	if not _can_cast():
 		return
 	if passive_mech == "berserker": # Fähigkeiten kosten Leben, töten aber nie
 		health = maxf(health - max_health * _pp("hp_cost"), 1.0)
@@ -1877,18 +1934,24 @@ func _try_ultimate() -> void:
 	if not ultimate_ready():
 		message.emit("Ultimative lädt noch (%d %%)" % roundi(ultimate_charge / Game.ULTIMATE_CHARGE * 100.0))
 		return
+	if not _can_cast():
+		return
 	ultimate_charge = 0.0
 	var node := Game.tree_node(weapon_type, String(m["ultimate"]))
 	FX.popup(get_tree(), global_position + Vector3(0, 2.4, 0), String(node.get("name", "")), Color(1.0, 0.7, 0.25), 72)
 	shake = maxf(shake, 0.2)
-	_cast_skill(node)
+	_cast_skill(node, true)
 
 
 ## Führt eine Fähigkeit oder Ultimative nach ihrer Vorlage (template) aus.
-func _cast_skill(node: Dictionary) -> void:
+func _cast_skill(node: Dictionary, ultimate := false) -> void:
 	var skill: Dictionary = node.get("skill", {})
 	var effects: Dictionary = skill.get("effects", {}).duplicate()
-	var mult_factor := 1.0
+	var mult_factor := _cast_heat(HEAT_ULTIMATE if ultimate else HEAT_SKILL)
+	if element() == "lightning" and charges > 0: # Fähigkeiten entladen alle Ladungen
+		mult_factor += charges * float(skill.get("charge_mult", CHARGE_BONUS))
+		FX.popup(get_tree(), global_position + Vector3(0, 2.2, 0), "Entladen ×%d" % charges, Color(0.65, 0.8, 1.0), 44)
+		charges = 0
 	if passive_mech == "trotz" and trotz >= int(_pp("max", 5.0)): # voller Trotz: diese Fähigkeit betäubt
 		trotz = 0
 		effects["stun"] = maxf(float(effects.get("stun", 0.0)), _pp("stun", 2.0))
@@ -1896,7 +1959,8 @@ func _cast_skill(node: Dictionary) -> void:
 		mult_factor += momentum * _pp("max_bonus")
 		momentum = 0.0
 	var ctx := {"skill": true, "always_crit": bool(skill.get("always_crit", false)),
-		"execute": float(skill.get("execute", 0.0)), "ks_left": _pp("max")}
+		"execute": float(skill.get("execute", 0.0)), "ks_left": _pp("max"), "chain": int(skill.get("chain", 0)),
+		"heal_per_hit": float(skill.get("heal_per_hit", 0.0))}
 	var speed := 1.0 + bonus("attack_speed")
 	match String(skill.get("template", "")):
 		"strike":
@@ -1974,16 +2038,45 @@ func _cast_skill(node: Dictionary) -> void:
 			zone.ticks = int(skill.get("ticks", 5))
 			zone.interval = float(skill.get("interval", 0.4))
 			zone.once = bool(skill.get("once", false))
+			zone.delay = float(skill.get("delay", 0.0))
+			zone.heal = float(skill.get("heal", 0.0))
+			zone.color = Game.element_color(element()) if is_magic() else Color(1.0, 0.8, 0.35)
 			zone.hit_data = {"mult": float(skill.get("mult", 0.5)) * mult_factor, "kb": 0.5, "stag": 0.2, "effects": effects,
-				"source": weapon_type, "skill": true, "trap": zone.once}
+				"source": weapon_type, "skill": true, "trap": zone.once, "chain": int(skill.get("chain", 0))}
 			# Fallen liegen vor den Füßen, andere Flächen am Zielpunkt (höchstens 30 m entfernt)
 			var target := _aim_point()
-			if zone.once:
-				target = global_position + _cam_forward() * 2.0
+			if zone.once or skill.get("at_self", false):
+				target = global_position + (Vector3.ZERO if skill.get("at_self", false) else _cam_forward() * 2.0)
 			elif target.distance_to(global_position) > 30.0:
 				target = global_position + (target - global_position).normalized() * 30.0
+			zone.line = float(skill.get("line", 0.0))
+			if zone.line > 0.0: # Linie: quer zur Blickrichtung am Ziel oder vom Spieler aus nach vorn
+				var fwd := _cam_forward()
+				zone.direction = fwd.cross(Vector3.UP) if skill.get("across", false) else fwd
+				if not skill.get("across", false):
+					target = global_position + fwd * (zone.line * 0.5 + 1.0)
 			zone.position = target
 			get_tree().current_scene.add_child(zone)
+		"beam":
+			var interval := float(skill.get("interval", 0.15))
+			var beam_hits: Array = []
+			for i in int(float(skill.get("duration", 1.5)) / interval):
+				beam_hits.append(0.1 + i * interval)
+			_begin_action({"kind": "beam", "duration": float(beam_hits[-1]) + 0.15, "hits": beam_hits,
+				"mult": float(skill.get("mult", 0.3)) * mult_factor, "range": float(skill.get("range", 20.0)), "effects": effects})
+		"detonate":
+			_begin_action({"kind": "buff", "duration": 0.35, "hits": []})
+			_detonate_burns(float(skill.get("radius", 15.0)), float(skill.get("mult", 1.5)) * mult_factor)
+		"wall":
+			_begin_action({"kind": "fire", "duration": 0.4, "hits": []})
+			_spawn_ice_wall(float(skill.get("length", 7.0)), float(skill.get("time", 6.0)))
+		"summon":
+			_begin_action({"kind": "buff", "duration": 0.4, "hits": []})
+			_summon(String(skill.get("kind", "wesen")), int(skill.get("count", 1)), float(skill.get("time", 15.0)),
+				float(skill.get("mult", 0.5)) * mult_factor, bool(skill.get("big", false)))
+		"sacrifice":
+			_begin_action({"kind": "buff", "duration": 0.35, "hits": []})
+			_sacrifice_summons(float(skill.get("radius", 3.0)), float(skill.get("mult", 2.0)) * mult_factor)
 	if not action.is_empty():
 		action["ctx"] = ctx
 		if _skill_resonance:
@@ -2019,17 +2112,335 @@ func _skill_mechanics(node: Dictionary) -> bool:
 
 
 func _apply_buff(skill: Dictionary) -> void:
-	var stats: Dictionary = skill.get("buffs", {})
+	var stats: Dictionary = skill.get("buffs", {}).duplicate()
+	if skill.has("hot"):
+		stats["hot"] = float(skill["hot"]) # Heilung je Sekunde in Anteilen der max. LP
+	var duration := float(skill.get("duration", 5.0))
+	if passive_mech == "segner":
+		duration *= 1.0 + _pp("duration")
 	if not stats.is_empty():
-		buffs.append({"stats": stats.duplicate(), "time": float(skill.get("duration", 5.0))})
+		buffs.append({"stats": stats, "time": duration})
 	var amount := float(skill.get("heal_pct", 0.0)) * max_health
 	if amount > 0.0:
 		amount = heal(amount)
 		FX.popup(get_tree(), global_position + Vector3(0, 2.1, 0), "+%d" % roundi(amount), Color(0.4, 1.0, 0.4), 64)
+	if skill.has("shield_pct"):
+		_add_shield(max_health * float(skill["shield_pct"]))
+	if skill.has("heat_to_shield"): # Abkühlen: Hitze wird zum Schild
+		_add_shield(max_health * float(skill["heat_to_shield"]) * heat / 100.0)
+		heat = 0.0
+		overheat_ready = false
+	if float(skill.get("invuln", 0.0)) > 0.0: # Eisblock: unverwundbar, aber festgefroren
+		iframes = maxf(iframes, float(skill["invuln"]))
+		_begin_action({"kind": "buff", "duration": float(skill["invuln"]), "hits": [], "keep_facing": true})
+		FX.popup(get_tree(), global_position + Vector3(0, 2.3, 0), "Eisblock", Color(0.6, 0.85, 1.0), 52)
+
+
+func _add_shield(amount: float) -> void:
+	if amount <= 0.0:
+		return
+	shield_hp = minf(shield_hp + amount, max_health)
+	FX.popup(get_tree(), global_position + Vector3(0, 2.2, 0), "+%d Schild" % roundi(amount), Color(0.7, 0.85, 1.0), 52)
 
 
 func _cam_forward() -> Vector3:
 	return Basis(Vector3.UP, cam_yaw) * Vector3.FORWARD
+
+
+# --- Magie (M7) -----------------------------------------------------------
+
+func is_magic() -> bool:
+	return bool(weapon_def.get("magic", false))
+
+
+func element() -> String:
+	return String(weapon_def.get("element", ""))
+
+
+## Elementarmeister (Intelligenz 300): Brennen, Frost und Ladung halten länger.
+func _elemental_time(duration: float) -> float:
+	return duration * (1.0 + float(attr_mechanics.get("elementarmeister", 0.0)))
+
+
+func _burn_dps() -> float:
+	return _stat("weapon", "damage", BASE_WEAPON_DAMAGE) * BURN_DPS_FACTOR * (1.0 + bonus("damage_pct"))
+
+
+## Nach einer Überhitzung kann man kurz nicht zaubern.
+func _can_cast() -> bool:
+	if silence_time > 0.0:
+		message.emit("Überhitzt: noch %d s" % ceili(silence_time))
+		return false
+	return true
+
+
+## Feuerzauber erhitzen dich. Gibt den Schadensfaktor dieses Zaubers zurück (Glutherz: doppelt bei voller Hitze).
+func _cast_heat(amount: float) -> float:
+	if element() != "fire":
+		return 1.0
+	heat_idle = 0.0
+	if overheat_ready:
+		overheat_ready = false
+		_overheat(false)
+		return 2.0
+	heat = minf(heat + amount, 100.0)
+	if heat >= 100.0:
+		if passive_mech == "glutherz":
+			overheat_ready = true
+			FX.popup(get_tree(), global_position + Vector3(0, 2.4, 0), "Glut!", Color(1.0, 0.45, 0.1), 56)
+		else:
+			_overheat(true)
+	return 1.0
+
+
+func _overheat(hurt: bool) -> void:
+	heat = 0.0
+	silence_time = OVERHEAT_SILENCE
+	FX.popup(get_tree(), global_position + Vector3(0, 2.4, 0), "Überhitzt!", Color(1.0, 0.3, 0.1), 60)
+	if hurt:
+		health = maxf(health - max_health * OVERHEAT_DAMAGE, 1.0)
+
+
+func _add_charge() -> void:
+	charges = mini(charges + 1, MAX_CHARGES)
+	charge_time = _elemental_time(CHARGE_TIME)
+
+
+func _update_magic(delta: float) -> void:
+	silence_time = maxf(silence_time - delta, 0.0)
+	cast_cooldown = maxf(cast_cooldown - delta, 0.0)
+	heat_idle += delta
+	if heat_idle > 1.5 and not overheat_ready:
+		heat = maxf(heat - HEAT_DECAY * delta, 0.0)
+	if charges > 0:
+		charge_time -= delta
+		if charge_time <= 0.0:
+			charges = 0
+	if state == State.DEAD:
+		return
+	var hot := bonus("hot")
+	if hot > 0.0:
+		heal(max_health * hot * delta)
+	_winter_tick -= delta
+	if bonus("winter_aura") > 0.0 and _winter_tick <= 0.0: # Ewiger Winter: jede Sekunde Frost in 6 m
+		_winter_tick = 1.0
+		FX.shockwave(get_tree(), global_position, 6.0, Color(0.6, 0.85, 1.0, 0.35))
+		for node in get_tree().get_nodes_in_group("enemies"):
+			var enemy = node
+			if enemy.is_alive() and enemy.global_position.distance_to(global_position) <= 6.0:
+				enemy.add_frost(1, _elemental_time(FROST_TIME))
+	if not summons.is_empty():
+		summons = summons.filter(func(x): return is_instance_valid(x) and not x.is_queued_for_deletion())
+
+
+## Segner: jede Heilung gibt kurz mehr Schaden (ein Segen, der sich erneuert).
+func _bless() -> void:
+	for b in buffs:
+		if b.get("id", "") == "segen":
+			b["time"] = _pp("time", 5.0)
+			return
+	buffs.append({"id": "segen", "stats": {"damage_pct": _pp("damage")}, "time": _pp("time", 5.0)})
+
+
+## Blitze springen vom getroffenen Gegner auf weitere (je Sprung weniger Schaden). Leiter-Ziele bekommen immer einen Sprung.
+func _chain_lightning(first, jumps: int, mult: float, source: String, is_skill: bool) -> void:
+	var hit: Array = [first]
+	var from: Vector3 = first.get_center()
+	var marked: Array = []
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var enemy = node
+		if enemy != first and enemy.is_alive() and float(enemy.get_meta("conductor_until", 0.0)) > _now() \
+				and enemy.global_position.distance_to(from) <= 15.0:
+			marked.append(enemy)
+	var reach := _pp("range", 6.0) if passive_mech == "sturmrufer" else 6.0
+	var falloff := _pp("falloff", 0.3) if passive_mech == "sturmrufer" else 0.3
+	var factor := 1.0
+	for i in jumps + marked.size():
+		var target = null
+		if not marked.is_empty():
+			target = marked.pop_front()
+		else:
+			var best := reach
+			for node in get_tree().get_nodes_in_group("enemies"):
+				var enemy = node
+				if hit.has(enemy) or not enemy.is_alive():
+					continue
+				var d: float = enemy.get_center().distance_to(from)
+				if d <= best:
+					best = d
+					target = enemy
+		if target == null:
+			break
+		factor *= 1.0 - falloff
+		hit.append(target)
+		FX.beam(get_tree(), from, target.get_center(), Color(0.65, 0.8, 1.0), 0.18)
+		_deal_damage(target, mult * factor, 0.5, 0.2, {}, false, from, source, {"chained": true, "skill": is_skill})
+		from = target.get_center()
+
+
+## Glutlanze: ein Strahlenstück auf den Gegner im Fadenkreuz.
+func _beam_hit() -> void:
+	var reach := float(action.get("range", 20.0))
+	var from := global_position + Vector3(0, 1.4, 0) + _forward() * 0.5
+	var target = _beam_target(reach)
+	var color := Game.element_color(element())
+	if target == null:
+		FX.beam(get_tree(), from, from + _cam_forward() * reach, color, 0.16)
+		return
+	FX.beam(get_tree(), from, target.get_center(), color, 0.16)
+	_deal_damage(target, float(action["mult"]), 0.3, 0.15, action.get("effects", {}), false, global_position, weapon_type,
+		action.get("ctx", {}))
+
+
+func _beam_target(reach: float):
+	var origin := camera.global_position
+	var dir := -camera.global_transform.basis.z
+	var best = null
+	var best_t := INF
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var enemy = node
+		if not enemy.is_alive() or enemy.global_position.distance_to(global_position) > reach:
+			continue
+		var center: Vector3 = enemy.get_center()
+		var t := (center - origin).dot(dir)
+		if t > 0.0 and t < best_t and (origin + dir * t).distance_to(center) < float(enemy.radius) + 0.6:
+			best_t = t
+			best = enemy
+	return best
+
+
+## Zündung: alle Brände in Reichweite lösen sofort aus.
+func _detonate_burns(radius: float, mult: float) -> void:
+	FX.shockwave(get_tree(), global_position, radius, Color(1.0, 0.5, 0.15, 0.5))
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var enemy = node
+		if not enemy.is_burning() or enemy.global_position.distance_to(global_position) > radius:
+			continue
+		var amount: float = enemy.consume_burn() * mult
+		FX.shockwave(get_tree(), enemy.global_position, 2.0, Color(1.0, 0.45, 0.1, 0.7))
+		enemy.take_damage(amount, enemy.global_position, 2.0, 0.6, false, weapon_type)
+		damage_dealt_total += amount
+		add_ultimate_charge(ULT_PER_HIT)
+
+
+## Inferno: ein brennender Gegner explodiert beim Tod und entzündet alles in der Nähe.
+func _inferno_explosion(center: Vector3) -> void:
+	var radius := _pp("radius", 3.0)
+	FX.shockwave(get_tree(), center, radius, Color(1.0, 0.45, 0.1, 0.75))
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var enemy = node
+		if enemy.is_alive() and enemy.global_position.distance_to(center) <= radius + float(enemy.radius):
+			_deal_damage(enemy, _pp("mult", 0.8), 3.0, 0.5, {"burn": _pp("burn", 4.0)}, false, center, weapon_type,
+				{"chained": true})
+
+
+## Funkenläufer: Schaden entlang der Strecke des Blitzsprungs.
+func _spark_line(from: Vector3, to: Vector3) -> void:
+	if from.distance_to(to) < 0.5:
+		return
+	FX.beam(get_tree(), from + Vector3(0, 1.0, 0), to + Vector3(0, 1.0, 0), Color(0.65, 0.8, 1.0), 0.3)
+	for node in get_tree().get_nodes_in_group("enemies"):
+		var enemy = node
+		if not enemy.is_alive():
+			continue
+		var p := Geometry3D.get_closest_point_to_segment(enemy.global_position, from, to)
+		if p.distance_to(enemy.global_position) <= float(enemy.radius) + 1.0:
+			_deal_damage(enemy, _pp("mult", 0.6), 2.0, 0.4, {}, false, from, weapon_type, {"chained": true})
+
+
+## Eiswand quer zur Blickrichtung am Ziel (höchstens 20 m entfernt); hält Gegner auf.
+func _spawn_ice_wall(length: float, duration: float) -> void:
+	var target := _aim_point()
+	if target.distance_to(global_position) > 20.0:
+		target = global_position + (target - global_position).normalized() * 20.0
+	target.y = global_position.y
+	var wall := StaticBody3D.new()
+	wall.collision_layer = 1
+	wall.collision_mask = 0
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(length, 2.6, 0.7)
+	shape.shape = box
+	shape.position.y = 1.3
+	wall.add_child(shape)
+	var ice := MeshUtil.mat(Color(0.65, 0.88, 1.0, 0.7), 0.0, 0.1)
+	ice.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	MeshUtil.part(wall, MeshUtil.box(box.size), ice, Vector3(0, 1.3, 0))
+	get_tree().current_scene.add_child(wall)
+	wall.global_position = target
+	wall.rotation.y = cam_yaw
+	wall.add_to_group("eiswand")
+	var tw := wall.create_tween()
+	tw.tween_interval(duration)
+	tw.tween_callback(wall.queue_free)
+
+
+## Beschwörungen: Leerenwesen (greifen den nächsten Gegner an) oder Klingen (kreisen um dich).
+func _summon(kind: String, count: int, duration: float, mult: float, big: bool) -> void:
+	if kind == "klinge": # neue Klingen ersetzen die alten
+		for summon in summons:
+			if is_instance_valid(summon) and summon.kind == "klinge":
+				summon.queue_free()
+		summons = summons.filter(func(x): return is_instance_valid(x) and x.kind != "klinge")
+	for i in count:
+		var summon = SummonScript.new()
+		summon.shooter = self
+		summon.kind = kind
+		summon.time_left = duration
+		summon.mult = mult
+		summon.big = big
+		summon.index = i
+		summon.count = count
+		summon.source = weapon_type
+		summon.color = Game.element_color(element())
+		get_tree().current_scene.add_child(summon)
+		summon.global_position = global_position + Vector3(randf_range(-1.0, 1.0), 1.2, randf_range(-1.0, 1.0))
+		summons.append(summon)
+	# Ohne Beschwörer höchstens 1 Leerenwesen, mit Beschwörer 2 (eine Ultimative darf mehr rufen)
+	var limit := maxi(int(_pp("max", 1.0)) if passive_mech == "beschwoerer" else 1, count if kind == "wesen" else 0)
+	var beings: Array = summons.filter(func(x): return x.kind == "wesen")
+	while beings.size() > limit:
+		var oldest = beings.pop_front()
+		summons.erase(oldest)
+		oldest.queue_free()
+	FX.shockwave(get_tree(), global_position, 2.5, Color(0.65, 0.3, 0.95, 0.6))
+
+
+## Opfer: alle Beschwörungen explodieren.
+func _sacrifice_summons(radius: float, mult: float) -> void:
+	if summons.is_empty():
+		message.emit("Keine Beschwörung zum Opfern")
+		return
+	for summon in summons:
+		if not is_instance_valid(summon):
+			continue
+		var center: Vector3 = summon.global_position
+		FX.shockwave(get_tree(), center, radius, Color(0.65, 0.3, 0.95, 0.75))
+		for node in get_tree().get_nodes_in_group("enemies"):
+			var enemy = node
+			if enemy.is_alive() and enemy.get_center().distance_to(center) <= radius + float(enemy.radius):
+				_deal_damage(enemy, mult, 4.0, 0.6, {}, false, center, summon.source, {"summon": true, "skill": true})
+		summon.queue_free()
+	summons.clear()
+
+
+## Treffer einer Beschwörung (zählt für die Waffe, mit der sie gerufen wurde).
+func summon_hit(enemy, mult: float, from: Vector3, source: String) -> void:
+	_deal_damage(enemy, mult, 1.0, 0.2, {}, false, from, source, {"summon": true})
+
+
+## Kurztext für die Anzeige: Hitze, Ladungen oder Beschwörungen der aktiven Magiewaffe.
+func element_status() -> String:
+	match element():
+		"fire":
+			if silence_time > 0.0:
+				return "Überhitzt: %d s" % ceili(silence_time)
+			return "Hitze %d %%" % roundi(heat) + ("  ·  Glut bereit" if overheat_ready else "")
+		"lightning":
+			return "Ladung " + "●".repeat(charges) + "○".repeat(MAX_CHARGES - charges)
+		"void":
+			return "Beschwörungen %d" % summons.size() if not summons.is_empty() else ""
+	return ""
 
 
 # --- Aktionen abspielen -------------------------------------------------
@@ -2102,6 +2513,9 @@ func _state_action(delta: float, move_dir: Vector3, captured: bool) -> void:
 
 
 func _resolve_hit() -> void:
+	if action.get("kind") == "beam":
+		_beam_hit()
+		return
 	if action.get("shockwave", false):
 		FX.shockwave(get_tree(), global_position + _forward() * 0.5, float(action["range"]), Color(0.75, 0.65, 0.5, 0.6))
 	var mult := float(action["mult"])
@@ -2140,6 +2554,9 @@ func _hit_arc(reach: float, arc: float, mult: float, knockback: float, stagger: 
 		hits += 1
 	if hits > 0:
 		_on_hit_landed()
+		if float(ctx.get("heal_per_hit", 0.0)) > 0.0:
+			var healed := heal(max_health * float(ctx["heal_per_hit"]) * hits)
+			FX.popup(get_tree(), global_position + Vector3(0, 2.1, 0), "+%d" % roundi(healed), Color(0.4, 1.0, 0.4), 56)
 	if hits > 1 and passive_mech == "klingensturm" and ctx.get("skill", false):
 		# Klingensturm: jeder weitere getroffene Gegner verkürzt alle Abklingzeiten (begrenzt je Fähigkeit)
 		var cut := minf((hits - 1) * _pp("per_enemy"), float(ctx.get("ks_left", 0.0)))
@@ -2185,6 +2602,14 @@ func _deal_damage(enemy, mult: float, knockback: float, stagger: float, effects:
 		amount *= 1.0 + float(attr_mechanics.get("zielruhe", 0.0))
 	if ctx.get("headshot", false):
 		amount *= HEADSHOT_MULT + float(attr_mechanics.get("schwachstelle", 0.0)) + float(ctx.get("aim_bonus", 0.0))
+	var elem := Game.element_of(source)
+	if Game.weapon_def(source).get("magic", false):
+		amount *= 1.0 + bonus("magic_damage_pct")
+	if elem == "fire" and heat > 0.0: # Hitze: +1 % je 10 Hitze, mit Glutherz +3 %
+		amount *= 1.0 + heat / 10.0 * (_pp("per_10") if passive_mech == "glutherz" else 0.01)
+	var shatter: bool = passive_mech == "zerschmettern" and enemy.is_frozen()
+	if shatter:
+		amount *= 1.0 + _pp("bonus")
 	var execute: float = ctx.get("execute", 0.0)
 	if execute > 0.0 and enemy.health < enemy.max_health * execute:
 		amount *= 2.0
@@ -2208,6 +2633,21 @@ func _deal_damage(enemy, mult: float, knockback: float, stagger: float, effects:
 	_break_stealth() # Angreifen beendet die Tarnung
 	if bonus("lifesteal") > 0.0:
 		heal(amount * bonus("lifesteal"))
+	if float(ctx.get("heal_on_hit", 0.0)) > 0.0:
+		heal(amount * float(ctx["heal_on_hit"]))
+	if shatter:
+		enemy.break_ice()
+		FX.popup(get_tree(), enemy.global_position + Vector3(0, 2.6, 0), "Zerschmettert", Color(0.7, 0.9, 1.0), 48)
+	var own_hit: bool = not ctx.get("chained", false) and not ctx.get("summon", false)
+	if elem == "lightning" and own_hit:
+		_add_charge()
+	if passive_mech == "klingenbinder" and own_hit:
+		for summon in summons:
+			if is_instance_valid(summon) and summon.kind == "klinge" and enemy.is_alive():
+				summon.strike(enemy)
+	if elem == "lightning" and not ctx.get("chained", false):
+		var jumps := int(ctx.get("chain", 0)) + (int(_pp("jumps")) if passive_mech == "sturmrufer" else 0)
+		_chain_lightning(enemy, jumps, mult, source, ctx.get("skill", false))
 	if not ranged_hit and has_mechanic("erdbeben"):
 		melee_hit_count += 1
 		if melee_hit_count % 5 == 0:
@@ -2304,6 +2744,13 @@ func _apply_effects(enemy, effects: Dictionary, source: String, ranged_hit: bool
 		enemy.apply_taunt(_taunt_time(float(effects["taunt"])))
 	if effects.has("stun"):
 		enemy.apply_stun(float(effects["stun"]))
+	if effects.has("burn"):
+		enemy.apply_burn(_burn_dps(), _elemental_time(float(effects["burn"])), source)
+	if effects.has("frost"):
+		enemy.add_frost(int(effects["frost"]), _elemental_time(FROST_TIME))
+	if effects.has("conductor"):
+		enemy.set_meta("conductor_until", _now() + float(effects["conductor"]))
+		FX.popup(get_tree(), enemy.global_position + Vector3(0, 2.6, 0), "Leiter", Color(0.65, 0.8, 1.0), 40)
 
 
 func _bleed_dps() -> float:
@@ -2413,9 +2860,13 @@ func _start_dodge(move_dir: Vector3) -> void:
 	if stamina < cost * 0.5:
 		message.emit("Zu wenig Ausdauer")
 		return
+	if bonus("dodge_free") > 0.0:
+		cost = 0.0
 	_use_stamina(cost, 0.6)
 	if passive_mech == "plaenkler":
 		dodge_shot_ready = true
+	dodge_speed_mult = _pp("distance", 1.0) if passive_mech == "funkenlaeufer" else 1.0
+	_dodge_start = global_position
 	if move_dir.length() > 0.1:
 		dodge_dir = move_dir.normalized()
 	else:
@@ -2435,11 +2886,13 @@ func _start_dodge(move_dir: Vector3) -> void:
 func _state_dodge(delta: float) -> void:
 	state_timer -= delta
 	var t := clampf(state_timer / DODGE_TIME, 0.0, 1.0)
-	var speed := DODGE_SPEED * (0.35 + 0.65 * t)
+	var speed := DODGE_SPEED * (0.35 + 0.65 * t) * dodge_speed_mult
 	velocity.x = dodge_dir.x * speed
 	velocity.z = dodge_dir.z * speed
 	if state_timer <= 0.0:
 		state = State.NORMAL
+		if passive_mech == "funkenlaeufer": # Blitzsprung hinterlässt eine Schadenslinie
+			_spark_line(_dodge_start, global_position)
 
 
 func _stagger(duration: float, push: Vector3) -> void:
@@ -2524,6 +2977,13 @@ func take_damage(amount: float, from_pos: Vector3, unblockable := false, attacke
 		amount *= 1.0 - float(attr_mechanics["standhaft"])
 	if has_mechanic("einschuechternd") and to_attacker.length() <= 4.0:
 		amount *= 1.0 - float(attr_mechanics["einschuechternd"])
+	if attacker != null and is_instance_valid(attacker):
+		if passive_mech == "eispanzer": # je Froststapel des Angreifers weniger Schaden
+			amount *= 1.0 - int(attacker.frost_stacks) * _pp("per_stack")
+		if bonus("winter_aura") > 0.0 and attacker.global_position.distance_to(global_position) <= 6.0:
+			amount *= 0.7
+		if bonus("frost_armor") > 0.0:
+			attacker.add_frost(1, _elemental_time(FROST_TIME))
 	if passive_mech == "herausforderer": # weniger Schaden je verspottetem Gegner
 		var taunted := 0
 		for e in get_tree().get_nodes_in_group("enemies"):
@@ -2540,6 +3000,15 @@ func take_damage(amount: float, from_pos: Vector3, unblockable := false, attacke
 	FX.popup(get_tree(), head, str(roundi(amount)), Color(1.0, 0.3, 0.25), 64)
 	shake = 0.25
 	hurt.emit()
+	if health <= 0.0 and bonus("phoenix") > 0.0: # Phönix: mit einem Teil der LP wieder aufstehen
+		health = max_health * bonus("phoenix")
+		iframes = 1.5
+		for i in range(buffs.size() - 1, -1, -1):
+			if buffs[i]["stats"].has("phoenix"):
+				buffs.remove_at(i)
+		FX.shockwave(get_tree(), global_position, 4.0, Color(1.0, 0.55, 0.15, 0.7))
+		FX.popup(get_tree(), head + Vector3(0, 0.4, 0), "Phönix!", Color(1.0, 0.6, 0.2), 72)
+		return
 	if health <= 0.0 and has_mechanic("unbeugsam") and unbeugsam_cooldown <= 0.0:
 		# Unbeugsam: mit 1 LP und 3 s Unverwundbarkeit überleben
 		health = 1.0
@@ -2568,6 +3037,14 @@ func _die() -> void:
 	momentum = 0.0
 	crit_ready = false
 	_break_stealth()
+	heat = 0.0
+	charges = 0
+	overheat_ready = false
+	silence_time = 0.0
+	for summon in summons:
+		if is_instance_valid(summon):
+			summon.queue_free()
+	summons.clear()
 	_apply_death_penalty()
 	_set_block_pose(false)
 	_kill_anim(true)

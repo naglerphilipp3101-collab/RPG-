@@ -348,7 +348,7 @@ Die Spalten „Seite A“ und „Seite B“ sind *Vorschläge* für Name und Pas
 | Blitzmagie | Mobilität und Kettenschaden | Intelligenz, Geschicklichkeit | **Sturmrufer** (siehe unten) | **Funkenläufer** (siehe unten) |
 | Feuermagie | Flächenschaden und Brennen | Intelligenz | **Inferno** (siehe unten) | **Glutherz** (siehe unten) |
 | Eismagie | Kontrolle und Schutz | Intelligenz, Vitalität | **Frostwächter** (siehe unten) | **Eispanzer** (siehe unten) |
-| Lebensmagie | Heilen und Stärken | Spiritual | **Heiler:** Heilung auf Ziele mit wenig LP ist stärker | **Segner:** Jede Stärkung, die du gibst, wirkt auch auf dich |
+| Lebensmagie | Heilen und Stärken | Spiritual | **Heiler:** Heilung auf Ziele mit wenig LP ist stärker | **Segner:** Segen halten 50 % länger, jede Heilung gibt 5 s lang +10 % Schaden (umgesetzt in M7, solange es keine Gruppe gibt) |
 | Leerenmagie | Beschwört Waffen oder Wesen | Intelligenz, Spiritual | **Beschwörer:** Bis zu 2 Leerenwesen kämpfen mit, Kills verlängern ihre Dauer | **Klingenbinder:** Beschworene Klingen kreisen um dich und schlagen mit jedem deiner Treffer zu |
 
 Magie hat kein Mana, nur Abklingzeiten und die Mechaniken Ladung, Hitze und Frost.
@@ -479,9 +479,23 @@ Test: `godot --headless --path godot -- --autotest --character`.
 
 Tests: `godot --headless --path godot -- --autotest --m6` (19 Prüfungen) und `--weapons` (alle Seiten mit Fähigkeiten und Ultimativen).
 
+### M7 umgesetzt (15.10.)
+
+- **5 Magiewaffen** mit je 2 Seiten wie in der Übersicht und den Tabellen oben: Feuer-, Eis-, Blitz- und Lebensmagie als Stab, Leerenmagie als Kugel. Alle Waffen zusammen: 15 mit 120 Fähigkeiten und 30 Ultimativen. Werte in `data/weapons.json`.
+- **Angriff:** Linke Maustaste hält einen Zauberstrahl aufrecht (Geschoss in der Farbe des Elements), kein Mana, nur Abklingzeiten.
+- **Hitze (Feuer):** jeder Zauber erhitzt (Angriff 6, Fähigkeit 15, Ultimative 25), Hitze sinkt nach 1,5 s Pause. Je 10 Hitze +1 % Schaden. Bei 100 Hitze Überhitzung: 3 s keine Zauber und 8 % LP. Mit **Glutherz** +3 % je 10 Hitze und statt Schaden ein doppelter nächster Zauber, danach 3 s Stille. **Brennen** macht Schaden über Zeit, **Zündung** löst alle Brände sofort mit 150 % aus, **Inferno** lässt brennende Gegner beim Tod explodieren.
+- **Frost (Eis):** jeder Stapel verlangsamt um 10 %, bei 5 Stapeln friert der Gegner 1,5 s ein und ist danach 3 s immun. **Zerschmettern** +30 % auf gefrorene Gegner, **Eispanzer** −2 % Schaden je Froststapel des Angreifers. Eiswand ist ein echtes Hindernis.
+- **Ladung (Blitz):** eigene Treffer laden bis zu 5 Ladungen (6 s), jede Fähigkeit entlädt sie (+10 % je Ladung, Entladung +40 %). Ketten springen von Gegner zu Gegner, **Leiter** markiert ein Ziel, auf das alle Blitze überspringen. **Funkenläufer** macht das Ausweichen 60 % weiter und hinterlässt eine Schadenslinie.
+- **Lebensmagie** wirkt auf dich selbst, weil es noch keine Gruppe gibt: Heilung, Heilkreise, Schilde, Segen. **Heiler** heilt bis +50 % stärker bei wenig LP, **Segner** wie in der Übersicht.
+- **Leerenmagie:** Leerenwesen jagen den nächsten Gegner, Klingen kreisen um dich. Ohne Beschwörer 1 Wesen, mit **Beschwörer** 2 (Kills verlängern sie), die Ultimative ruft 3 große. **Klingenbinder:** Klingen schlagen bei jedem deiner Treffer mit zu. **Opfer** sprengt alle Beschwörungen.
+- **Intelligenz** wirkt jetzt voll: +5 % Magieschaden (25), −5 % Abklingzeiten der Magiewaffen (100), Elementarmeister (300). Durchdringung (400) wartet auf Gegner mit Resistenzen.
+- **Arkanes Sanktum** stellt die Magiewaffen her (Tier 1 aus Kupfer, Tier 2 aus Eisen), Übungsstäbe gibt es am Übungswaffenständer.
+
+Tests: `godot --headless --path godot -- --autotest --m7` (17 Prüfungen) und `--weapons` (alle 30 Seiten).
+
 ### Nächster Schritt
 
-M7 Magie.
+M8 Startgebiet.
 
 ### Entscheidung für M6: Einhand- und Zweihand-Varianten
 

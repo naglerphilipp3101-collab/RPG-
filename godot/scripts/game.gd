@@ -120,7 +120,7 @@ func _generate_weapon_items() -> void:
 				"description": "%s der Stufe %s." % [w["name"], tier_name(tier)],
 			}
 			recipes[id] = {
-				"station": "engineer" if ranged else "weaponsmith", "level": required_skill(tier),
+				"station": w.get("station", "engineer" if ranged else "weaponsmith"), "level": required_skill(tier),
 				"xp": 40 if tier == 1 else 90, "output": id, "ingredients": def.get("ingredients", {}),
 			}
 		var training_id: String = "training_" + type
@@ -167,6 +167,22 @@ func _build_weapon_trees() -> void:
 			for n in nodes:
 				n["side"] = i
 			side["nodes"] = nodes
+
+
+## Farben der Magie-Elemente (Geschosse, Flächen, Stabkristall).
+const ELEMENT_COLORS := {
+	"fire": Color(1.0, 0.45, 0.12), "ice": Color(0.55, 0.85, 1.0), "lightning": Color(0.7, 0.78, 1.0),
+	"life": Color(0.5, 1.0, 0.55), "void": Color(0.65, 0.3, 0.95),
+}
+
+
+func element_color(element: String) -> Color:
+	return ELEMENT_COLORS.get(element, Color(1.0, 0.85, 0.5))
+
+
+## Element einer Waffenart ("" bei Waffen ohne Magie).
+func element_of(type: String) -> String:
+	return String(weapon_def(type).get("element", ""))
 
 
 func weapon_sides(type: String) -> Array:

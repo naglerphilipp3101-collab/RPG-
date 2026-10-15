@@ -23,6 +23,28 @@ static func popup(tree: SceneTree, pos: Vector3, text: String, color: Color, siz
 	tw.chain().tween_callback(label.queue_free)
 
 
+## Leuchtende Linie (Blitz, Strahl), verschwindet nach `life` Sekunden.
+static func beam(tree: SceneTree, from: Vector3, to: Vector3, color: Color, life := 0.15) -> void:
+	var length := from.distance_to(to)
+	if length < 0.05:
+		return
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.07, 0.07, length)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(color.r, color.g, color.b, 0.9)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = m
+	tree.current_scene.add_child(mi)
+	mi.global_position = (from + to) * 0.5
+	mi.look_at(to, Vector3.UP if absf((to - from).normalized().y) < 0.99 else Vector3.FORWARD)
+	var tw := mi.create_tween()
+	tw.tween_property(m, "albedo_color:a", 0.0, life)
+	tw.tween_callback(mi.queue_free)
+
+
 static func shockwave(tree: SceneTree, pos: Vector3, radius: float, color: Color) -> void:
 	var ring := CylinderMesh.new()
 	ring.top_radius = 1.0

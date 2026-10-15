@@ -452,6 +452,9 @@ func _update_weapon_display() -> void:
 		text += "   ·   %d Skillpunkt%s frei (K)" % [points, "" if points == 1 else "e"]
 	if player.equipment.has("weapon2"):
 		text += "   ·   T: %s" % Game.item_name(player.equipment["weapon2"]["id"])
+	var status: String = player.element_status()
+	if status != "":
+		text += "   ·   " + status
 	weapon_label.text = text
 
 	crosshair.visible = player.is_ranged() and not player.ui_open

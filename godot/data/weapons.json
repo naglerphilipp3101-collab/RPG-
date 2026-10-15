@@ -500,5 +500,287 @@
 				"ultimate": {"id": "mu_minefield", "name": "Minenfeld", "desc": "Explosionen auf einer großen Fläche, die verlangsamen.", "skill": {"template": "zone", "radius": 6, "ticks": 8, "interval": 0.5, "mult": 0.9, "effects": {"slow": [0.5, 2]}}}
 			}
 		]
+	},
+	"fire_magic": {
+		"name": "Feuermagie",
+		"role": "Flächenschaden und Brennen, hoher Schaden mit Risiko (Hitze)",
+		"attributes": ["intelligence"],
+		"class": "ranged",
+		"hands": 2,
+		"allows_shield": false,
+		"model": "staff",
+		"magic": true,
+		"element": "fire",
+		"station": "arcana",
+		"rest": [55, 0, 0],
+		"move_speed": 1.0,
+		"ranged": {
+			"kind": "magic",
+			"element": "fire",
+			"projectile": "orb",
+			"mult": 0.9,
+			"speed": 38,
+			"gravity": 0,
+			"cast": 0.5,
+			"kb": 1,
+			"stag": 0.3,
+			"effects": {
+				"burn": 3
+			}
+		},
+		"items": [
+			{"id": "ember_staff", "name": "Glutstab", "tier": 1, "ingredients": {"timber": 3, "copper_ingot": 2, "resin": 3}},
+			{"id": "blaze_staff", "name": "Flammenstab", "tier": 2, "ingredients": {"lumber": 3, "iron_ingot": 3, "resin": 5}}
+		],
+		"sides": [
+			{
+				"id": "inferno",
+				"name": "Inferno",
+				"passive": {"id": "fi_inferno", "name": "Inferno", "desc": "Brennende Gegner explodieren beim Tod und entzünden alles in 3 m.", "mechanic": "inferno", "params": {"radius": 3, "mult": 0.8, "burn": 4}},
+				"skills": [
+					{"id": "fi_fireball", "name": "Feuerball", "desc": "Explodiert beim Aufprall und setzt alles in 2,5 m in Brand.", "skill": {"template": "shot", "mult": 1.6, "speed": 35, "explode": 2.5, "projectile": "orb", "effects": {"burn": 4}, "cooldown": 8}},
+					{"id": "fi_carpet", "name": "Flammenteppich", "desc": "Brennender Boden am Ziel.", "skill": {"template": "zone", "radius": 3.5, "ticks": 8, "interval": 0.5, "mult": 0.3, "effects": {"burn": 3}, "cooldown": 14}},
+					{"id": "fi_wall", "name": "Feuerwand", "desc": "Eine 8 m lange Wand aus Flammen quer zur Blickrichtung.", "skill": {"template": "zone", "line": 8, "across": true, "radius": 1.2, "ticks": 12, "interval": 0.5, "mult": 0.35, "effects": {"burn": 3}, "cooldown": 16}},
+					{"id": "fi_sparks", "name": "Funkenregen", "desc": "Viele kleine Einschläge auf großer Fläche.", "skill": {"template": "zone", "radius": 5, "ticks": 10, "interval": 0.25, "mult": 0.25, "effects": {"burn": 2}, "cooldown": 12}}
+				],
+				"ultimate": {"id": "fi_meteor", "name": "Meteor", "desc": "Nach 1,2 s schlägt ein Meteor ein: riesiger Schaden in 5 m, alles brennt.", "skill": {"template": "zone", "delay": 1.2, "radius": 5, "ticks": 1, "interval": 0.1, "mult": 6.0, "effects": {"burn": 6, "stun": 1.0}}}
+			},
+			{
+				"id": "glutherz",
+				"name": "Glutherz",
+				"passive": {"id": "fi_glutherz", "name": "Glutherz", "desc": "Je 10 Hitze +3 % Schaden. Bei 100 Hitze ist der nächste Zauber doppelt so stark, danach 3 s Stille.", "mechanic": "glutherz", "params": {"per_10": 0.03}},
+				"skills": [
+					{"id": "fi_lance", "name": "Glutlanze", "desc": "1,5 s lang ein Flammenstrahl auf das Ziel im Fadenkreuz.", "skill": {"template": "beam", "duration": 1.5, "interval": 0.15, "mult": 0.35, "range": 22, "effects": {"burn": 2}, "cooldown": 10}},
+					{"id": "fi_blast", "name": "Flammenstoß", "desc": "Feuerkegel vor dir.", "skill": {"template": "strike", "style": "cast", "mult": 1.5, "range": 6, "arc": 70, "windup": 0.2, "duration": 0.5, "kb": 4, "stag": 0.6, "effects": {"burn": 3}, "cooldown": 8}},
+					{"id": "fi_ignite", "name": "Zündung", "desc": "Alle Brände in 15 m lösen sofort aus: der restliche Brandschaden trifft mit 150 %.", "skill": {"template": "detonate", "radius": 15, "mult": 1.5, "cooldown": 12}},
+					{"id": "fi_cool", "name": "Abkühlen", "desc": "Wandelt deine Hitze in einen Schild um (bis 30 % deiner LP).", "skill": {"template": "buff", "duration": 0.1, "heat_to_shield": 0.3, "cooldown": 16}}
+				],
+				"ultimate": {"id": "fi_phoenix", "name": "Phönix", "desc": "10 s lang 20 % mehr Schaden; stirbst du in dieser Zeit, stehst du mit 30 % LP wieder auf.", "skill": {"template": "buff", "duration": 10, "buffs": {"phoenix": 0.3, "damage_pct": 0.2}}}
+			}
+		]
+	},
+	"ice_magic": {
+		"name": "Eismagie",
+		"role": "Kontrolle und Schutz (Frost friert Gegner ein)",
+		"attributes": ["intelligence", "vitality"],
+		"class": "ranged",
+		"hands": 2,
+		"allows_shield": false,
+		"model": "staff",
+		"magic": true,
+		"element": "ice",
+		"station": "arcana",
+		"rest": [55, 0, 0],
+		"move_speed": 1.0,
+		"ranged": {
+			"kind": "magic",
+			"element": "ice",
+			"projectile": "orb",
+			"mult": 0.8,
+			"speed": 45,
+			"gravity": 0,
+			"cast": 0.5,
+			"kb": 1,
+			"stag": 0.3,
+			"effects": {
+				"frost": 1
+			}
+		},
+		"items": [
+			{"id": "frost_staff", "name": "Froststab", "tier": 1, "ingredients": {"timber": 3, "copper_ingot": 2, "linen": 2}},
+			{"id": "glacier_staff", "name": "Gletscherstab", "tier": 2, "ingredients": {"lumber": 3, "iron_ingot": 3, "silverleaf": 2}}
+		],
+		"sides": [
+			{
+				"id": "frostwaechter",
+				"name": "Frostwächter",
+				"passive": {"id": "ic_frostwaechter", "name": "Zerschmettern", "desc": "Der erste Treffer auf einen gefrorenen Gegner macht 30 % mehr Schaden und löst das Eis.", "mechanic": "zerschmettern", "params": {"bonus": 0.3}},
+				"skills": [
+					{"id": "ic_shard", "name": "Eissplitter", "desc": "Schnelles Geschoss mit 2 Froststapeln.", "skill": {"template": "shot", "mult": 1.2, "speed": 70, "projectile": "orb", "effects": {"frost": 2}, "cooldown": 5}},
+					{"id": "ic_nova", "name": "Frostnova", "desc": "Friert alles in 5 m um dich ein.", "skill": {"template": "strike", "style": "cast", "mult": 0.8, "range": 5, "arc": 360, "windup": 0.2, "duration": 0.5, "kb": 1, "stag": 0.3, "shockwave": true, "effects": {"frost": 5}, "cooldown": 16}},
+					{"id": "ic_wall", "name": "Eiswand", "desc": "Eine 7 m breite Eiswand am Ziel hält Gegner 6 s auf.", "skill": {"template": "wall", "length": 7, "time": 6, "cooldown": 18}},
+					{"id": "ic_path", "name": "Gletscherpfad", "desc": "Eisige Linie in Blickrichtung: verlangsamt und stapelt Frost.", "skill": {"template": "zone", "line": 12, "across": false, "radius": 1.2, "ticks": 10, "interval": 0.5, "mult": 0.15, "effects": {"frost": 1, "slow": [0.4, 2]}, "cooldown": 12}}
+				],
+				"ultimate": {"id": "ic_iceage", "name": "Eiszeit", "desc": "Große Zone am Ziel, nach 2 s friert alles darin ein.", "skill": {"template": "zone", "delay": 2.0, "radius": 8, "ticks": 1, "interval": 0.1, "mult": 2.5, "effects": {"frost": 5}}}
+			},
+			{
+				"id": "eispanzer",
+				"name": "Eispanzer",
+				"passive": {"id": "ic_eispanzer", "name": "Eispanzer", "desc": "Je Froststapel auf einem Gegner macht er 2 % weniger Schaden an dir.", "mechanic": "eispanzer", "stats": {"armor_pct": 0.1}, "params": {"per_stack": 0.02}},
+				"skills": [
+					{"id": "ic_armor", "name": "Eisrüstung", "desc": "Schild aus 25 % deiner LP; 8 s lang bekommen Angreifer Frost.", "skill": {"template": "buff", "duration": 8, "shield_pct": 0.25, "buffs": {"frost_armor": 1}, "cooldown": 18}},
+					{"id": "ic_blade", "name": "Frostklinge", "desc": "Nahkampfhieb mit dem Stab, 2 Froststapel.", "skill": {"template": "strike", "style": "h_right", "mult": 1.6, "range": 2.8, "arc": 140, "windup": 0.2, "duration": 0.5, "kb": 3, "stag": 0.6, "effects": {"frost": 2}, "cooldown": 7}},
+					{"id": "ic_block", "name": "Eisblock", "desc": "3 s im Eis: unverwundbar, heilt 30 % LP, keine Bewegung.", "skill": {"template": "buff", "duration": 0.1, "invuln": 3.0, "heal_pct": 0.3, "cooldown": 30}},
+					{"id": "ic_wave", "name": "Kältewelle", "desc": "Stößt alle Gegner in 4,5 m weg und stapelt 2 Frost.", "skill": {"template": "strike", "style": "cast", "mult": 1.0, "range": 4.5, "arc": 360, "windup": 0.2, "duration": 0.5, "kb": 9, "stag": 0.8, "shockwave": true, "effects": {"frost": 2}, "cooldown": 12}}
+				],
+				"ultimate": {"id": "ic_winter", "name": "Ewiger Winter", "desc": "10 s Aura (6 m): Gegner bekommen jede Sekunde Frost und machen 30 % weniger Schaden.", "skill": {"template": "buff", "duration": 10, "buffs": {"winter_aura": 1, "damage_reduction": 0.15}}}
+			}
+		]
+	},
+	"lightning_magic": {
+		"name": "Blitzmagie",
+		"role": "Mobilität und Kettenschaden (Treffer laden Ladungen)",
+		"attributes": ["intelligence", "dexterity"],
+		"class": "ranged",
+		"hands": 2,
+		"allows_shield": false,
+		"model": "staff",
+		"magic": true,
+		"element": "lightning",
+		"station": "arcana",
+		"rest": [55, 0, 0],
+		"move_speed": 1.0,
+		"ranged": {
+			"kind": "magic",
+			"element": "lightning",
+			"projectile": "orb",
+			"mult": 0.75,
+			"speed": 80,
+			"gravity": 0,
+			"cast": 0.38,
+			"kb": 0.5,
+			"stag": 0.2
+		},
+		"items": [
+			{"id": "spark_staff", "name": "Funkenstab", "tier": 1, "ingredients": {"timber": 2, "copper_ingot": 4}},
+			{"id": "storm_staff", "name": "Sturmstab", "tier": 2, "ingredients": {"lumber": 2, "iron_ingot": 5}}
+		],
+		"sides": [
+			{
+				"id": "sturmrufer",
+				"name": "Sturmrufer",
+				"passive": {"id": "li_sturmrufer", "name": "Sturmrufer", "desc": "Blitze springen auf bis zu 2 weitere Gegner in 6 m (je 30 % weniger Schaden).", "mechanic": "sturmrufer", "params": {"jumps": 2, "falloff": 0.3, "range": 6}},
+				"skills": [
+					{"id": "li_chain", "name": "Kettenblitz", "desc": "Blitz, der auf 3 weitere Gegner überspringt.", "skill": {"template": "shot", "mult": 1.4, "speed": 90, "projectile": "orb", "chain": 3, "cooldown": 7}},
+					{"id": "li_field", "name": "Gewitterfeld", "desc": "Zone mit Blitzeinschlägen am Ziel.", "skill": {"template": "zone", "radius": 4, "ticks": 8, "interval": 0.4, "mult": 0.4, "cooldown": 14}},
+					{"id": "li_orb", "name": "Statische Kugel", "desc": "Langsame Kugel, die alles auf ihrem Weg trifft.", "skill": {"template": "shot", "mult": 1.3, "speed": 10, "pierce": true, "life": 4.0, "projectile": "orb", "effects": {"slow": [0.3, 2]}, "cooldown": 12}},
+					{"id": "li_thunder", "name": "Donnerschlag", "desc": "Rückstoß rund um dich.", "skill": {"template": "strike", "style": "cast", "mult": 1.2, "range": 4, "arc": 360, "windup": 0.15, "duration": 0.45, "kb": 10, "stag": 1.0, "shockwave": true, "cooldown": 10}}
+				],
+				"ultimate": {"id": "li_wrath", "name": "Zorn des Himmels", "desc": "6 s Gewitter über dem Ziel (7 m), jeder Einschlag springt weiter.", "skill": {"template": "zone", "radius": 7, "ticks": 15, "interval": 0.4, "mult": 0.6, "chain": 1}}
+			},
+			{
+				"id": "funkenlaeufer",
+				"name": "Funkenläufer",
+				"passive": {"id": "li_funkenlaeufer", "name": "Funkenläufer", "desc": "Ausweichen wird zum Blitzsprung (60 % weiter) und hinterlässt eine Schadenslinie.", "mechanic": "funkenlaeufer", "params": {"distance": 1.6, "mult": 0.6}},
+				"skills": [
+					{"id": "li_step", "name": "Blitzschritt", "desc": "Kurzer Sprung nach vorn, kurz unverwundbar.", "skill": {"template": "evade", "distance": 8, "time": 0.2, "iframes": 0.3, "cooldown": 8}},
+					{"id": "li_overload", "name": "Überladung", "desc": "6 s lang 40 % schnelleres Zaubern.", "skill": {"template": "buff", "duration": 6, "buffs": {"attack_speed": 0.4}, "cooldown": 16}},
+					{"id": "li_conductor", "name": "Leiter", "desc": "Markiert das Ziel 8 s: alle Blitze springen zusätzlich auf es über.", "skill": {"template": "shot", "mult": 0.8, "speed": 90, "projectile": "orb", "effects": {"conductor": 8}, "cooldown": 10}},
+					{"id": "li_discharge", "name": "Entladung", "desc": "Verbraucht alle Ladungen für eine Explosion um dich (+40 % je Ladung).", "skill": {"template": "strike", "style": "cast", "mult": 1.0, "range": 4.5, "arc": 360, "windup": 0.15, "duration": 0.45, "kb": 6, "stag": 0.8, "shockwave": true, "charge_mult": 0.4, "cooldown": 12}}
+				],
+				"ultimate": {"id": "li_stormform", "name": "Sturmgestalt", "desc": "8 s Blitzform: Ausweichen kostet nichts, 30 % schneller.", "skill": {"template": "buff", "duration": 8, "buffs": {"dodge_free": 1, "move_speed_pct": 0.3, "attack_speed": 0.3}}}
+			}
+		]
+	},
+	"life_magic": {
+		"name": "Lebensmagie",
+		"role": "Heilen und Stärken",
+		"attributes": ["spirit"],
+		"class": "ranged",
+		"hands": 2,
+		"allows_shield": false,
+		"model": "staff",
+		"magic": true,
+		"element": "life",
+		"station": "arcana",
+		"rest": [55, 0, 0],
+		"move_speed": 1.0,
+		"ranged": {
+			"kind": "magic",
+			"element": "life",
+			"projectile": "orb",
+			"mult": 0.7,
+			"speed": 45,
+			"gravity": 0,
+			"cast": 0.5,
+			"kb": 0.5,
+			"stag": 0.2,
+			"heal_on_hit": 0.25
+		},
+		"items": [
+			{"id": "life_staff", "name": "Lebensstab", "tier": 1, "ingredients": {"timber": 3, "healing_herb": 4, "linen": 1}},
+			{"id": "grove_staff", "name": "Hainstab", "tier": 2, "ingredients": {"lumber": 3, "silverleaf": 3, "fine_linen": 1}}
+		],
+		"sides": [
+			{
+				"id": "heiler",
+				"name": "Heiler",
+				"passive": {"id": "lf_heiler", "name": "Heiler", "desc": "Heilung wirkt stärker, je weniger Leben du hast (bis +50 %).", "mechanic": "heiler", "params": {"max": 0.5}},
+				"skills": [
+					{"id": "lf_touch", "name": "Heilende Hand", "desc": "Heilt sofort 30 % deiner LP.", "skill": {"template": "buff", "duration": 0.1, "heal_pct": 0.3, "cooldown": 12}},
+					{"id": "lf_circle", "name": "Heilkreis", "desc": "Kreis um dich: heilt 5 s lang und trifft Gegner darin.", "skill": {"template": "zone", "at_self": true, "radius": 3.5, "ticks": 10, "interval": 0.5, "mult": 0.2, "heal": 0.025, "cooldown": 18}},
+					{"id": "lf_lance", "name": "Lichtlanze", "desc": "Durchschlagender Lichtstrahl.", "skill": {"template": "shot", "mult": 1.8, "speed": 80, "pierce": true, "projectile": "orb", "cooldown": 8}},
+					{"id": "lf_ward", "name": "Schutzsegen", "desc": "Schild aus 25 % deiner LP, 6 s 15 % weniger Schaden.", "skill": {"template": "buff", "duration": 6, "shield_pct": 0.25, "buffs": {"damage_reduction": 0.15}, "cooldown": 16}}
+				],
+				"ultimate": {"id": "lf_spring", "name": "Quell des Lebens", "desc": "Heilt 40 % sofort, dann 10 s lang 3 % je Sekunde, 30 % weniger Schaden.", "skill": {"template": "buff", "duration": 10, "heal_pct": 0.4, "hot": 0.03, "buffs": {"damage_reduction": 0.3}}}
+			},
+			{
+				"id": "segner",
+				"name": "Segner",
+				"passive": {"id": "lf_segner", "name": "Segner", "desc": "Deine Segen halten 50 % länger, und jede Heilung gibt dir 5 s lang 10 % mehr Schaden.", "mechanic": "segner", "params": {"duration": 0.5, "damage": 0.1, "time": 5}},
+				"skills": [
+					{"id": "lf_might", "name": "Segen der Kraft", "desc": "8 s lang 20 % mehr Schaden.", "skill": {"template": "buff", "duration": 8, "buffs": {"damage_pct": 0.2}, "cooldown": 18}},
+					{"id": "lf_haste", "name": "Segen der Eile", "desc": "6 s lang schneller laufen und 20 % kürzere Abklingzeiten.", "skill": {"template": "buff", "duration": 6, "buffs": {"move_speed_pct": 0.3, "cooldown_pct": 0.2}, "cooldown": 18}},
+					{"id": "lf_nova", "name": "Lichtnova", "desc": "Lichtwelle um dich; je getroffenem Gegner heilst du 4 %.", "skill": {"template": "strike", "style": "cast", "mult": 1.0, "range": 4.5, "arc": 360, "windup": 0.2, "duration": 0.5, "kb": 4, "stag": 0.5, "shockwave": true, "heal_per_hit": 0.04, "cooldown": 10}},
+					{"id": "lf_ground", "name": "Heiliger Boden", "desc": "Geweihter Boden um dich: verbrennt Gegner und heilt dich 5 s lang.", "skill": {"template": "zone", "at_self": true, "radius": 4, "ticks": 10, "interval": 0.5, "mult": 0.35, "heal": 0.015, "cooldown": 16}}
+				],
+				"ultimate": {"id": "lf_wrath", "name": "Göttlicher Zorn", "desc": "10 s lang 40 % mehr Schaden, 20 % schneller, 2 % Heilung je Sekunde.", "skill": {"template": "buff", "duration": 10, "hot": 0.02, "buffs": {"damage_pct": 0.4, "attack_speed": 0.2}}}
+			}
+		]
+	},
+	"void_magic": {
+		"name": "Leerenmagie",
+		"role": "Beschwört Wesen und Klingen, die mitkämpfen",
+		"attributes": ["intelligence", "spirit"],
+		"class": "ranged",
+		"hands": 2,
+		"allows_shield": false,
+		"model": "orb",
+		"magic": true,
+		"element": "void",
+		"station": "arcana",
+		"rest": [0, 0, 0],
+		"move_speed": 1.0,
+		"ranged": {
+			"kind": "magic",
+			"element": "void",
+			"projectile": "orb",
+			"mult": 0.85,
+			"speed": 50,
+			"gravity": 0,
+			"cast": 0.45,
+			"kb": 1,
+			"stag": 0.3
+		},
+		"items": [
+			{"id": "void_orb", "name": "Leerenkugel", "tier": 1, "ingredients": {"copper_ingot": 3, "wolf_fang": 3, "linen": 1}},
+			{"id": "abyss_orb", "name": "Abgrundkugel", "tier": 2, "ingredients": {"iron_ingot": 4, "ogre_tusk": 2, "fine_linen": 1}}
+		],
+		"sides": [
+			{
+				"id": "beschwoerer",
+				"name": "Beschwörer",
+				"passive": {"id": "vo_beschwoerer", "name": "Beschwörer", "desc": "Bis zu 2 Leerenwesen gleichzeitig. Jeder Kill verlängert sie um 3 s.", "mechanic": "beschwoerer", "params": {"max": 2, "kill_extend": 3}},
+				"skills": [
+					{"id": "vo_being", "name": "Leerenwesen", "desc": "Beschwört 20 s lang ein Wesen, das den nächsten Gegner angreift.", "skill": {"template": "summon", "kind": "wesen", "count": 1, "time": 20, "mult": 0.5, "cooldown": 14}},
+					{"id": "vo_bolt", "name": "Leerenstoß", "desc": "Starkes Geschoss aus Leere.", "skill": {"template": "shot", "mult": 1.5, "speed": 50, "projectile": "orb", "cooldown": 6}},
+					{"id": "vo_bind", "name": "Seelenfessel", "desc": "Verlangsamt das Ziel und macht es 6 s verwundbar.", "skill": {"template": "shot", "mult": 0.6, "speed": 60, "projectile": "orb", "effects": {"slow": [0.5, 4], "expose": [0.15, 6]}, "cooldown": 12}},
+					{"id": "vo_sacrifice", "name": "Opfer", "desc": "Deine Beschwörungen explodieren (je 3 m, 200 %).", "skill": {"template": "sacrifice", "radius": 3, "mult": 2.0, "cooldown": 16}}
+				],
+				"ultimate": {"id": "vo_gate", "name": "Tor der Leere", "desc": "Ruft 15 s lang 3 große Leerenwesen.", "skill": {"template": "summon", "kind": "wesen", "count": 3, "time": 15, "mult": 0.8, "big": true}}
+			},
+			{
+				"id": "klingenbinder",
+				"name": "Klingenbinder",
+				"passive": {"id": "vo_klingenbinder", "name": "Klingenbinder", "desc": "Beschworene Klingen schlagen bei jedem deiner Treffer mit zu (je 20 %).", "mechanic": "klingenbinder", "params": {"mult": 0.2}},
+				"skills": [
+					{"id": "vo_blades", "name": "Klingen rufen", "desc": "3 Klingen kreisen 15 s um dich und treffen Gegner in der Nähe.", "skill": {"template": "summon", "kind": "klinge", "count": 3, "time": 15, "mult": 0.25, "cooldown": 18}},
+					{"id": "vo_throw", "name": "Klingenwurf", "desc": "Wirft 3 Leerenklingen in einem Fächer.", "skill": {"template": "shot", "count": 3, "spread": 10, "mult": 0.8, "speed": 60, "projectile": "orb", "cooldown": 8}},
+					{"id": "vo_shift", "name": "Leerensprung", "desc": "Springt durch die Leere zurück, kurz unverwundbar.", "skill": {"template": "evade", "distance": 6, "time": 0.25, "iframes": 0.4, "back": true, "cooldown": 10}},
+					{"id": "vo_rift", "name": "Leerenriss", "desc": "Riss am Ziel: Gegner darin nehmen 15 % mehr Schaden.", "skill": {"template": "zone", "radius": 3, "ticks": 5, "interval": 0.4, "mult": 0.4, "effects": {"expose": [0.15, 4]}, "cooldown": 12}}
+				],
+				"ultimate": {"id": "vo_storm", "name": "Klingensturm der Leere", "desc": "8 Klingen kreisen 10 s um dich.", "skill": {"template": "summon", "kind": "klinge", "count": 8, "time": 10, "mult": 0.35}}
+			}
+		]
 	}
 }

@@ -10,6 +10,7 @@ var velocity := Vector3.ZERO
 var gravity := 0.0
 var life := 3.0
 var kind := "arrow"
+var color := Color.WHITE # Farbe magischer Geschosse
 var hit_data: Dictionary = {} # mult, kb, stag, effects, pierce, explode
 var hit_list: Array = []
 var visual: Node3D
@@ -18,7 +19,7 @@ var visual: Node3D
 func _ready() -> void:
 	visual = Node3D.new()
 	add_child(visual)
-	WeaponModels.build_projectile(kind, visual)
+	WeaponModels.build_projectile(kind, visual, color)
 	_orient()
 
 

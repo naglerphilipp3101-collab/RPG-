@@ -44,15 +44,15 @@
 			"per_point": {"weapon_damage": 0.002, "stats": {"gather_speed:harvesting": 0.001}},
 			"per_point_text": "+0,2 % Schaden mit Intelligenz-Waffen und Magie · Ernte +0,1 % schneller",
 			"thresholds": [
-				{"at": 25, "text": "Magische Fähigkeiten +5 % Schaden", "stats": {"magic_damage_pct": 0.05}, "ab": "M7 Magie"},
+				{"at": 25, "text": "Magische Fähigkeiten +5 % Schaden", "stats": {"magic_damage_pct": 0.05}},
 				{"at": 50, "text": "Ernte 10 % schneller", "stats": {"gather_speed:harvesting": 0.1}},
-				{"at": 100, "text": "Abklingzeiten der Magiewaffen −5 %", "stats": {"magic_cooldown_pct": 0.05}, "ab": "M7 Magie"},
+				{"at": 100, "text": "Abklingzeiten der Magiewaffen −5 %", "stats": {"magic_cooldown_pct": 0.05}},
 				{"at": 150, "text": "Pflanzen und Fasern wiegen 10 % weniger", "stats": {"weight:Pflanze": 0.1}},
 				{"at": 200, "name": "Arkane Resonanz", "text": "Drei verschiedene Fähigkeiten nacheinander, die nächste macht +20 % Schaden", "mechanics": {"arkane_resonanz": 0.2}},
 				{"at": 250, "text": "Ernte: 10 % Chance auf doppelte Ausbeute", "stats": {"double:harvesting": 0.1}},
-				{"at": 300, "name": "Elementarmeister", "text": "Brennen, Frost und Ladung halten 25 % länger", "mechanics": {"elementarmeister": 0.25}, "ab": "M7 Magie"},
+				{"at": 300, "name": "Elementarmeister", "text": "Brennen, Frost und Ladung halten 25 % länger", "mechanics": {"elementarmeister": 0.25}},
 				{"at": 350, "text": "Ernte: Chance auf seltene Pflanzen +25 %", "stats": {"rare:harvesting": 0.25}},
-				{"at": 400, "name": "Durchdringung", "text": "Magie ignoriert 10 % der Resistenz", "mechanics": {"durchdringung": 0.1}, "ab": "M7 Magie"},
+				{"at": 400, "name": "Durchdringung", "text": "Magie ignoriert 10 % der Resistenz", "mechanics": {"durchdringung": 0.1}, "ab": "Gegner mit Resistenzen"},
 				{"at": 450, "text": "Ernte nimmt eine gleiche Pflanze im Umkreis von 2 m mit", "mechanics": {"ernte_umkreis": 2}},
 				{"at": 500, "name": "Zahrfluss", "text": "Jede 4. Fähigkeit hat keine Abklingzeit. Ernte: 5 % Chance, dass die Pflanze sofort nachwächst", "mechanics": {"zahrfluss": 4, "nachwachsen": 0.05}}
 			]

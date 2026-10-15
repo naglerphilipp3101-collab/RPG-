@@ -124,6 +124,12 @@ func _ready() -> void:
 		_m6_test()
 		phase = "character_ui" # beendet nach 1,5 s; mit --write-movie entsteht ein Bild vom Skillbaum
 		get_tree().current_scene.get_node("HUD").set_skill_tree_open.call_deferred(true)
+	# Mit --m7: Magie (Hitze, Ladung, Frost, Brennen, Beschwörungen, Heilung, Arkanes Sanktum)
+	if OS.get_cmdline_user_args().has("--m7"):
+		_m7_test()
+		phase = "character_ui" # beendet nach 1,5 s; mit --write-movie entsteht ein Bild (Skillbaum oder mit --hud die Leiste)
+		if not OS.get_cmdline_user_args().has("--hud"):
+			get_tree().current_scene.get_node("HUD").set_skill_tree_open.call_deferred(true)
 	# Mit --weapons: alle Waffentypen mit Angriffen und allen Fähigkeiten durchprobieren
 	if OS.get_cmdline_user_args().has("--weapons"):
 		weapon_types = Game.weapons.keys()
@@ -234,6 +240,7 @@ func _weapon_step() -> void:
 		side_passive = player.passive_mech
 	elif step_name.begins_with("ult:"):
 		var ult_id := step_name.substr(4)
+		_magie_zuruecksetzen()
 		player.toggle_skill(player.weapon_type, ult_id)
 		player.ultimate_charge = Game.ULTIMATE_CHARGE
 		player._try_ultimate()
@@ -243,6 +250,7 @@ func _weapon_step() -> void:
 		var node_id := step_name.substr(6)
 		player._mastery(player.weapon_type)["equipped"] = [node_id]
 		player.skill_cooldowns.erase(node_id)
+		_magie_zuruecksetzen()
 		player._try_skill(0)
 		if player.state != player.State.ACTION:
 			log_lines.append("FEHLER: %s startet keine Aktion" % node_id)
@@ -346,8 +354,11 @@ func _character_test() -> void:
 	_check("Mehr Punkte als frei geht nicht", player.add_attribute_points("dexterity", 50) == "" and player.attribute_points_free() == 0)
 	player.reset_attributes()
 	_check("Zurücksetzen gibt alle Punkte frei", player.attribute_points_free() == 348 and _near(player.max_health, 200.0))
-	player.add_attribute_points("intelligence", 20)
-	_check("Magie-Schwelle wirkt erst ab M7", _near(player.bonus("magic_damage_pct"), 0.0))
+	player.add_attribute_points("intelligence", 24 - player.attribute_value("intelligence"))
+	var below: float = player.bonus("magic_damage_pct")
+	player.add_attribute_points("intelligence", 1)
+	_check("Intelligenz 25: Magieschaden-Schwelle wirkt (M7)", below < player.bonus("magic_damage_pct"),
+		"%.3f → %.3f" % [below, player.bonus("magic_damage_pct")])
 	player.reset_attributes()
 
 	# Schwelle 500 (nur mit Ausrüstung erreichbar, hier direkt gesetzt): Unbeugsam
@@ -451,7 +462,7 @@ func _m6_test() -> void:
 		for side in sides:
 			if side["skills"].size() != 4 or String(side["passive"].get("mechanic", "")) == "" or not side.has("ultimate"):
 				bad.append(type + "/" + String(side["id"]))
-	_check("10 Waffen mit je 2 vollständigen Seiten", Game.weapons.size() == 10 and bad.is_empty(), str(bad))
+	_check("15 Waffen mit je 2 vollständigen Seiten", Game.weapons.size() == 15 and bad.is_empty(), str(bad))
 
 	# Tasten
 	var keys := {}
@@ -1041,3 +1052,183 @@ func _finish() -> void:
 	print("AUTOTEST Beutebeutel in der Welt: ", get_tree().current_scene.get_children().filter(
 		func(c): return c.get("items") != null and c.has_method("_process") and c.get("life") != null).size())
 	get_tree().quit()
+
+
+## Hitze/Stille aus vorigen Schritten löschen, damit jede Fähigkeit einzeln geprüft wird.
+func _magie_zuruecksetzen() -> void:
+	player.heat = 0.0
+	player.silence_time = 0.0
+	player.overheat_ready = false
+
+
+# --- M7: Magie ------------------------------------------------------------
+
+## Magiewaffe anlegen und eine Passive aktivieren.
+func _magie_waffe(type: String, passive_id: String) -> void:
+	player.equipment["weapon"] = Game.roll_gear("training_" + type, [])
+	player._recalc_stats()
+	player._mastery(type)["level"] = Game.MAX_MASTERY_LEVEL
+	player.unlock_node(type, passive_id)
+	if player._mastery(type).get("passive", "") != passive_id:
+		player.toggle_skill(type, passive_id)
+	player.buffs.clear()
+	player.heat = 0.0
+	player.silence_time = 0.0
+	player.overheat_ready = false
+	player.health = player.max_health
+
+
+## Schaden eines Treffers mit festem Zufall.
+func _treffer(enemy, ctx := {}) -> float:
+	seed(11)
+	var hp: float = enemy.health
+	player._deal_damage(enemy, 1.0, 0.0, 0.0, {}, false, player.global_position, "", ctx)
+	return hp - enemy.health
+
+
+func _m7_test() -> void:
+	# Daten: 5 Magiewaffen, hergestellt im Arkanen Sanktum
+	var magic: Array[String] = []
+	for type in Game.weapons:
+		if Game.weapons[type].get("magic", false):
+			magic.append(type)
+	var stations: Array = []
+	for id in ["ember_staff", "frost_staff", "spark_staff", "life_staff", "void_orb", "blaze_staff", "abyss_orb"]:
+		stations.append(Game.recipes.get(id, {}).get("station", "?"))
+	_check("5 Magiewaffen aus dem Arkanen Sanktum", magic.size() == 5 and stations.count("arcana") == 7, "%s %s" % [magic, stations])
+
+	var wolf = _find(func(n): return n.get("type_id") == "wolf" and n.is_alive())
+	wolf.max_health = 100000.0
+	wolf.health = wolf.max_health
+	wolf.global_position = player.global_position + Vector3(3, 0, 0)
+
+	# Feuer: Hitze steigt, bei 100 Überhitzung (3 s Stille, 8 % LP)
+	_magie_waffe("fire_magic", "fi_inferno")
+	player._cast_heat(15.0)
+	var heat_after: float = player.heat
+	player.heat = 95.0
+	player._cast_heat(15.0)
+	var lost: float = player.max_health - player.health
+	_check("Hitze steigt, Überhitzung: 3 s Stille und 8 % LP", heat_after == 15.0 and player.heat == 0.0
+		and player.silence_time == 3.0 and _near(lost, player.max_health * 0.08, 0.5) and not player._can_cast(),
+		"Hitze %.0f, Stille %.1f, %.1f LP" % [heat_after, player.silence_time, lost])
+
+	# Hitze gibt Schaden: +1 % je 10 Hitze, mit Glutherz +3 %
+	_magie_waffe("fire_magic", "fi_glutherz")
+	var cold: float = _treffer(wolf)
+	player.heat = 50.0
+	var hot: float = _treffer(wolf)
+	_check("Glutherz: 50 Hitze = +15 % Schaden", _near(hot / cold, 1.15, 0.005), "%.3f" % (hot / cold))
+	player.heat = 95.0
+	player._cast_heat(15.0)
+	var ready: bool = player.overheat_ready and player.silence_time == 0.0
+	var doubled: float = player._cast_heat(15.0)
+	_check("Glutherz: bei 100 Hitze nächster Zauber doppelt, dann Stille", ready and doubled == 2.0 and player.silence_time == 3.0)
+	player.silence_time = 0.0
+
+	# Brennen und Zündung (Rest des Brands × 150 %)
+	player._apply_effects(wolf, {"burn": 4.0}, "fire_magic", false)
+	var rest: float = wolf.burn_dps * ceilf(wolf.burn_time)
+	var hp: float = wolf.health
+	player._detonate_burns(15.0, 1.5)
+	_check("Brennen, Zündung löst den Rest mit 150 % aus", rest > 0.0 and not wolf.is_burning()
+		and _near(hp - wolf.health, rest * 1.5, 0.5), "Rest %.1f, Schaden %.1f" % [rest, hp - wolf.health])
+
+	# Eis: 5 Froststapel frieren ein, Zerschmettern +30 % und löst das Eis
+	_magie_waffe("ice_magic", "ic_frostwaechter")
+	player._apply_effects(wolf, {"frost": 3}, "ice_magic", false)
+	var slowed: int = wolf.frost_stacks
+	player._apply_effects(wolf, {"frost": 2}, "ice_magic", false)
+	var frozen: bool = wolf.is_frozen()
+	var shatter_hit: float = _treffer(wolf)
+	var thawed: bool = not wolf.is_frozen()
+	var plain_hit: float = _treffer(wolf)
+	_check("Frost: 5 Stapel frieren ein", slowed == 3 and frozen and thawed, "%d Stapel" % slowed)
+	_check("Zerschmettern: +30 % auf gefrorene Gegner", _near(shatter_hit / plain_hit, 1.3, 0.005), "%.3f" % (shatter_hit / plain_hit))
+
+	# Eispanzer: je Froststapel des Angreifers 2 % weniger Schaden
+	_magie_waffe("ice_magic", "ic_eispanzer")
+	player.iframes = 0.0
+	player.blocking = false
+	player.shield_hp = 0.0
+	wolf.frost_stacks = 0
+	player.take_damage(100.0, wolf.global_position, false, wolf)
+	var full_dmg: float = player.max_health - player.health
+	player.health = player.max_health
+	wolf.frost_stacks = 3
+	player.take_damage(100.0, wolf.global_position, false, wolf)
+	var armored: float = player.max_health - player.health
+	_check("Eispanzer: 3 Stapel = 6 % weniger Schaden", _near(armored / full_dmg, 0.94, 0.005), "%.3f" % (armored / full_dmg))
+	wolf.frost_stacks = 0
+
+	# Phönix: tödlicher Treffer lässt dich mit 30 % LP aufstehen
+	player.health = 10.0
+	player.iframes = 0.0
+	player.buffs.append({"id": "fi_phoenix", "stats": {"phoenix": 0.3}, "time": 10.0})
+	player.take_damage(500.0, wolf.global_position, true)
+	_check("Phönix: mit 30 % LP wieder auf", player.is_alive() and _near(player.health, player.max_health * 0.3, 0.5)
+		and player.bonus("phoenix") == 0.0, "%.0f LP" % player.health)
+	player.health = player.max_health
+	player.iframes = 0.0
+
+	# Blitz: Treffer geben Ladungen, Fähigkeiten entladen sie; Ketten springen über
+	_magie_waffe("lightning_magic", "li_funkenlaeufer")
+	player.charges = 0
+	_treffer(wolf)
+	_treffer(wolf)
+	var two: int = player.charges
+	var other = _find(func(n): return n != wolf and n.is_in_group("enemies") and n.is_alive())
+	other.max_health = 100000.0
+	other.health = other.max_health
+	other.global_position = wolf.global_position + Vector3(2, 0, 0)
+	_treffer(wolf, {"chain": 1})
+	var jumped: bool = other.health < other.max_health
+	_check("Blitz: Ladung je Treffer, Kette springt über", two == 2 and jumped, "%d Ladungen" % two)
+	player.charges = 5
+	player._cast_skill(Game.tree_node("lightning_magic", "li_discharge"))
+	var discharge_mult: float = player.action.get("mult", 0.0)
+	_check("Entladung verbraucht alle Ladungen (+40 % je Ladung)", player.charges == 0 and _near(discharge_mult, 1.0 * (1.0 + 5 * 0.4), 0.01),
+		"Faktor %.2f" % discharge_mult)
+	player._end_action(false)
+
+	# Leben: Heiler heilt stärker bei wenig LP, Segner gibt nach jeder Heilung mehr Schaden
+	_magie_waffe("life_magic", "lf_heiler")
+	player.health = player.max_health * 0.25
+	var base_factor: float = 1.0 + player.bonus("healing_pct") + player.bonus("heal_low_pct") + player.bonus("self_heal_pct")
+	var healed: float = player.heal(100.0)
+	_check("Heiler: bei 25 % LP +37,5 % Heilung", _near(healed, 100.0 * (base_factor + 0.375), 0.01), "%.1f" % healed)
+	_magie_waffe("life_magic", "lf_segner")
+	player.health = player.max_health * 0.5
+	var before: float = player.bonus("damage_pct")
+	player.heal(50.0)
+	var gained: float = player.bonus("damage_pct") - before
+	_check("Segner: Heilung gibt +10 % Schaden", _near(gained, 0.1, 0.001), "%.2f" % gained)
+
+	# Leere: ohne Beschwörer 1 Wesen, mit Beschwörer 2, die Ultimative ruft 3; Opfer sprengt alle
+	_magie_waffe("void_magic", "vo_klingenbinder")
+	player._summon("wesen", 1, 20.0, 0.5, false)
+	player._summon("wesen", 1, 20.0, 0.5, false)
+	var alone: int = player.summons.size()
+	_magie_waffe("void_magic", "vo_beschwoerer")
+	for i in 3:
+		player._summon("wesen", 1, 20.0, 0.5, false)
+	var two_beings: int = player.summons.size()
+	player._summon("wesen", 3, 15.0, 0.8, true)
+	_check("Leerenwesen: 1, mit Beschwörer 2, Tor der Leere 3", alone == 1 and two_beings == 2 and player.summons.size() == 3,
+		"%d / %d / %d" % [alone, two_beings, player.summons.size()])
+	player._sacrifice_summons(3.0, 2.0)
+	_check("Opfer sprengt alle Beschwörungen", player.summons.is_empty())
+
+	# Intelligenz 25: +Magieschaden
+	_magie_waffe("void_magic", "vo_beschwoerer")
+	var plain: float = _treffer(wolf)
+	player.buffs.append({"id": "test", "stats": {"magic_damage_pct": 0.1}, "time": 10.0})
+	var smart: float = _treffer(wolf)
+	_check("Magieschaden-Bonus wirkt auf Magiewaffen", _near(smart / plain, 1.1, 0.005), "%.3f" % (smart / plain))
+
+	# Fürs Bild: Feuerstab mit Glutherz-Seite und etwas Hitze
+	_magie_waffe("fire_magic", "fi_glutherz")
+	for id in ["fi_lance", "fi_blast", "fi_ignite", "fi_phoenix", "fi_fireball"]:
+		player.unlock_node("fire_magic", id)
+	player.heat = 64.0
+	player.ultimate_charge = 70.0

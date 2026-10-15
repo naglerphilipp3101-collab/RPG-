@@ -58,6 +58,20 @@ var poison_source := ""
 var stun_time := 0.0
 var stun_meter := 0.0 # Erschütterung (Hammer): bei 1 betäubt
 var taunt_time := 0.0
+# Magie (M7): Brennen, Frost (5 Stapel = eingefroren, danach kurz immun)
+const FROST_MAX := 5
+const FROST_SLOW := 0.1 # je Stapel
+const FROST_TIME := 4.0
+const FREEZE_TIME := 1.5
+const FREEZE_IMMUNE := 3.0
+var burn_dps := 0.0
+var burn_time := 0.0
+var burn_tick := 0.0
+var burn_source := ""
+var frost_stacks := 0
+var frost_time := 0.0
+var frozen := false
+var freeze_immune := 0.0
 var slow_pct := 0.0 # Verlangsamung durch Fähigkeiten
 var slow_time := 0.0
 var expose_pct := 0.0 # erhöhter erlittener Schaden
@@ -479,7 +493,7 @@ func _separation() -> Vector3:
 
 ## Blutung: Schaden über Zeit, einmal pro Sekunde.
 func _speed() -> float:
-	return speed * (1.0 - slow_pct if slow_time > 0.0 else 1.0)
+	return speed * (1.0 - slow_pct if slow_time > 0.0 else 1.0) * (1.0 - frost_stacks * FROST_SLOW)
 
 
 ## Mittelpunkt des Körpers (für Geschosstreffer).
@@ -519,6 +533,7 @@ func _update_bleed(delta: float) -> void:
 	if sunder_time <= 0.0:
 		sunder_stacks = 0
 	_update_poison(delta)
+	_update_magic(delta)
 	if state == State.DEAD:
 		return
 	if bleed_time <= 0.0:
@@ -628,6 +643,103 @@ func consume_bleed() -> float:
 	return rest
 
 
+# --- Magie: Brennen und Frost --------------------------------------------
+
+func _update_magic(delta: float) -> void:
+	freeze_immune = maxf(freeze_immune - delta, 0.0)
+	if frozen and stun_time <= 0.0:
+		_thaw()
+	if frost_stacks > 0 and not frozen:
+		frost_time -= delta
+		if frost_time <= 0.0:
+			frost_stacks = 0
+			_frost_tint()
+	if burn_time <= 0.0 or state == State.DEAD:
+		return
+	burn_time -= delta
+	burn_tick -= delta
+	if burn_tick > 0.0:
+		return
+	burn_tick = 1.0
+	health -= burn_dps
+	_track_damage(burn_source, burn_dps)
+	FX.popup(get_tree(), global_position + Vector3(0, _bar_height(), 0), str(roundi(burn_dps)), Color(1.0, 0.5, 0.15), 46)
+	if health <= 0.0:
+		_die()
+
+
+## Brennen: Schaden je Sekunde; ein neuer Brand ersetzt einen schwächeren.
+func apply_burn(dps: float, duration: float, source := "") -> void:
+	if state == State.DEAD:
+		return
+	if burn_time <= 0.0:
+		FX.popup(get_tree(), global_position + Vector3(0, _bar_height() + 0.4, 0), "Brennt", Color(1.0, 0.5, 0.15), 40)
+		burn_tick = 1.0
+	burn_dps = maxf(burn_dps if burn_time > 0.0 else 0.0, dps)
+	burn_time = maxf(burn_time, duration)
+	burn_source = source
+
+
+func is_burning() -> bool:
+	return burn_time > 0.0 and state != State.DEAD
+
+
+## Zündung: beendet den Brand und gibt seinen restlichen Schaden zurück.
+func consume_burn() -> float:
+	if burn_time <= 0.0:
+		return 0.0
+	var rest := burn_dps * ceilf(burn_time)
+	burn_time = 0.0
+	return rest
+
+
+## Frost: jeder Stapel verlangsamt um 10 %; bei 5 Stapeln friert der Gegner ein. Gibt true zurück, wenn er einfriert.
+func add_frost(stacks: int, duration := FROST_TIME) -> bool:
+	if state == State.DEAD or frozen:
+		return false
+	frost_stacks = mini(frost_stacks + stacks, FROST_MAX)
+	frost_time = duration
+	if frost_stacks >= FROST_MAX and freeze_immune <= 0.0:
+		frozen = true
+		apply_stun(FREEZE_TIME * duration / FROST_TIME)
+		FX.popup(get_tree(), global_position + Vector3(0, _bar_height() + 0.7, 0), "Eingefroren", Color(0.6, 0.85, 1.0), 48)
+		_frost_tint()
+		return true
+	if frost_stacks >= FROST_MAX:
+		frost_stacks = FROST_MAX - 1 # noch immun: bleibt knapp unter dem Einfrieren
+	_frost_tint()
+	return false
+
+
+func is_frozen() -> bool:
+	return frozen and stun_time > 0.0
+
+
+## Zerschmettern: löst das Eis sofort.
+func break_ice() -> void:
+	if not frozen:
+		return
+	stun_time = 0.0
+	state_timer = 0.0
+	_thaw()
+
+
+func _thaw() -> void:
+	frozen = false
+	frost_stacks = 0
+	freeze_immune = FREEZE_IMMUNE
+	_frost_tint()
+
+
+func _frost_tint() -> void:
+	if body_material == null:
+		return
+	var base: Array = data.get("color", [0.5, 0.5, 0.5])
+	var c := Color(float(base[0]), float(base[1]), float(base[2]))
+	var t := 0.75 if frozen else frost_stacks * 0.08
+	body_material.albedo_color = c.lerp(Color(0.6, 0.85, 1.0), t)
+
+
 ## Kopf für Kopftreffer: Mittelpunkt und Radius in Weltkoordinaten.
 func get_head() -> Array:
 	if data.get("shape", "humanoid") == "beast":
@@ -691,11 +803,11 @@ func get_xp() -> int:
 
 func _die() -> void:
 	health = 0.0
+	_set_state(State.DEAD) # zuerst, damit Folgeeffekte (z. B. Inferno-Explosion) diesen Gegner nicht erneut treffen
 	var killer = get_tree().get_first_node_in_group("player")
 	if killer != null and not damage_by_source.is_empty():
 		killer.on_enemy_killed(self, get_xp(), damage_by_source.duplicate())
 	damage_by_source.clear()
-	_set_state(State.DEAD)
 	collision.set_deferred("disabled", true)
 	bar_root.visible = false
 	_kill_anim()
@@ -746,6 +858,11 @@ func _respawn() -> void:
 	bleed_time = 0.0
 	slow_time = 0.0
 	expose_time = 0.0
+	burn_time = 0.0
+	frost_stacks = 0
+	frozen = false
+	freeze_immune = 0.0
+	_frost_tint()
 	var angle := randf() * TAU
 	global_position = home + Vector3(cos(angle) * 2.0, 0.5, sin(angle) * 2.0)
 	health = max_health

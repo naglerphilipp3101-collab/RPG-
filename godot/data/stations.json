@@ -8,7 +8,7 @@
 	"armorer": {"name": "Rüstungsschmiede", "profession": "armoring", "visual": "armor"},
 	"engineer": {"name": "Ingenieurswerkstatt", "profession": "engineering", "visual": "gears"},
 	"jeweler": {"name": "Juwelier", "profession": "jewelcrafting", "visual": "gem"},
-	"arcana": {"name": "Arkana-Labor", "profession": "arcana", "visual": "cauldron"},
+	"arcana": {"name": "Arkanes Sanktum", "profession": "arcana", "visual": "cauldron"},
 	"kitchen": {"name": "Küche", "profession": "cooking", "visual": "kitchen"},
 	"armory": {"name": "Übungswaffenständer", "profession": "weaponsmithing", "visual": "weapon_rack"}
 }
