@@ -117,7 +117,7 @@ func _ready() -> void:
 		phase = "character_ui" # beendet nach 1,5 s; mit --write-movie entsteht ein Bild (Skillbaum oder mit --hud die Leiste)
 		if not OS.get_cmdline_user_args().has("--hud"):
 			get_tree().current_scene.get_node("HUD").set_skill_tree_open.call_deferred(true)
-	# Mit --fehlertest: F9-Fehlermeldung (Fenster, Kommentar, Liste, Hinspringen); mit --write-movie Bild vom Fenster
+	# Mit --fehlertest: Fehlermeldung (Taste B) (Fenster, Kommentar, Liste, Hinspringen); mit --write-movie Bild vom Fenster
 	if OS.get_cmdline_user_args().has("--fehlertest"):
 		phase = "character_ui" # beendet nach 1,5 s, auch während das Fenster das Spiel anhält
 		process_mode = Node.PROCESS_MODE_ALWAYS
@@ -1208,7 +1208,7 @@ func _fehler_test() -> void:
 	Input.parse_input_event(taste)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	_check("F9 öffnet das Fenster und hält das Spiel an", fm.visible and get_tree().paused and player.ui_open)
+	_check("Taste B öffnet das Fenster und hält das Spiel an", fm.visible and get_tree().paused and player.ui_open)
 	var inv := InputEventAction.new()
 	inv.action = "inventory"
 	inv.pressed = true

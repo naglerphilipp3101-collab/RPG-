@@ -1,5 +1,5 @@
 extends Control
-## Fehler melden (F9): hält das Spiel an, macht ein Bildschirmfoto und fragt nach einem Kommentar.
+## Fehler melden (Taste B; nicht F9, die hält im Godot-Editor das laufende Spiel an): hält das Spiel an, macht ein Bildschirmfoto und fragt nach einem Kommentar.
 ## Gespeichert wird in user://fehler/ (Windows: %APPDATA%\Godot\app_userdata\RPG\fehler\):
 ##   fehler.json – Liste aller Meldungen (Nummer, Zeit, Welt, Position, Blickrichtung, Biom, Kommentar)
 ##   fehler_001.jpg … – Bildschirmfoto zur Meldung
