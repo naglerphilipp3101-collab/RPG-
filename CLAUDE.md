@@ -77,7 +77,7 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
 **Nächster Schritt (M4.5 Grafik & Welt):**
 - Assets aus `assets/` ins Spiel einbinden: Erze auf **6 Tiers** umstellen (Spiel hat bisher Kupfer/Eisen in Tier 1–2), Bäume und Pflanzen ersetzen.
 - ✅ Terrain3D-Insel ist eingebaut (Karte 5, Seed 737707, 16,4 km, 2 m/Pixel). Rohdaten: `Welt/welt_export.zip` (+ Projekt `welt_projekt_737707.zip`),
-  entpackt nach `godot/welt_daten` (gitignored), Import: `Godot --headless --path godot -s res://tests/welt_importieren.gd`.
+  entpackt nach `godot/welt_daten` (gitignored), Import: `godot/Welt importieren.bat` (Doppelklick) bzw. `Godot --headless --path godot -s res://tests/welt_importieren.gd`.
   Das Spiel setzt `vertex_spacing` aus `meter_pro_pixel`, startet am Marker „Startdorf“, legt Seen (`welt_seen`) und Brücken an,
   Spielstand-Welt-ID = `insel_<seed>`.
 - ✅ Natur auf der ganzen Insel: `scripts/natur.gd` berechnet Bäume/Büsche/Sammelpflanzen je 64-m-Kachel aus Biomkarte, Gelände
