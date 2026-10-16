@@ -138,6 +138,12 @@ func _ready() -> void:
 		add_child(load("res://tests/autotest.gd").new())
 	elif SaveGame.load_into(get_tree(), Game.SAVE_PATH):
 		hud.show_message("Spielstand geladen")
+	if args.has("--fehler"):
+		# Zur Stelle einer Fehlermeldung springen (F9, scripts/fehler_melden.gd)
+		var i := args.find("--fehler")
+		var nr := int(args[i + 1]) if i + 1 < args.size() else 0
+		if load("res://scripts/fehler_melden.gd").hinspringen(player, nr):
+			hud.show_message("Fehler %d" % nr)
 
 	var autosave := Timer.new()
 	autosave.wait_time = Game.AUTOSAVE_INTERVAL

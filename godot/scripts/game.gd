@@ -466,6 +466,7 @@ func _setup_input() -> void:
 	_add_key("inventory", KEY_TAB)
 	_add_key("inventory", KEY_I)
 	_add_key("toggle_help", KEY_F1)
+	_add_key("fehler_melden", KEY_F9)
 	_add_mouse("attack", MOUSE_BUTTON_LEFT)
 	_add_mouse("block", MOUSE_BUTTON_RIGHT)
 

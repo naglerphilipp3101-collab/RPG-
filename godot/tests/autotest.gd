@@ -117,6 +117,11 @@ func _ready() -> void:
 		phase = "character_ui" # beendet nach 1,5 s; mit --write-movie entsteht ein Bild (Skillbaum oder mit --hud die Leiste)
 		if not OS.get_cmdline_user_args().has("--hud"):
 			get_tree().current_scene.get_node("HUD").set_skill_tree_open.call_deferred(true)
+	# Mit --fehlertest: F9-Fehlermeldung (Fenster, Kommentar, Liste, Hinspringen); mit --write-movie Bild vom Fenster
+	if OS.get_cmdline_user_args().has("--fehlertest"):
+		phase = "character_ui" # beendet nach 1,5 s, auch während das Fenster das Spiel anhält
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		_fehler_test()
 	# Mit --weapons: alle Waffentypen mit Angriffen und allen Fähigkeiten durchprobieren
 	if OS.get_cmdline_user_args().has("--weapons"):
 		weapon_types = Game.weapons.keys()
@@ -1187,3 +1192,51 @@ func _natur_id(n) -> String:
 		if not c is CollisionShape3D:
 			return String(c.name).rstrip("0123456789_").to_lower()
 	return n.get_class()
+
+
+func _fehler_test() -> void:
+	var hud = get_tree().current_scene.get_node("HUD")
+	var fm = hud.fehler_melden
+	# Echte Meldungen sichern und am Ende wiederherstellen
+	var vorher: String = FileAccess.get_file_as_string(fm.LISTE) if FileAccess.file_exists(fm.LISTE) else ""
+	await get_tree().process_frame
+	player.global_position = Vector3(12.5, 0.5, -3.25)
+	player.cam_yaw = 1.2
+	var taste := InputEventAction.new()
+	taste.action = "fehler_melden"
+	taste.pressed = true
+	Input.parse_input_event(taste)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check("F9 öffnet das Fenster und hält das Spiel an", fm.visible and get_tree().paused and player.ui_open)
+	var inv := InputEventAction.new()
+	inv.action = "inventory"
+	inv.pressed = true
+	Input.parse_input_event(inv)
+	await get_tree().process_frame
+	_check("Tippen öffnet kein Inventar", not hud.inventory_ui.visible)
+	var anzahl: int = fm._liste().size()
+	fm.eingabe.text = "Testfehler: Gras schwebt"
+	fm.speichern()
+	var liste: Array = fm._liste()
+	var e: Dictionary = liste[-1] if liste.size() > 0 else {}
+	_check("Meldung gespeichert", liste.size() == anzahl + 1 and e.get("kommentar", "") == "Testfehler: Gras schwebt",
+		str(e))
+	_check("Fenster zu, Spiel läuft weiter", not fm.visible and not get_tree().paused and not player.ui_open)
+	player.global_position = Vector3.ZERO
+	player.cam_yaw = 0.0
+	_check("Hinspringen setzt Position und Blick", fm.hinspringen(player, int(e.get("nr", 0)))
+		and player.global_position.distance_to(Vector3(12.5, 0.5, -3.25)) < 0.05 and absf(player.cam_yaw - 1.2) < 0.01)
+	# Aufräumen: Testeintrag und -bild entfernen
+	DirAccess.remove_absolute(fm.ORDNER.path_join(String(e.get("bild", "x"))))
+	if vorher == "":
+		DirAccess.remove_absolute(fm.LISTE)
+	else:
+		var f := FileAccess.open(fm.LISTE, FileAccess.WRITE)
+		f.store_string(vorher)
+		f.close()
+	print("AUTOTEST Fehlertest: %d Fehler" % check_failed)
+	# Für das Bild: Fenster mit Beispieltext offen lassen
+	player.global_position = Vector3(20, 0.5, -6)
+	hud._fehler_oeffnen.call_deferred()
+	(func() -> void: fm.eingabe.text = "Gras schwebt über dem Bach").call_deferred()

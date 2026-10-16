@@ -4,6 +4,7 @@ extends CanvasLayer
 const InventoryUIScript := preload("res://scripts/inventory_ui.gd")
 const CraftingUIScript := preload("res://scripts/crafting_ui.gd")
 const PauseMenuScript := preload("res://scripts/pause_menu.gd")
+const FehlerMeldenScript := preload("res://scripts/fehler_melden.gd")
 const SkillTreeUIScript := preload("res://scripts/skill_tree_ui.gd")
 const MinimapScript := preload("res://scripts/minimap.gd")
 const CharakterUIScript := preload("res://scripts/charakter_ui.gd")
@@ -25,6 +26,7 @@ K  Skillbaum    P  Charakter
 M  Karte    N  Minimap-Zoom
 F3  Debug-Flug (Strg = ×30, Leertaste/C = hoch/runter)
 Tab oder I  Inventar
+F9  Fehler melden (Ort, Bild, Kommentar)
 F1  Hilfe ein/aus    Esc  Pause / Speichern"""
 
 var player = null
@@ -34,6 +36,7 @@ var notifications: VBoxContainer
 var inventory_ui: Control
 var crafting_ui: Control
 var pause_menu: Control
+var fehler_melden: Control # F9: Fehler mit Ort, Bild und Kommentar festhalten
 var skill_tree_ui: Control
 var charakter_ui: Control
 var kompass: Control
@@ -238,10 +241,15 @@ func _ready() -> void:
 	pause_menu = PauseMenuScript.new()
 	pause_menu.resume_requested.connect(func() -> void: set_paused(false))
 	root.add_child(pause_menu)
+	fehler_melden = FehlerMeldenScript.new()
+	fehler_melden.geschlossen.connect(_fehler_geschlossen)
+	root.add_child(fehler_melden)
 
 
 func bind_player(p) -> void:
 	player = p
+	fehler_melden.player = p
+	fehler_melden.main_node = p.get_parent()
 	kompass.player = p
 	player.message.connect(show_message)
 	player.notify.connect(add_notification)
@@ -346,7 +354,7 @@ func set_world_map_open(open: bool) -> void:
 
 
 func _apply_ui_mode() -> void:
-	var open: bool = _any_window_open() or pause_menu.visible
+	var open: bool = _any_window_open() or pause_menu.visible or fehler_melden.visible
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if open else Input.MOUSE_MODE_CAPTURED
 	player.ui_open = open
 
@@ -371,7 +379,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # In _input statt _unhandled_input, damit die Oberfläche Tab nicht für den Fokuswechsel schluckt
 func _input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_cancel"):
+	if fehler_melden.visible:
+		return # Tasten gehören dem Kommentarfeld (sonst öffnet z. B. „i“ das Inventar)
+	if event.is_action_pressed("fehler_melden") and not pause_menu.visible:
+		_fehler_oeffnen()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_cancel"):
 		# Esc: erst offene Fenster schließen, sonst Pausenmenü öffnen/schließen
 		if _any_window_open():
 			close_all_windows()
@@ -392,6 +405,17 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("minimap_zoom") and not pause_menu.visible:
 		minimap.cycle_zoom()
+
+
+func _fehler_oeffnen() -> void:
+	fehler_melden.oeffnen()
+	get_tree().paused = true
+	_apply_ui_mode()
+
+
+func _fehler_geschlossen() -> void:
+	get_tree().paused = false
+	_apply_ui_mode()
 
 
 func _process(delta: float) -> void:
