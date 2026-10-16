@@ -139,7 +139,7 @@ func _ready() -> void:
 	elif SaveGame.load_into(get_tree(), Game.SAVE_PATH):
 		hud.show_message("Spielstand geladen")
 	if args.has("--fehler"):
-		# Zur Stelle einer Fehlermeldung springen (F9, scripts/fehler_melden.gd)
+		# Zur Stelle einer Fehlermeldung springen (Taste B, scripts/fehler_melden.gd)
 		var i := args.find("--fehler")
 		var nr := int(args[i + 1]) if i + 1 < args.size() else 0
 		if load("res://scripts/fehler_melden.gd").hinspringen(player, nr):

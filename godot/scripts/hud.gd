@@ -26,7 +26,7 @@ K  Skillbaum    P  Charakter
 M  Karte    N  Minimap-Zoom
 F3  Debug-Flug (Strg = ×30, Leertaste/C = hoch/runter)
 Tab oder I  Inventar
-F9  Fehler melden (Ort, Bild, Kommentar)
+B  Fehler melden (Ort, Bild, Kommentar)
 F1  Hilfe ein/aus    Esc  Pause / Speichern"""
 
 var player = null
@@ -36,7 +36,7 @@ var notifications: VBoxContainer
 var inventory_ui: Control
 var crafting_ui: Control
 var pause_menu: Control
-var fehler_melden: Control # F9: Fehler mit Ort, Bild und Kommentar festhalten
+var fehler_melden: Control # B: Fehler mit Ort, Bild und Kommentar festhalten
 var skill_tree_ui: Control
 var charakter_ui: Control
 var kompass: Control
