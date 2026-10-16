@@ -871,9 +871,415 @@ function wegInSteuerkarte(st, maske, nz) {
   }
 }
 
+// ---------- Landschaft überarbeiten: Hochebenen, Bergrücken mit Pässen, Seen und Flüsse in Tälern ----------
+// Vorbild New World: Hochebenen je Schwierigkeitsstufe, Regionen durch Bergrücken getrennt (Pässe und Flussdurchbrüche
+// bleiben offen), wenige Flüsse in Tälern, geschwungen, mit Seen unterwegs. Arbeitet auf einer fertigen Karte
+// (Höhen, Regionen, Seen) und lässt Küste, Zentralberg und Siedlungen in Ruhe.
+// Wasser schwebt nie: der Wasserspiegel liegt überall unter dem Ufer quer über die ganze Flussbreite.
+
+const FLUSS_KM2 = 0.6;   // Einzugsgebiet, ab dem ein Fluss beginnt (km²)
+
+// Abstand in Metern zur nächsten Zelle mit quelle[i] (Chamfer 3-4, zwei Durchläufe)
+function abstandMeter(N, zelle, quelle) {
+  const D = new Float32Array(N * N), INF = 1e9, d1 = zelle, d2 = zelle * 1.4142;
+  for (let i = 0; i < N * N; i++) D[i] = quelle[i] ? 0 : INF;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x; let d = D[i];
+    if (x > 0) d = Math.min(d, D[i - 1] + d1);
+    if (y > 0) { d = Math.min(d, D[i - N] + d1); if (x > 0) d = Math.min(d, D[i - N - 1] + d2); if (x < N - 1) d = Math.min(d, D[i - N + 1] + d2); }
+    D[i] = d;
+  }
+  for (let y = N - 1; y >= 0; y--) for (let x = N - 1; x >= 0; x--) {
+    const i = y * N + x; let d = D[i];
+    if (x < N - 1) d = Math.min(d, D[i + 1] + d1);
+    if (y < N - 1) { d = Math.min(d, D[i + N] + d1); if (x < N - 1) d = Math.min(d, D[i + N + 1] + d2); if (x > 0) d = Math.min(d, D[i + N - 1] + d2); }
+    D[i] = d;
+  }
+  return D;
+}
+
+// Abflussrichtung (Priority-Flood über gefüllte Höhen) und Einzugsgebiet in Zellen
+function abfluss(H, N) {
+  const n = N * N, F = new Float32Array(H), fertig = new Uint8Array(n), ziel = new Int32Array(n).fill(-1), reihenfolge = new Int32Array(n);
+  const heap = new Int32Array(n); let hs = 0, rk = 0;
+  const push = (i) => { let k = hs++; heap[k] = i; while (k > 0) { const p = (k - 1) >> 1; if (F[heap[p]] <= F[heap[k]]) break; const t = heap[p]; heap[p] = heap[k]; heap[k] = t; k = p; } };
+  const pop = () => { const top = heap[0]; heap[0] = heap[--hs]; let k = 0;
+    for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < hs && F[heap[l]] < F[heap[m]]) m = l; if (r < hs && F[heap[r]] < F[heap[m]]) m = r; if (m === k) break; const t = heap[m]; heap[m] = heap[k]; heap[k] = t; k = m; }
+    return top; };
+  for (let i = 0; i < N; i++) for (const c of [i, (N - 1) * N + i, i * N, i * N + N - 1]) if (!fertig[c]) { fertig[c] = 1; push(c); }
+  const nb = [1, -1, N, -N, N + 1, N - 1, -N + 1, -N - 1];
+  while (hs > 0) {
+    const c = pop(); reihenfolge[rk++] = c; const cx = c % N;
+    for (const o of nb) { const q = c + o; if (q < 0 || q >= n || fertig[q] || Math.abs((q % N) - cx) > 1) continue;
+      fertig[q] = 1; if (F[q] <= F[c]) F[q] = F[c] + 1e-3; ziel[q] = c; push(q); }
+  }
+  const A = new Float32Array(n);
+  for (let k = n - 1; k >= 0; k--) { const c = reihenfolge[k]; if (H[c] > 0) A[c] += 1; if (ziel[c] >= 0) A[ziel[c]] += A[c]; }
+  return { A, ziel };
+}
+
+const bilinear = (H, N, x, y) => {
+  x = Math.min(N - 1.001, Math.max(0, x)); y = Math.min(N - 1.001, Math.max(0, y));
+  const x0 = x | 0, y0 = y | 0, fx = x - x0, fy = y - y0, i = y0 * N + x0;
+  return H[i] * (1 - fx) * (1 - fy) + H[i + 1] * fx * (1 - fy) + H[i + N] * (1 - fx) * fy + H[i + N + 1] * fx * fy;
+};
+
+// Schutzfaktor 0..1 um Siedlungen und Felder (0 = nicht verändern)
+function schutzFeld(N, zelle, schutz) {
+  const S = new Float32Array(N * N).fill(1);
+  for (const m of schutz || []) {
+    const r0 = (m.r + 40) / zelle, r1 = (m.r + 260) / zelle;
+    for (let y = Math.max(0, Math.floor(m.y - r1)); y <= Math.min(N - 1, Math.ceil(m.y + r1)); y++)
+      for (let x = Math.max(0, Math.floor(m.x - r1)); x <= Math.min(N - 1, Math.ceil(m.x + r1)); x++) {
+        const d = Math.hypot(x - m.x, y - m.y), i = y * N + x;
+        S[i] = Math.min(S[i], smoothstep(r0, r1, d));
+      }
+  }
+  return S;
+}
+
+// Hochebenen: Höhen werden zu Stufen zusammengeschoben (monoton, es entstehen keine neuen Senken).
+// Die Stufenhöhen wandern mit grobem Rauschen, damit keine Ringe um den Berg entstehen.
+function hochebenen(H, N, zelle, seed, meer, seeNah, berg, staerke) {
+  const nz = makeNoise(seed * 13 + 5), f = N * zelle / 4096;
+  const STUFEN = [0, 12, 28, 50, 78, 112, 152, 200, 260, 330, 420, 1e4];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x, h = H[i];
+    if (h <= 1.5) continue;
+    const u = x / N * f, v = y / N * f;
+    const w = staerke * smoothstep(60, 260, meer[i]) * smoothstep(120, 380, seeNah[i]) * (1 - smoothstep(170, 250, h)) * smoothstep(150, 700, berg[i]) *
+      (0.55 + 0.45 * smoothstep(-0.3, 0.3, nz.fbm(u * 3 + 4, v * 3 + 1, 3)));
+    if (w <= 0.01) continue;
+    const j = 0.3 * nz.fbm(u * 2 + 9, v * 2 + 3, 3);   // Stufen verschieben (Anteil eines Abstands, höchstens 60 m)
+    const stufe = (k) => STUFEN[k] + j * Math.min(60, STUFEN[k + 1] - STUFEN[k]);
+    let k = 0; while (k < STUFEN.length - 3 && h >= stufe(k + 1)) k++;
+    const a = stufe(k), b = stufe(k + 1);
+    if (h >= b || h <= a) continue;
+    const t = (h - a) / (b - a);
+    H[i] = a + (b - a) * (t + w * (smoothstep(0.3, 0.7, t) - t));
+  }
+}
+
+// Bergrücken auf den Regionsgrenzen. Offen bleiben: Pässe (1–3 je Grenze, an der tiefsten Stelle beginnend),
+// Flussdurchbrüche, Küste, Seen, Zentralberg und Siedlungen.
+function grateAnlegen(H, N, zelle, REG, A, T, seed, meer, seeNah, S) {
+  const nz = makeNoise(seed * 17 + 3), rnd = mulberry32(seed * 3 + 1), f = N * zelle / 4096;
+  const istRegion = (r) => r >= 1 && r < 250;
+  const grenze = new Uint8Array(N * N), paare = new Map();
+  for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) {
+    const i = y * N + x, r = REG[i]; if (!istRegion(r)) continue;
+    for (const j of [i + 1, i + N]) { const q = REG[j];
+      if (istRegion(q) && q !== r) { grenze[i] = 1; const k = Math.min(r, q) * 256 + Math.max(r, q);
+        (paare.get(k) || paare.set(k, []).get(k)).push(i); } }
+  }
+  const pass = new Uint8Array(N * N); let paesse = 0;
+  for (const zellen of paare.values()) {
+    const laenge = zellen.length * zelle, anzahl = Math.min(3, 1 + Math.floor(laenge / 3500));
+    if (laenge < 300) continue;
+    const gewaehlt = [];
+    // erster Pass an der tiefsten Stelle (natürlicher Sattel), weitere möglichst weit weg
+    let best = zellen[0]; for (const i of zellen) if (H[i] < H[best] && meer[i] > 400) best = i;
+    gewaehlt.push(best);
+    while (gewaehlt.length < anzahl) {
+      let bi = -1, bd = -1;
+      for (let t = 0; t < 400; t++) { const i = zellen[(rnd() * zellen.length) | 0]; if (meer[i] < 400) continue;
+        const d = Math.min(...gewaehlt.map((g) => Math.hypot((g % N) - (i % N), ((g / N) | 0) - ((i / N) | 0))));
+        if (d > bd) { bd = d; bi = i; } }
+      if (bi < 0 || bd * zelle < 900) break; gewaehlt.push(bi);
+    }
+    for (const g of gewaehlt) { pass[g] = 1; paesse++; }
+  }
+  const fluss = new Uint8Array(N * N); for (let i = 0; i < N * N; i++) if (A[i] > T * 0.3 && H[i] > 0) fluss[i] = 1;
+  const dG = abstandMeter(N, zelle, grenze), dP = abstandMeter(N, zelle, pass), dF = abstandMeter(N, zelle, fluss);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x; if (dG[i] > 400 || H[i] <= 1.5 || !istRegion(REG[i])) continue;
+    const u = x / N * f, v = y / N * f;
+    const breite = 120 * (0.75 + 0.5 * (nz.fbm(u * 6, v * 6, 3) + 0.5));
+    const hoehe = 48 * (0.55 + 0.9 * nz.ridged(u * 14 + 3, v * 14 + 7, 4));
+    const g = Math.exp(-((dG[i] / breite) ** 2)) * smoothstep(90, 300, dP[i]) * smoothstep(50, 190, dF[i]) *
+      smoothstep(150, 550, meer[i]) * smoothstep(80, 300, seeNah[i]) * S[i];
+    H[i] += hoehe * g;
+  }
+  return paesse;
+}
+
+// Neue Seen auf den Flussläufen in flachem Gelände: Mulde absenken, Ufer leicht anheben, Abfluss flussabwärts.
+function seenAnlegen(H, N, zelle, SEE, seen, A, ziel, T, REG, S, meer, anzahl, seed) {
+  const rnd = mulberry32(seed * 11 + 7), nz = makeNoise(seed * 19 + 2);
+  const steig = (x, y) => Math.max(Math.abs(H[y * N + x - 6] - H[y * N + x + 6]), Math.abs(H[(y - 6) * N + x] - H[(y + 6) * N + x])) / (12 * zelle);
+  const kandidaten = [];
+  for (let y = 12; y < N - 12; y += 3) for (let x = 12; x < N - 12; x += 3) {
+    const i = y * N + x;
+    if (A[i] < T * 1.5 || SEE[i] || H[i] < 5 || H[i] > 220 || meer[i] < 450 || S[i] < 1 || (REG && REG[i] >= 250)) continue;
+    if (steig(x, y) > 0.035) continue;
+    kandidaten.push(i);
+  }
+  let neu = 0;
+  for (let versuch = 0; versuch < anzahl * 6 && neu < anzahl && kandidaten.length; versuch++) {
+    const c = kandidaten.splice((rnd() * kandidaten.length) | 0, 1)[0], cx = c % N, cy = (c / N) | 0;
+    if (seen.some((o) => Math.hypot(o.x - cx, o.y - cy) * zelle < 1800)) continue;
+    const R = (130 + 150 * rnd()) / zelle, tiefe = 4 + 6 * rnd();
+    // Richtung des Abflusses: dem Wasser folgen, bis es den Seerand verlässt; der See wird in dieser Richtung länger
+    let o = c; for (let k = 0; k < 400 && ziel[o] >= 0 && Math.hypot((o % N) - cx, ((o / N) | 0) - cy) < R * 1.25; k++) o = ziel[o];
+    const ax0 = (o % N) - cx, ay0 = ((o / N) | 0) - cy, al = Math.hypot(ax0, ay0) || 1, ax = ax0 / al, ay = ay0 / al;
+    const r1 = Math.ceil(R * 2.2), zellen = [];
+    for (let y = cy - r1; y <= cy + r1; y++) for (let x = cx - r1; x <= cx + r1; x++) {
+      if (x < 1 || y < 1 || x >= N - 1 || y >= N - 1) continue;
+      const t = (x - cx) * ax + (y - cy) * ay, q = (x - cx) * ay - (y - cy) * ax, d = Math.hypot(t / 1.45, q);
+      if (d > r1) continue;
+      const w = Math.atan2(q, t), Rt = R * (1 + 0.35 * nz.fbm(Math.cos(w) * 1.6 + c % 97, Math.sin(w) * 1.6, 3));
+      zellen.push([y * N + x, d, Rt]);
+    }
+    // Wasserspiegel = tiefste Stelle des Rings ums Ufer: so staut der See nichts auf und läuft dort über, wo der Fluss weiterfließt
+    let ring = Infinity; for (const [i, d, Rt] of zellen) if (d > Rt * 1.05 && d < Rt * 1.3) ring = Math.min(ring, H[i]);
+    const level = ring - 0.2;
+    if (!(level > 2)) continue;
+    const alt = [];
+    for (const [i, d, Rt] of zellen) {
+      alt.push(i, H[i]);
+      if (d < Rt) H[i] = Math.min(H[i], Math.max(level - tiefe * Math.pow(1 - (d / Rt) ** 2, 0.7), 1.2));
+      else if (d < Rt * 1.35) H[i] = Math.min(H[i], level + 0.2 + (d - Rt) * zelle * 0.12);   // flaches Ufer
+    }
+    const see = seeFuellenH(H, N, zelle, cx, cy, Math.round(Math.PI * (R * 2.2) ** 2));
+    if (see && see.tiefe >= 2 && see.flaeche >= 0.3 * Math.PI * (R * zelle) ** 2) {
+      seen.push({ x: see.x, y: see.y, spiegel: +see.spiegel.toFixed(2), flaeche: Math.round(see.flaeche), tiefe: +see.tiefe.toFixed(1) });
+      for (const i of see.zellen) SEE[i] = seen.length;
+      neu++;
+    } else for (let k = 0; k < alt.length; k += 2) H[alt[k]] = alt[k + 1];   // hält kein Wasser -> zurück
+  }
+  return neu;
+}
+
+// wie seeFuellen() in regionen.js, aber auf einem übergebenen Höhenfeld
+function seeFuellenH(H, N, zelle, cx, cy, maxZellen) {
+  let start = Math.round(cy) * N + Math.round(cx);
+  for (let y = Math.round(cy) - 20; y <= Math.round(cy) + 20; y++) for (let x = Math.round(cx) - 20; x <= Math.round(cx) + 20; x++) if (H[y * N + x] < H[start]) start = y * N + x;
+  const besucht = new Uint8Array(N * N), heap = [start], innen = [];
+  const hoch = (k) => { while (k > 0) { const p = (k - 1) >> 1; if (H[heap[p]] <= H[heap[k]]) break; [heap[p], heap[k]] = [heap[k], heap[p]]; k = p; } };
+  const runter = () => { let k = 0; for (;;) { const l = 2 * k + 1, r = l + 1; let m = k; if (l < heap.length && H[heap[l]] < H[heap[m]]) m = l; if (r < heap.length && H[heap[r]] < H[heap[m]]) m = r; if (m === k) break; [heap[m], heap[k]] = [heap[k], heap[m]]; k = m; } };
+  besucht[start] = 1;
+  let spiegel = H[start];
+  while (heap.length) {
+    const c = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; runter(); }
+    if (H[c] < spiegel - 0.01 || H[c] <= 1.5) break;
+    if (innen.length >= maxZellen) { spiegel = H[c]; break; }
+    spiegel = Math.max(spiegel, H[c]); innen.push(c);
+    const x = c % N;
+    for (const j of [c - 1, c + 1, c - N, c + N]) if (j >= 0 && j < N * N && !besucht[j] && Math.abs((j % N) - x) <= 1) { besucht[j] = 1; heap.push(j); hoch(heap.length - 1); }
+  }
+  spiegel -= 0.3;
+  const zellen = innen.filter((i) => H[i] < spiegel);
+  if (!zellen.length) return null;
+  let sx = 0, sy = 0; for (const i of zellen) { sx += i % N; sy += (i / N) | 0; }
+  return { x: Math.round(sx / zellen.length), y: Math.round(sy / zellen.length), spiegel, zellen, flaeche: zellen.length * zelle * zelle, tiefe: spiegel - H[start] };
+}
+
+// Flussläufe: Stämme (Hauptlauf bis zur Mündung, Nebenflüsse enden am Hauptlauf), geglättet und geschwungen,
+// Tal und Flussbett eingeschnitten. Ergebnis: liste [{punkte [[x, y, Wasserspiegel, Breite]] (Zellen, m)}], FM (nass = 1)
+function flussLaeufe(H, N, zelle, SEE, seen, T, seed, S) {
+  const n = N * N, { A, ziel } = abfluss(H, N), rnd = mulberry32(seed * 23 + 9), nz = makeNoise(seed * 29 + 4);
+  const fluss = (i) => A[i] >= T && H[i] > 0 && !SEE[i];
+  // Hauptzufluss je Zelle: der Zufluss mit dem größten Einzugsgebiet
+  const haupt = new Int32Array(n).fill(-1), hatZufluss = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if (fluss(i) && ziel[i] >= 0) { const d = ziel[i]; hatZufluss[d] = 1; if (haupt[d] < 0 || A[i] > A[haupt[d]]) haupt[d] = i; }
+  const stamm = new Int32Array(n).fill(-1), staemme = [];
+  for (let s = 0; s < n; s++) {
+    if (!fluss(s) || hatZufluss[s]) continue;
+    const zellen = []; let c = s, ende = "meer", muendung = -1;
+    for (;;) {
+      zellen.push(c); stamm[c] = staemme.length;
+      const d = ziel[c];
+      if (d < 0 || H[d] <= 0) { ende = "meer"; if (d >= 0) zellen.push(d); break; }
+      if (SEE[d]) { ende = "see"; muendung = SEE[d] - 1; zellen.push(d); break; }
+      if (haupt[d] !== c) { ende = "fluss"; muendung = d; zellen.push(d); break; }
+      c = d;
+    }
+    // Start an einem See? (Zelle flussaufwärts liegt im See)
+    let vonSee = -1; for (const o of [1, -1, N, -N, N + 1, N - 1, -N + 1, -N - 1]) { const q = s + o; if (q >= 0 && q < n && ziel[q] === s && SEE[q]) vonSee = SEE[q] - 1; }
+    staemme.push({ zellen, ende, muendung, vonSee, aEnde: A[zellen[zellen.length - 1]] || A[zellen[zellen.length - 2]] });
+  }
+  // Reihenfolge: große zuerst, damit Hauptläufe fertig sind, bevor Nebenflüsse an sie anschließen
+  const ordnung = staemme.map((_, k) => k).sort((a, b) => staemme[b].aEnde - staemme[a].aEnde);
+  const fertig = new Array(staemme.length).fill(null), laeufe = [];
+  const breiteVon = (a) => Math.min(24, 11 + 4 * Math.log2(Math.max(1, a / T)));        // sichtbar nass (m)
+  const tiefeVon = (a) => Math.min(2.4, 0.9 + 0.45 * Math.log2(Math.max(1, a / T)));
+  const tVon = (a) => Math.min(20, 5 + 4 * Math.log2(Math.max(1, a / T)));              // Taltiefe (m)
+  for (const k of ordnung) {
+    const st = staemme[k];
+    if (st.ende === "fluss") { const p = stamm[st.muendung]; if (p < 0 || !fertig[p]) continue; }
+    const laenge = st.zellen.length * zelle;
+    if (st.vonSee < 0 && st.ende === "fluss" && laenge < 450) continue;
+    if (st.vonSee < 0 && laenge < 300) continue;
+    // 1) Punkte alle ~zelle Meter (in Zellen), dann glätten (Enden fest)
+    let P = st.zellen.map((i) => [i % N + 0.5, ((i / N) | 0) + 0.5, A[i] || st.aEnde]);
+    for (let r = 0; r < 40; r++) { const Q = P.map((p) => p.slice());
+      for (let i = 1; i < P.length - 1; i++) { Q[i][0] = (P[i - 1][0] + 2 * P[i][0] + P[i + 1][0]) / 4; Q[i][1] = (P[i - 1][1] + 2 * P[i][1] + P[i + 1][1]) / 4; } P = Q; }
+    // 2) feiner abtasten (halbe Zelle) und schwingen lassen
+    const F = [];
+    for (let i = 0; i < P.length - 1; i++) { const a = P[i], b = P[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]), m = Math.max(1, Math.ceil(l / 0.5));
+      for (let j = 0; j < m; j++) { const t = j / m; F.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]); } }
+    F.push(P[P.length - 1].slice());
+    const s = [0]; for (let i = 1; i < F.length; i++) s.push(s[i - 1] + Math.hypot(F[i][0] - F[i - 1][0], F[i][1] - F[i - 1][1]) * zelle);
+    const L = s[s.length - 1];
+    // Gefälle entlang des Laufs, über ~150 m gemittelt (steile Strecken schwingen weniger, aber ohne Sprünge)
+    const flach = new Float64Array(F.length);
+    for (let i = 0; i < F.length; i++) {
+      const x = F[i][0] | 0, y = F[i][1] | 0, j = Math.min(N - 3, Math.max(2, y)) * N + Math.min(N - 3, Math.max(2, x));
+      flach[i] = 1 - smoothstep(0.02, 0.09, Math.hypot(H[j + 2] - H[j - 2], H[j + 2 * N] - H[j - 2 * N]) / (4 * zelle));
+    }
+    for (let r = 0, b = Math.max(1, Math.round(75 / (zelle * 0.5))); r < 3; r++) {
+      const c = Float64Array.from(flach), sum = new Float64Array(F.length + 1);
+      for (let i = 0; i < F.length; i++) sum[i + 1] = sum[i] + c[i];
+      for (let i = 0; i < F.length; i++) { const a = Math.max(0, i - b), e = Math.min(F.length, i + b + 1); flach[i] = (sum[e] - sum[a]) / (e - a); }
+    }
+    let phase = rnd() * 6.283; const versatz = new Float64Array(F.length);
+    for (let i = 0; i < F.length; i++) {
+      const W = breiteVon(F[i][2]), lambda = 14 * W + 90;
+      if (i) phase += (s[i] - s[i - 1]) / lambda * 6.283 * (1 + 0.4 * nz.noise(s[i] / 300 + k * 7.1, 0.5));
+      const huelle = Math.min(1, s[i] / lambda, (L - s[i]) / lambda);
+      versatz[i] = 0.13 * lambda * (0.15 + 0.85 * flach[i]) * huelle * (0.6 + 0.4 * nz.noise(s[i] / 500 + k * 3.3, 4.5)) * Math.sin(phase) / zelle;
+    }
+    const G = F.map((p, i) => { const a = F[Math.max(0, i - 4)], b = F[Math.min(F.length - 1, i + 4)];
+      const tx = b[0] - a[0], ty = b[1] - a[1], tl = Math.hypot(tx, ty) || 1;
+      return [p[0] - ty / tl * versatz[i], p[1] + tx / tl * versatz[i], p[2]]; });
+    // Anschluss an den Hauptlauf: Endpunkt auf dessen nächsten Punkt legen
+    let bodenEnde = 0.15, endPunkt = null, anschluss = null;
+    if (st.ende === "fluss") {
+      const p = fertig[stamm[st.muendung]], mx = st.muendung % N + 0.5, my = ((st.muendung / N) | 0) + 0.5;
+      let bi = 0, bd = Infinity; p.punkte.forEach((q, i) => { const d = (q[0] - mx) ** 2 + (q[1] - my) ** 2; if (d < bd) { bd = d; bi = i; } });
+      endPunkt = p.punkte[bi]; anschluss = [p, bi];
+    } else if (st.ende === "see") bodenEnde = seen[st.muendung].spiegel;
+    if (endPunkt) { const e = G[G.length - 1], n0 = Math.max(1, Math.round(40 / (zelle * 0.5)));
+      for (let i = Math.max(0, G.length - n0); i < G.length; i++) { const t = (i - (G.length - n0)) / n0; G[i][0] += (endPunkt[0] - e[0]) * t * t; G[i][1] += (endPunkt[1] - e[1]) * t * t; } }
+    // Kurven nicht enger als das 1,8-Fache der halben Wasserfläche (sonst überlappt das Wasser sich selbst)
+    for (let runde = 0, eng = 1; runde < 120 && eng; runde++) {
+      eng = 0;
+      for (let i = 6; i < G.length - 6; i++) {
+        const a = G[i - 6], b = G[i], c = G[i + 6];
+        const ab = Math.hypot(a[0] - b[0], a[1] - b[1]), bc = Math.hypot(b[0] - c[0], b[1] - c[1]), ac = Math.hypot(a[0] - c[0], a[1] - c[1]);
+        const fl = Math.abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]));
+        const R = fl > 1e-9 ? ab * bc * ac / (2 * fl) * zelle : Infinity, Rmin = 1.8 * (breiteVon(b[2]) / 2 + zelle);
+        if (R >= Rmin) continue;
+        eng++;
+        let mx = 0, my = 0; for (let j = i - 3; j <= i + 3; j++) { mx += G[j][0]; my += G[j][1]; }
+        b[0] += (mx / 7 - b[0]) * 0.6; b[1] += (my / 7 - b[1]) * 0.6;
+      }
+    }
+    // auf ~4 m ausdünnen (Export und Einschneiden)
+    const punkte = [];
+    for (let i = 0; i < G.length; i++) punkte.push([G[i][0], G[i][1], 0, breiteVon(G[i][2]), G[i][2]]);
+    fertig[k] = { punkte, st, bodenEnde, anschluss, startSpiegel: st.vonSee >= 0 ? seen[st.vonSee].spiegel : null };
+    laeufe.push(fertig[k]);
+  }
+  // 3) nächster Flusspunkt je Zelle (Vektor-Ausbreitung von fein gerasterten Punkten)
+  const NX = new Float32Array(n).fill(-1e6), NY = new Float32Array(n).fill(-1e6), NL = new Int32Array(n).fill(-1), NP = new Int32Array(n).fill(-1);
+  const nah = new Float32Array(n).fill(1e9);
+  laeufe.forEach((l, li) => l.punkte.forEach((p, pi) => {
+    const x = Math.floor(p[0]), y = Math.floor(p[1]); if (x < 0 || y < 0 || x >= N || y >= N) return;
+    const i = y * N + x, d = Math.hypot(x + 0.5 - p[0], y + 0.5 - p[1]);
+    if (d < nah[i]) { nah[i] = d; NX[i] = p[0]; NY[i] = p[1]; NL[i] = li; NP[i] = pi; } }));
+  const ausbreiten = () => {
+    const pruef = (i, j) => { if (NL[j] < 0) return; const x = (i % N) + 0.5, y = ((i / N) | 0) + 0.5, d = Math.hypot(x - NX[j], y - NY[j]);
+      if (d < nah[i]) { nah[i] = d; NX[i] = NX[j]; NY[i] = NY[j]; NL[i] = NL[j]; NP[i] = NP[j]; } };
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const i = y * N + x;
+      if (x > 0) pruef(i, i - 1); if (y > 0) { pruef(i, i - N); if (x > 0) pruef(i, i - N - 1); if (x < N - 1) pruef(i, i - N + 1); } }
+    for (let y = N - 1; y >= 0; y--) for (let x = N - 1; x >= 0; x--) { const i = y * N + x;
+      if (x < N - 1) pruef(i, i + 1); if (y < N - 1) { pruef(i, i + N); if (x < N - 1) pruef(i, i + N + 1); if (x > 0) pruef(i, i + N - 1); } }
+  };
+  ausbreiten();
+  // 4) Wasserspiegel: flussabwärts nie steigend, quer über die ganze Breite (samt Rand unter der Böschung) unter dem Gelände
+  const quer = (p, a, q, W) => { const tx = q[0] - a[0], ty = q[1] - a[1], tl = Math.hypot(tx, ty) || 1; let m = Infinity;
+    for (let o = -W / 2 - 3; o <= W / 2 + 3; o += 1) m = Math.min(m, bilinear(H, N, p[0] - ty / tl * o / zelle - 0.5, p[1] + tx / tl * o / zelle - 0.5)); return m; };
+  for (const l of laeufe) {
+    let wl = l.startSpiegel != null ? l.startSpiegel : Infinity;
+    const P = l.punkte;
+    for (let i = 0; i < P.length; i++) {
+      const q = P[Math.min(P.length - 1, i + 4)], p0 = P[Math.max(0, i - 4)];
+      wl = Math.min(wl, quer(P[i], p0, q, P[i][3] + 2 * zelle) - 0.5);
+      P[i][2] = wl;
+    }
+    const boden = l.anschluss ? l.anschluss[0].punkte[l.anschluss[1]][2] : l.bodenEnde;
+    for (const p of P) p[2] = Math.max(p[2], boden);
+  }
+  // höchster Wasserspiegel in der Nähe (in Kurven liegt der Lauf flussaufwärts oft näher als der Punkt quer gegenüber)
+  const WM = new Float32Array(n).fill(-1e9), WL = new Int32Array(n).fill(-1), WP = new Int32Array(n);
+  laeufe.forEach((l, li) => l.punkte.forEach((p, pi) => {
+    const r = (p[3] / 2 + zelle + 4) / zelle, x0 = p[0], y0 = p[1];
+    for (let y = Math.max(0, Math.floor(y0 - r)); y <= Math.min(N - 1, Math.floor(y0 + r)); y++)
+      for (let x = Math.max(0, Math.floor(x0 - r)); x <= Math.min(N - 1, Math.floor(x0 + r)); x++)
+        if (Math.hypot(x + 0.5 - x0, y + 0.5 - y0) <= r) { const i = y * N + x; if (p[2] > WM[i]) { WM[i] = p[2]; WL[i] = li; WP[i] = pi; } }
+  }));
+  const ufer = (i, p, d) => Math.max(p[2], WM[i]) + 0.6 + Math.max(0, d - p[3] / 2) * 0.45;   // Böschung über dem Wasser
+  // 5) Täler: glockenförmig absenken, aber nie unter die Böschung des Flusses und nie unter den Spiegel naher Seen
+  const meer = abstandMeter(N, zelle, Uint8Array.from(H, (h) => (h <= 0 ? 1 : 0)));
+  const T2 = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    if (NL[i] < 0 || H[i] <= 0 || SEE[i]) continue;
+    const p = laeufe[NL[i]].punkte[NP[i]], a = p[4], d = nah[i] * zelle;
+    const w = Math.min(220, 70 + 25 * Math.log2(Math.max(1, a / T)) + 0.6 * p[3] * 3);
+    if (d > w * 2.5) continue;
+    T2[i] = tVon(a) * Math.exp(-((d / w) ** 2)) * smoothstep(40, 400, meer[i]) * (0.25 + 0.75 * S[i]);
+  }
+  for (let r = 0; r < 2; r++) { const t = T2.slice(); for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) { const i = y * N + x;
+    T2[i] = (4 * t[i] + t[i - 1] + t[i + 1] + t[i - N] + t[i + N]) / 8; } }
+  const SN = seeNiveau(N, zelle, SEE, seen, 500);
+  for (let i = 0; i < n; i++) {
+    if (!(T2[i] > 0) || H[i] <= 0) continue;
+    const p = laeufe[NL[i]].punkte[NP[i]], u = ufer(i, p, nah[i] * zelle), boden = SN[i] < Infinity ? Math.max(u, SN[i]) : u;
+    H[i] = Math.max(H[i] - T2[i], Math.min(H[i], boden), Math.min(H[i], 0.8));
+  }
+  // 6) Flussbett: Parabel bis zur nassen Breite, dann Böschung; nur absenken. Liegt die Zelle zugleich unter dem Wasser
+  //    eines höher gelegenen Abschnitts (enge Kurve, Nachbarfluss), bleibt sie über dessen Spiegel – sonst schwebte es dort.
+  const FM = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    if (NL[i] < 0 || H[i] <= 0) continue;
+    const l = laeufe[NL[i]], p = l.punkte[NP[i]], d = nah[i] * zelle;
+    const W = p[3], d0 = W / 2, tiefe = tiefeVon(p[4]);
+    if (d > d0 + 40) continue;
+    let ziel = d <= d0 ? p[2] - tiefe * (1 - (d / d0) ** 2) : Math.max(p[2], WM[i]) + (d - d0) * 0.45;
+    const fremd = WL[i] >= 0 && (WL[i] !== NL[i] || Math.abs(WP[i] - NP[i]) * zelle * 0.5 > W + 4 * zelle + 8);
+    if (fremd && WM[i] > p[2] + 0.3) ziel = Math.max(ziel, WM[i] + 0.3);
+    if (ziel < H[i]) H[i] = ziel;
+    if (d <= d0 && !SEE[i] && !(fremd && WM[i] > p[2] + 0.3)) FM[i] = 1;
+  }
+  const liste = laeufe.map((l) => ({ v: 2, punkte: l.punkte.filter((_, i) => i % 4 === 0 || i === l.punkte.length - 1)
+    .map((p) => [+p[0].toFixed(2), +p[1].toFixed(2), +p[2].toFixed(2), +(p[3] + 2 * zelle).toFixed(1)]) }));
+  return { liste, FM };
+}
+
+// Wasserspiegel des nächsten Sees je Zelle (bis maxM Meter vom Ufer), sonst +unendlich
+function seeNiveau(N, zelle, SEE, seen, maxM) {
+  const L = new Float32Array(N * N).fill(Infinity), D = new Int32Array(N * N).fill(-1), q = new Int32Array(N * N); let qh = 0, qt = 0;
+  for (let i = 0; i < N * N; i++) if (SEE[i]) { L[i] = seen[SEE[i] - 1].spiegel + 0.4; D[i] = 0; q[qt++] = i; }
+  const maxS = Math.round(maxM / zelle);
+  while (qh < qt) { const i = q[qh++], x = i % N; if (D[i] >= maxS) continue;
+    for (const j of [i - 1, i + 1, i - N, i + N]) if (j >= 0 && j < N * N && D[j] < 0 && Math.abs((j % N) - x) <= 1) { D[j] = D[i] + 1; L[j] = L[i]; q[qt++] = j; } }
+  return L;
+}
+
+// alles zusammen. o: {hochebenen, grate, seen, fluesse} (true/false), schutz: [{x, y (Zellen), r (m)}]
+function landschaftUeberarbeiten(H, N, zelle, REG, SEE, seen, schutz, seed, o, fortschritt) {
+  const melde = (t) => fortschritt && fortschritt(t);
+  const T = FLUSS_KM2 * 1e6 / (zelle * zelle);
+  const S = schutzFeld(N, zelle, schutz);
+  const meer = abstandMeter(N, zelle, Uint8Array.from(H, (h) => (h <= 1.5 ? 1 : 0)));
+  let seeNah = abstandMeter(N, zelle, SEE);
+  const info = {};
+  if (o.hochebenen) { melde(0.1); hochebenen(H, N, zelle, seed, meer, seeNah, abstandMeter(N, zelle, REG ? Uint8Array.from(REG, (r) => (r === 250 ? 1 : 0)) : new Uint8Array(N * N)), 0.6); }
+  if (o.grate && REG) { melde(0.25); info.paesse = grateAnlegen(H, N, zelle, REG, abfluss(H, N).A, T, seed, meer, seeNah, S); }
+  if (o.seen) { melde(0.45); const f = abfluss(H, N); info.neueSeen = seenAnlegen(H, N, zelle, SEE, seen, f.A, f.ziel, T, REG, S, meer, Math.round(3 * N * zelle / 16384 + 2), seed); }
+  let liste = null, FM = null;
+  if (o.fluesse) { melde(0.65); ({ liste, FM } = flussLaeufe(H, N, zelle, SEE, seen, T, seed, S)); info.fluesse = liste.length; }
+  melde(1);
+  return { H, SEE, seen, liste, FM, info };
+}
+
 // ---------- Export: Hochskalieren (Catmull-Rom) + Feindetail ----------
-function hochskalieren(H, N, M, seed, feindetail, fortschritt, welt = 4096) {
+// nass (optional, je Zelle 1 = Fluss oder See): dort bilinear statt Catmull-Rom (kein Überschwingen über den Wasserspiegel)
+// und ohne Feindetail, mit Übergang bis 60 m vom Wasser
+function hochskalieren(H, N, M, seed, feindetail, fortschritt, welt = 4096, nass = null) {
   const fw = welt / 4096;
+  const D = nass ? abstandMeter(N, welt / N, nass) : null;
   const nz = makeNoise(seed + 999);
   const out = new Float32Array(M * M);
   const s = N / M;
@@ -886,12 +1292,20 @@ function hochskalieren(H, N, M, seed, feindetail, fortschritt, welt = 4096) {
       const fx = (i + 0.5) * s - 0.5, x = Math.floor(fx), tx = fx - x;
       const r = [];
       for (let k = -1; k <= 2; k++) r.push(cr(g(x - 1, y + k), g(x, y + k), g(x + 1, y + k), g(x + 2, y + k), tx));
-      let h = cr(r[0], r[1], r[2], r[3], ty);
-      if (feindetail > 0 && h > 0.3) {
+      let h = cr(r[0], r[1], r[2], r[3], ty), fd = feindetail;
+      if (D) {
+        const xc = Math.min(N - 1, Math.max(0, Math.round(fx))), yc = Math.min(N - 1, Math.max(0, Math.round(fy))), d = D[yc * N + xc];
+        if (d < 60) {
+          const k = smoothstep(16, 40, d);
+          h = k * h + (1 - k) * bilinear(H, N, Math.max(0, fx), Math.max(0, fy));
+          fd *= smoothstep(30, 60, d);
+        }
+      }
+      if (fd > 0 && h > 0.3) {
         // kleine Bodenwellen (~40 m) und Unebenheiten (~10 m), an der Küste ausgeblendet
         const u = i / M * fw, v = j / M * fw;
         const w = Math.min(1, h / 3);
-        h += w * feindetail * (1.4 * nz.fbm(u * 100, v * 100, 2) + 0.6 * nz.fbm(u * 400 + 7, v * 400 + 3, 2));
+        h += w * fd * (1.4 * nz.fbm(u * 100, v * 100, 2) + 0.6 * nz.fbm(u * 400 + 7, v * 400 + 3, 2));
       }
       out[j * M + i] = h;
     }
@@ -936,8 +1350,13 @@ if (typeof WorkerGlobalScope !== "undefined" && self instanceof WorkerGlobalScop
     } else if (m.auftrag === "steuerkarte") {
       const out = steuerkarte(m.E, m.N, m.M, m.seed, melde("Export Biome"));
       self.postMessage({ typ: "fertig", auftrag: m.auftrag, out }, [out.buffer]);
+    } else if (m.auftrag === "ueberarbeiten") {
+      const r = landschaftUeberarbeiten(m.H, m.N, m.zelle, m.REG, m.SEE, m.seen, m.schutz, m.seed, m.o, melde("Landschaft überarbeiten"));
+      const { A, B } = analyse(r.H, m);
+      const tr = [r.H.buffer, r.SEE.buffer, A.buffer, B.buffer]; if (r.FM) tr.push(r.FM.buffer);
+      self.postMessage({ typ: "fertig", auftrag: m.auftrag, H: r.H, SEE: r.SEE, seen: r.seen, liste: r.liste, FM: r.FM, info: r.info, A, B }, tr);
     } else if (m.auftrag === "hochskalieren") {
-      const out = hochskalieren(m.H, m.N, m.M, m.seed, m.feindetail, melde("Export"), m.welt);
+      const out = hochskalieren(m.H, m.N, m.M, m.seed, m.feindetail, melde("Export"), m.welt, m.nass);
       const maske = m.wege && m.wege.length ? wegeEinarbeiten(out, m.M, m.N, m.wege, melde("Export Wege"), m.welt) : null;
       self.postMessage({ typ: "fertig", auftrag: m.auftrag, out, maske }, maske ? [out.buffer, maske.buffer] : [out.buffer]);
     }

@@ -14,6 +14,9 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
   Raster 4 m/Zelle (über 8 km: 8 m/Zelle, Raster bleibt ≤ 2048²), Weltgröße 2–16,4 km (Vielfache von 512 m, über 8 km von 1024 m).
   Ohne Python: der Build lässt sich in PowerShell nachbauen (Platzhalter `/*ZIP*/` … `/*APP*/` ersetzen, `/*KERN*/` zweimal, UTF-8 ohne BOM).
   Regionen, Seen und Varianten-Galerie in `src/regionen.js`; `WELT_API.variantenErzeugen(anzahl, startSaat)` baut komplette Karten.
+  „Landschaft überarbeiten“ (`landschaftUeberarbeiten` in `kern.js`, Knopf in `regionen.js`): Hochebenen, Bergrücken mit Pässen auf den Regionsgrenzen,
+  neue Seen, wenige Flüsse in Tälern (ab 0,6 km²). Flussläufe im Format `{v:2, punkte:[[x,y,spiegel,breite]]}` (Zellen, Breite in m), Flussflächen in `zustand.FM`
+  (Projekt: `flussmaske.u8`). Der Export rechnet an Wasser bilinear und ohne Feindetail hoch. `FLUSS_SCHWELLE` (Biome/Feuchte) bleibt bewusst klein.
 
 ### Assets (`godot/assets/`)
 
