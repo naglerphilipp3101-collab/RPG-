@@ -1,0 +1,95 @@
+{
+	"_info": "6 Biome plus Stadt. Jedes Biom legt Bodentextur, Bäume, Büsche, Sammelpflanzen, Bodenobjekte und Bodenbewuchs fest (scripts/natur.gd, scripts/gras.gd, Weltimport). Zahlen sind Chancen je Rasterplatz (Bäume: dichte + rauschen × Waldrauschen 0–1, so entstehen Lichtungen) (Bäume 7 m, Büsche/Pflanzen/Bodenobjekte 16 m, Gras 0,55 m). Varianten überschreiben einzelne Werte ihres Bioms.",
+	"texturen": ["sand", "wiese", "laubboden", "nadelboden", "sumpf", "steppe", "fels", "schnee", "kies"],
+	"generator": {
+		"_info": "Biome des Weltgenerators (biome_*.u8) -> [Biom, Variante]",
+		"0": ["strand", ""],
+		"1": ["wiese", ""],
+		"2": ["wald", "laub"],
+		"3": ["wald", "nadel"],
+		"4": ["moor", ""],
+		"5": ["wiese", ""],
+		"6": ["berg", "fels"],
+		"7": ["berg", "schnee"]
+	},
+	"biome": {
+		"wald": {
+			"name": "Wald",
+			"boden": "laubboden",
+			"baeume": {"dichte": 0.55, "rauschen": 0.45, "arten": {"eiche": 0.7, "kiefer": 0.3}, "uralt": 0.06},
+			"buesche": 0.35,
+			"pflanzen": {"kraut": 0.1, "beeren": 0.07},
+			"bodenobjekte": {"stock": 0.45, "baumstamm": 0.1},
+			"gras": {"gras": 0.22, "farn": 0.1, "kraut": 0.2, "blume": 0.03, "farbe": [0.34, 0.48, 0.18], "ton": [0.9, 0.95, 0.85]},
+			"varianten": {
+				"laub": {},
+				"nadel": {
+					"boden": "nadelboden",
+					"baeume": {"dichte": 0.6, "rauschen": 0.4, "arten": {"fichte": 0.65, "kiefer": 0.35}, "uralt": 0.06},
+					"gras": {"gras": 0.14, "farn": 0.13, "kraut": 0.12, "blume": 0.012, "farbe": [0.32, 0.42, 0.2], "ton": [0.85, 0.9, 0.8]}
+				}
+			}
+		},
+		"wiese": {
+			"name": "Wiese",
+			"boden": "wiese",
+			"baeume": {"dichte": 0.0, "rauschen": 0.025, "arten": {"eiche": 0.6, "kiefer": 0.4}, "uralt": 0.04},
+			"buesche": 0.06,
+			"pflanzen": {"hanf": 0.09, "kraut": 0.16, "beeren": 0.02},
+			"bodenobjekte": {},
+			"gras": {"gras": 0.85, "farn": 0.004, "kraut": 0.07, "blume": 0.08, "farbe": [0.4, 0.58, 0.2], "ton": [1.0, 1.0, 1.0]}
+		},
+		"fluss": {
+			"name": "Fluss",
+			"boden": "kies",
+			"baeume": {"dichte": 0.0},
+			"buesche": 0.0,
+			"pflanzen": {},
+			"bodenobjekte": {"alge": 0.5},
+			"gras": {}
+		},
+		"strand": {
+			"name": "Strand",
+			"boden": "sand",
+			"baeume": {"dichte": 0.0},
+			"buesche": 0.0,
+			"pflanzen": {},
+			"bodenobjekte": {"treibholz": 0.08},
+			"geplant": {"stein": 0.05, "feuerstein": 0.03},
+			"gras": {}
+		},
+		"berg": {
+			"name": "Berg",
+			"boden": "fels",
+			"baeume": {"dichte": 0.0},
+			"buesche": 0.0,
+			"pflanzen": {},
+			"bodenobjekte": {},
+			"geplant": {"stein": 0.3, "erz": 0.06},
+			"gras": {"gras": 0.04, "kraut": 0.02, "farbe": [0.45, 0.5, 0.3], "ton": [0.9, 0.9, 0.8]},
+			"varianten": {
+				"fels": {},
+				"schnee": {"boden": "schnee", "gras": {}}
+			}
+		},
+		"moor": {
+			"name": "Moor",
+			"boden": "sumpf",
+			"baeume": {"dichte": 0.0},
+			"totbaeume": 0.1,
+			"buesche": 0.22,
+			"pflanzen": {"kraut": 0.28, "beeren": 0.14},
+			"bodenobjekte": {"pfuetze": 0.4, "stock": 0.15},
+			"gras": {"gras": 0.4, "farn": 0.06, "kraut": 0.07, "blume": 0.01, "farbe": [0.36, 0.42, 0.2], "ton": [0.85, 0.9, 0.7]}
+		},
+		"stadt": {
+			"name": "Stadt",
+			"boden": "",
+			"baeume": {"dichte": 0.0},
+			"buesche": 0.0,
+			"pflanzen": {},
+			"bodenobjekte": {},
+			"gras": {}
+		}
+	}
+}

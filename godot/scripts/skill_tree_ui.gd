@@ -1,11 +1,13 @@
 extends Control
-## Skillbaum-Fenster (K): zwei Äste pro Waffe, Punkte aus der Waffenmeisterschaft,
-## aktive Fähigkeiten auf Q/R/F legen. Rechts eine Übersicht aller Meisterschaften.
+## Skillbaum-Fenster (K): zwei Seiten pro Waffe mit je einer Passiven, 4 Fähigkeiten und einer Ultimativen.
+## Punkte aus der Waffenmeisterschaft; 3 Fähigkeiten auf Q/E/R, eine Ultimative auf X, eine Passive aktiv.
+## Rechts eine Übersicht aller Meisterschaften.
 
 var player = null
 var view_type := "" # angezeigter Waffentyp (Standard: aktive Waffe)
 
 var title_label: Label
+var role_label: Label
 var level_label: Label
 var level_bar: ProgressBar
 var points_label: Label
@@ -51,6 +53,9 @@ func _ready() -> void:
 	root.add_child(header)
 	title_label = _label("", 26, Color(1.0, 0.85, 0.5))
 	header.add_child(title_label)
+	role_label = _label("", 13, Color(0.7, 0.7, 0.7))
+	role_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	header.add_child(role_label)
 	level_label = _label("", 15, Color(0.85, 0.85, 0.85))
 	level_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	header.add_child(level_label)
@@ -96,7 +101,8 @@ func _ready() -> void:
 
 	status_label = _label("", 14, Color(1.0, 0.85, 0.5))
 	root.add_child(status_label)
-	root.add_child(_label("Linksklick: Knoten freischalten   ·   Linksklick auf freigeschaltete aktive Fähigkeit: auf Q / R / F legen oder entfernen   ·   K / Esc: schließen",
+	root.add_child(_label("Klick: freischalten   ·   Klick auf Freigeschaltetes: Fähigkeit auf Q / E / R legen oder entfernen, "
+		+ "Passive aktivieren, Ultimative auf X legen   ·   Ultimative: Passive + 2 Fähigkeiten der Seite   ·   K / Esc: schließen",
 		12, Color(0.6, 0.6, 0.6)))
 
 
@@ -134,52 +140,78 @@ func _refresh() -> void:
 		level_bar.value = float(m["xp"]) / Game.mastery_xp_to_next(level)
 	points_label.text = "Freie Punkte: %d" % player.mastery_points_free(view_type)
 
-	var tree: Array = def.get("tree", [])
+	role_label.text = String(def.get("role", ""))
+
+	var sides: Array = def.get("sides", [])
 	for i in branch_boxes.size():
 		var box := branch_boxes[i]
 		for child in box.get_children():
 			box.remove_child(child)
 			child.queue_free()
-		if i >= tree.size():
+		if i >= sides.size():
 			continue
-		box.add_child(_label(String(tree[i]["name"]), 20, Color(1.0, 0.85, 0.5)))
-		for node in tree[i]["nodes"]:
+		box.add_child(_label(String(sides[i]["name"]), 20, Color(1.0, 0.85, 0.5)))
+		for node in sides[i]["nodes"]:
 			box.add_child(_make_node_button(node, m))
 	_refresh_masteries()
 
 
 func _make_node_button(node: Dictionary, m: Dictionary) -> Button:
 	var node_id: String = node["id"]
+	var kind: String = node.get("type", "active")
 	var unlocked: bool = m["unlocked"].has(node_id)
-	var active: bool = node.get("type", "") == "active"
 	var error: String = player.unlock_check(view_type, node_id)
+	var cost := Game.node_cost(node)
+	var free: bool = node_id == player.start_node(view_type)
 	var button := Button.new()
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	button.custom_minimum_size = Vector2(0, 46)
-	button.add_theme_font_size_override("font_size", 15)
-	var text := ("◆  " if active else "●  ") + Game.node_short_name(node)
-	if Game.node_cost(node) > 1:
-		text += "   (%d Punkte)" % Game.node_cost(node)
-	var equipped_index: int = m["equipped"].find(node_id)
-	if equipped_index >= 0:
-		text += "   [%s]" % Game.SKILL_KEYS[equipped_index]
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	button.custom_minimum_size = Vector2(0, 52)
+	button.add_theme_font_size_override("font_size", 14)
+	var text := ""
+	var selected := false # aktive Passive, gewählte Ultimative oder ausgerüstete Fähigkeit
+	match kind:
+		"passive":
+			text = "●  Passive: %s" % node["name"]
+			selected = m["passive"] == node_id
+			if selected:
+				text += "   [aktiv]"
+		"ultimate":
+			text = "★  Ultimative: %s" % node["name"]
+			selected = m["ultimate"] == node_id
+			if selected:
+				text += "   [%s]" % Game.ULTIMATE_KEY
+		_:
+			text = "◆  %s" % node["name"]
+			var equipped_index: int = m["equipped"].find(node_id)
+			selected = equipped_index >= 0
+			if selected:
+				text += "   [%s]" % Game.SKILL_KEYS[equipped_index]
+	if not unlocked:
+		text += "   (%d Punkte)" % cost
+	text += "\n" + String(node.get("desc", ""))
 	button.text = text
 
 	var color := Color(0.45, 0.45, 0.45)
 	var hint := error
 	if unlocked:
-		color = Color(1.0, 0.85, 0.4) if equipped_index >= 0 else Color(0.55, 0.95, 0.55)
-		hint = "Linksklick: auf Q/R/F legen oder entfernen" if active else "Freigeschaltet"
+		color = Color(1.0, 0.85, 0.4) if selected else Color(0.55, 0.95, 0.55)
+		match kind:
+			"passive": hint = "Klick: diese Passive aktivieren (nur eine wirkt)"
+			"ultimate": hint = "Klick: als Ultimative auf %s legen" % Game.ULTIMATE_KEY
+			_: hint = "Klick: auf Q/E/R legen oder entfernen" + ("   (Startfähigkeit, kostenlos)" if free else "")
 	elif error == "":
 		color = Color.WHITE
-		hint = "Linksklick: freischalten (%d Punkt%s)" % [Game.node_cost(node), "" if Game.node_cost(node) == 1 else "e"]
+		hint = "Klick: freischalten (%d Punkte)" % cost
+	if kind == "ultimate" and not unlocked:
+		color = color.lerp(Color(1.0, 0.6, 0.25), 0.4)
 	button.add_theme_color_override("font_color", color)
 	button.add_theme_color_override("font_hover_color", color.lightened(0.2))
 	button.tooltip_text = Game.describe_node(node) + "\n\n" + hint
 	button.pressed.connect(func() -> void:
 		var result := ""
 		if unlocked:
-			result = player.toggle_skill(view_type, node_id) if active else ""
+			result = player.toggle_skill(view_type, node_id)
 		else:
 			result = player.unlock_node(view_type, node_id)
 		status_label.text = result

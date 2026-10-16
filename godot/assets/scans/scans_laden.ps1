@@ -3,7 +3,7 @@
 # Aufruf (PowerShell): .\scans_laden.ps1        – vorhandene Dateien werden übersprungen
 $ziel = $PSScriptRoot
 $texturen = @("forest_leaves_02", "forest_ground_04", "leafy_grass", "coast_sand_01", "dry_ground_01", "brown_mud_03",
-	"rock_face_03", "rocky_trail_02", "cobblestone_floor_08", "mossy_cobblestone", "snow_02")
+	"rock_face_03", "rocky_trail_02", "cobblestone_floor_08", "mossy_cobblestone", "snow_02", "river_small_rocks")
 $modelle = @("rock_moss_set_01", "rock_moss_set_02", "boulder_01", "rock_09",
 	"grass_medium_01", "fern_02", "celandine_01", "dandelion_01")
 
@@ -16,7 +16,7 @@ function Laden($url, $datei) {
 
 $summe = 0
 foreach ($id in $texturen) {
-	$f = Invoke-RestMethod "https://api.polyhaven.com/files/$id"
+	try { $f = Invoke-RestMethod "https://api.polyhaven.com/files/$id" } catch { Write-Output "Textur $id nicht gefunden"; continue }
 	foreach ($k in @("Diffuse", "nor_gl", "Rough", "Displacement")) {
 		$e = $f.$k."2k".jpg
 		if ($e) { $summe += Laden $e.url (Join-Path $ziel "$id\$id`_$($k.ToLower())_2k.jpg") }

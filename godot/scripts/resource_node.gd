@@ -69,7 +69,7 @@ func get_profession() -> String:
 
 
 func get_required_level() -> int:
-	return int(data.get("level", 1))
+	return int(data.get("level", 0))
 
 
 func get_gather_hp() -> float:
@@ -78,19 +78,16 @@ func get_gather_hp() -> float:
 
 func harvest(player) -> void:
 	var profession := get_profession()
-	var level: int = player.get_profession_level(profession)
-	var drops := Game.roll_drops(data.get("drops", []), level, bool(data.get("pick_one", false)))
-	# Höhere Berufsstufe: Chance auf ein zusätzliches Stück
-	if not drops.is_empty() and randf() < level * 0.02:
-		var first: String = drops.keys()[0]
-		drops[first] = int(drops[first]) + 1
-	player.receive_items(drops)
+	player.receive_items(player.gather_drops(profession, data.get("drops", []), bool(data.get("pick_one", false))))
 	player.add_profession_xp(profession, int(data.get("xp", 10)))
 	if is_fishing():
 		catches_left -= 1
 		if catches_left > 0:
 			return
+	if player.regrows_instantly(profession):
+		return
 	_deplete()
+	player.harvest_neighbor(self)
 
 
 # --- Abbau & Nachwachsen ------------------------------------------------

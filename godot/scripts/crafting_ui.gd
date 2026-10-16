@@ -157,7 +157,7 @@ func _station_recipes() -> Array[String]:
 		if Game.recipes[rid]["station"] == station_id:
 			ids.append(rid)
 	ids.sort_custom(func(a: String, b: String) -> bool:
-		return int(Game.recipes[a].get("level", 1)) < int(Game.recipes[b].get("level", 1)))
+		return int(Game.recipes[a].get("level", 0)) < int(Game.recipes[b].get("level", 0)))
 	return ids
 
 
@@ -165,8 +165,16 @@ func _refresh() -> void:
 	var profession: String = Game.stations[station_id]["profession"]
 	var level: int = player.get_profession_level(profession)
 	var xp: int = player.professions[profession]["xp"]
-	level_label.text = "%s  Stufe %d   (%d / %d EP)" % [Game.profession_name(profession), level, xp, Game.xp_to_next(level)]
-	level_bar.value = float(xp) / Game.xp_to_next(level)
+	if level >= Game.MAX_PROFESSION_LEVEL:
+		level_label.text = "%s  Skill %d (max.)" % [Game.profession_name(profession), level]
+		level_bar.value = 1.0
+	else:
+		level_label.text = "%s  Skill %d / %d   (%d / %d EP)" % [Game.profession_name(profession), level,
+			Game.MAX_PROFESSION_LEVEL, xp, Game.xp_to_next(level)]
+		level_bar.value = float(xp) / Game.xp_to_next(level)
+	var bonus_chance: float = player.refining_bonus_chance(profession)
+	if bonus_chance > 0.0:
+		level_label.text += "   ·   Bonus-Ausbeute %d %%" % roundi(bonus_chance * 100.0)
 
 	for child in recipe_list.get_children():
 		recipe_list.remove_child(child)
@@ -187,9 +195,9 @@ func _make_recipe_button(rid: String, level: int) -> Button:
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.toggle_mode = true
 	button.button_pressed = rid == selected
-	button.text = "  %s   ·   Tier %s   ·   Stufe %d" % [Game.item_name(output), Game.tier_name(tier), int(recipe.get("level", 1))]
+	button.text = "  %s   ·   Tier %s   ·   Skill %d" % [Game.item_name(output), Game.tier_name(tier), int(recipe.get("level", 0))]
 	var color := Color.WHITE
-	if level < int(recipe.get("level", 1)):
+	if level < int(recipe.get("level", 0)):
 		color = Color(0.5, 0.5, 0.5)
 	elif player.craft_check(rid) != "":
 		color = Color(1.0, 0.55, 0.5)
@@ -223,8 +231,8 @@ func _show_details() -> void:
 
 	name_label.text = String(def.get("name", output))
 	name_label.add_theme_color_override("font_color", Game.tier_color(tier).lightened(0.3))
-	info_label.text = "Tier %s  ·  %s  ·  benötigt %s Stufe %d  ·  +%d EP" % [Game.tier_name(tier), def.get("category", ""),
-		Game.profession_name(Game.stations[station_id]["profession"]), int(recipe.get("level", 1)), int(recipe.get("xp", 0))]
+	info_label.text = "Tier %s  ·  %s  ·  benötigt %s Skill %d  ·  +%d EP" % [Game.tier_name(tier), def.get("category", ""),
+		Game.profession_name(Game.stations[station_id]["profession"]), int(recipe.get("level", 0)), int(recipe.get("xp", 0))]
 	stats_label.text = _describe_output(output)
 
 	var ingredients: Dictionary = recipe["ingredients"]

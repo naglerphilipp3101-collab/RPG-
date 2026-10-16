@@ -25,20 +25,18 @@ extends Node3D
 		if m:
 			m.visible = v
 
-## Bodentexturen (Biom-Reihenfolge wie im Generator, dazu 9 Kopfstein und 10 moosiges Kopfstein für Siedlungen):
-## Name, Kachelgröße in Metern und Farbton – einmal für die Fotoscans (texturen_scan/, siehe tests/scans_umwandeln.gd),
-## einmal für die selbst erzeugten Texturen (texturen/), die genommen werden, wenn die Scans fehlen.
+## Bodentexturen in der Reihenfolge von data/biome.json ("texturen"; die IDs 0–7 entsprechen den Generator-Biomen,
+## 8 ist das Kiesbett der Flüsse): Name, Kachelgröße in Metern und Farbton – einmal für die Fotoscans
+## (texturen_scan/, siehe tests/scans_umwandeln.gd), einmal für die selbst erzeugten Texturen (texturen/),
+## die genommen werden, wenn die Scans fehlen.
 const BODEN := [
 	["sand", 5.0, 3.0, Color.WHITE, Color(1.0, 0.98, 0.95)], ["wiese", 2.4, 3.0, Color(0.68, 0.84, 0.5), Color(0.6, 0.64, 0.82)],
 	["laubboden", 3.0, 3.0, Color(0.7, 0.78, 0.58), Color(0.6, 0.72, 0.52)], ["nadelboden", 3.2, 3.0, Color(0.85, 0.88, 0.78), Color(0.72, 0.8, 0.64)],
 	["sumpf", 2.6, 4.0, Color(0.85, 0.92, 0.75), Color.WHITE], ["steppe", 4.0, 3.0, Color(1.0, 1.0, 0.9), Color(0.92, 0.9, 0.88)],
 	["fels", 5.4, 8.0, Color.WHITE, Color.WHITE], ["schnee", 3.0, 6.0, Color.WHITE, Color.WHITE],
-	["weg", 2.5, 3.0, Color.WHITE, Color.WHITE], ["kopfstein", 2.0, 3.0, Color.WHITE, Color.WHITE],
-	["kopfstein_moos", 2.0, 3.0, Color.WHITE, Color.WHITE],
+	["kies", 2.2, 2.5, Color.WHITE, Color.WHITE],
 ]
-const WEG_ID := 8
-const KOPFSTEIN_ID := 9
-const KOPFSTEIN_MOOS_ID := 10
+const WEG_ID := 8 # in älteren Exporten des Generators: Weg-Textur (wird beim Import durch das Biom darunter ersetzt)
 
 ## Platzhalter (farbige Säulen, Namen, Feldflächen) für die Marker anzeigen
 @export var marker_platzhalter: bool = true:
@@ -95,7 +93,7 @@ func importieren() -> void:
 	if meta.has("steuerung"):
 		var sb := FileAccess.get_file_as_bytes(daten_ordner.path_join(meta["steuerung"]["datei"]))
 		if sb.size() == n * n * 4:
-			_kopfstein_in_siedlungen(sb, n, mpp, float(meta.get("welt_m", n * mpp)))
+			sb = _steuerkarte_umbauen(sb, n, mpp, float(meta.get("welt_m", n * mpp)), meta)
 			steuer = Image.create_from_data(n, n, false, Image.FORMAT_RF, sb)
 		else:
 			push_warning("Weltimport: Steuerkarte hat falsche Größe, Biome werden übersprungen.")
@@ -159,45 +157,102 @@ func importieren() -> void:
 	boden.material_override = bmat
 
 	_marker_importieren()
-	_wege_importieren()
 	_seen_importieren(mat)
 	if Engine.is_editor_hint():
 		terrain.get("data").save_directory(datenordner)
 	print("Weltimport: %d x %d Pixel, %.1f m/Pixel, Höhen %.1f … %.1f m" % [n, n, mpp, meta["hoehe"]["min"], meta["hoehe"]["max"]])
 
 
-## In Städten werden Wege zu Kopfsteinpflaster, in Dörfern zu moosigem Kopfstein: in der Steuerkarte (uint32 je Pixel:
-## Bits 27–31 Grundtextur, 22–26 Überlagerung) wird im Umkreis jeder Siedlung die Weg-Textur ersetzt.
-func _kopfstein_in_siedlungen(sb: PackedByteArray, n: int, mpp: float, welt_m: float) -> void:
-	var pfad := daten_ordner.path_join("marker.json")
-	if not FileAccess.file_exists(pfad):
-		return
-	var ersetzt := 0
-	for m in JSON.parse_string(FileAccess.get_file_as_string(pfad)):
-		var typ: String = m["typ"]
-		if typ != "stadt" and typ != "dorf":
-			continue
-		var neu := KOPFSTEIN_ID if typ == "stadt" else KOPFSTEIN_MOOS_ID
-		var r: float = float(m.get("radius", 60)) * (1.25 if typ == "stadt" else 1.1) / mpp
-		var cx := (float(m["x"]) + welt_m / 2.0) / mpp
-		var cy := (float(m["z"]) + welt_m / 2.0) / mpp
-		for y in range(maxi(0, int(cy - r)), mini(n, int(cy + r) + 1)):
-			for x in range(maxi(0, int(cx - r)), mini(n, int(cx + r) + 1)):
-				if (x - cx) * (x - cx) + (y - cy) * (y - cy) > r * r:
-					continue
-				var o := (y * n + x) * 4
-				var v := sb.decode_u32(o)
-				var basis := (v >> 27) & 31
-				var auf := (v >> 22) & 31
-				if basis != WEG_ID and auf != WEG_ID:
-					continue
+## Bodentexturen nach den Biom-Regeln (data/biome.json): Die Steuerkarte des Generators (uint32 je Pixel: Bits 27–31
+## Grundtextur, 22–26 Überlagerung, 14–21 Überblendung) behält ihre weichen Übergänge, die Texturen werden aber über
+## die Biome neu zugeordnet. Alte Weg-Pixel bekommen den Boden des Bioms darunter (es gibt keine Straßen mehr), und
+## entlang der Flüsse wird ein Kiesbett eingetragen, das zum Ufer hin ausläuft.
+func _steuerkarte_umbauen(sb: PackedByteArray, n: int, mpp: float, welt_m: float, meta: Dictionary) -> PackedByteArray:
+	var start := Time.get_ticks_msec()
+	var regeln := BiomRegeln.laden()
+	var biome := FileAccess.get_file_as_bytes(daten_ordner.path_join(meta["biome"]["datei"]))
+	var raster: int = int(meta["raster"])
+	var zelle: float = float(meta["zelle_m"])
+	# Generator-Textur (= Generator-Biom) -> Textur des neuen Bioms (-1: unverändert lassen)
+	var neu := PackedInt32Array()
+	neu.resize(32)
+	for i in 32:
+		neu[i] = i
+	for g in regeln["generator"]:
+		var t: int = int(regeln["generator"][g]["textur"])
+		if t >= 0:
+			neu[int(g)] = t
+	var werte := sb.to_int32_array()
+	var weg := 0
+	var geaendert := 0
+	var schritt := float(raster) / float(n)
+	for y in n:
+		var zeile := y * n
+		var biom_zeile := mini(int(y * schritt), raster - 1) * raster
+		for x in n:
+			var v := werte[zeile + x]
+			var basis := (v >> 27) & 31
+			var auf := (v >> 22) & 31
+			var nb := neu[basis]
+			var na := neu[auf]
+			if basis == WEG_ID or auf == WEG_ID:
+				var unter := neu[biome[biom_zeile + mini(int(x * schritt), raster - 1)]]
 				if basis == WEG_ID:
-					v = (v & ~(31 << 27)) | (neu << 27)
+					nb = unter
 				if auf == WEG_ID:
-					v = (v & ~(31 << 22)) | (neu << 22)
-				sb.encode_u32(o, v & 0xFFFFFFFF)
-				ersetzt += 1
-	print("Weltimport: %d Weg-Pixel in Siedlungen zu Kopfstein" % ersetzt)
+					na = unter
+				weg += 1
+			if nb == basis and na == auf:
+				continue
+			werte[zeile + x] = (v & ~((31 << 27) | (31 << 22))) | (nb << 27) | (na << 22)
+			geaendert += 1
+	var kies := _flussbett(werte, n, mpp, welt_m)
+	print("Weltimport: Böden nach Biom-Regeln, %d Pixel neu zugeordnet (%d alte Weg-Pixel), %d Pixel Kiesbett, %.1f s" % [
+		geaendert, weg, kies, (Time.get_ticks_msec() - start) / 1000.0])
+	return werte.to_byte_array()
+
+
+## Kiesbett entlang der Flüsse aus fluesse.json: voller Kies bis 0,5 m über die Wasserbreite hinaus,
+## danach läuft er auf 3 m zum Ufer hin aus (Überlagerung mit steigender Überblendung). Gibt die Pixelzahl zurück.
+func _flussbett(werte: PackedInt32Array, n: int, mpp: float, welt_m: float) -> int:
+	var pfad := daten_ordner.path_join("fluesse.json")
+	var kies_id := BiomRegeln.textur_id("kies")
+	if not FileAccess.file_exists(pfad) or kies_id < 0:
+		return 0
+	var anzahl := 0
+	var halb := welt_m / 2.0
+	for f in JSON.parse_string(FileAccess.get_file_as_string(pfad)):
+		var punkte: Array = f["punkte"]
+		for i in range(1, punkte.size()):
+			var a := Vector2(float(punkte[i - 1][0]) + halb, float(punkte[i - 1][2]) + halb) / mpp
+			var b := Vector2(float(punkte[i][0]) + halb, float(punkte[i][2]) + halb) / mpp
+			var breite := (float(punkte[i - 1][3]) + float(punkte[i][3])) / 2.0
+			var innen := (breite / 2.0 + 0.5) / mpp
+			var aussen := (breite / 2.0 + 3.0) / mpp
+			var von := a.min(b) - Vector2(aussen, aussen)
+			var bis := a.max(b) + Vector2(aussen, aussen)
+			for y in range(maxi(0, int(von.y)), mini(n, int(bis.y) + 1)):
+				for x in range(maxi(0, int(von.x)), mini(n, int(bis.x) + 1)):
+					var p := Vector2(x + 0.5, y + 0.5)
+					var d := Geometry2D.get_closest_point_to_segment(p, a, b).distance_to(p)
+					if d >= aussen:
+						continue
+					var w := clampf((aussen - d) / (aussen - innen), 0.0, 1.0)
+					var o := y * n + x
+					var v := werte[o]
+					var basis := (v >> 27) & 31
+					if basis == kies_id:
+						continue
+					if w >= 1.0:
+						v = (v & ~((31 << 27) | (31 << 22) | (255 << 14))) | (kies_id << 27) | (kies_id << 22)
+					else:
+						var blend := roundi(w * 255.0)
+						if ((v >> 22) & 31) == kies_id:
+							blend = maxi(blend, (v >> 14) & 255)
+						v = (v & ~((31 << 22) | (255 << 14))) | (kies_id << 22) | (blend << 14)
+					werte[o] = v
+					anzahl += 1
+	return anzahl
 
 
 func _texturen_einrichten(terrain: Node3D) -> void:
@@ -211,14 +266,14 @@ func _texturen_einrichten(terrain: Node3D) -> void:
 		var name_: String = BODEN[id][0]
 		var ordner := "texturen_scan" if scans else "texturen"
 		if not ResourceLoader.exists(basis.path_join("%s/%s_albedo_hoehe.png" % [ordner, name_])):
-			name_ = "weg" # ohne Scans gibt es kein Kopfstein: dann Weg-Textur
-			ordner = "texturen_scan" if scans else "texturen"
+			ordner = "texturen" # fehlt ein einzelner Scan (z. B. Kies), die eigene Textur nehmen
 		var t = ClassDB.instantiate("Terrain3DTextureAsset")
 		t.set("name", String(BODEN[id][0]).capitalize())
 		t.set("albedo_texture", load(basis.path_join("%s/%s_albedo_hoehe.png" % [ordner, name_])))
 		t.set("normal_texture", load(basis.path_join("%s/%s_normal_rauheit.png" % [ordner, name_])))
-		t.set("uv_scale", 1.0 / float(BODEN[id][1 if scans else 2]))
-		t.set("albedo_color", BODEN[id][3 if scans else 4])
+		var scan := ordner == "texturen_scan"
+		t.set("uv_scale", 1.0 / float(BODEN[id][1 if scan else 2]))
+		t.set("albedo_color", BODEN[id][3 if scan else 4])
 		t.set("detiling_rotation", 0.3)
 		t.set("detiling_shift", 0.2)
 		# Terrain3D 1.0.x: set_texture · neuere Versionen: set_texture_asset
@@ -277,69 +332,6 @@ func _marker_importieren() -> void:
 		gruppen[typ].add_child(mk)
 		_besitzer(mk)
 		_platzhalter(mk, m)
-
-
-## Wege aus wege.json: je Strecke ein Path3D (für NPC-Routen, Wagen, Wegweiser …) unter "Wege/Strassen" bzw. "Wege/Wege",
-## Brücken als einfache Holzbrücken-Modelle unter "Wege/Bruecken". Das Gelände selbst ist beim Export schon eingeebnet.
-func _wege_importieren() -> void:
-	var pfad := daten_ordner.path_join("wege.json")
-	var alt := get_node_or_null("Wege")
-	if alt:
-		remove_child(alt)
-		alt.free()
-	if not FileAccess.file_exists(pfad):
-		return
-	var liste: Array = JSON.parse_string(FileAccess.get_file_as_string(pfad))
-	var wurzel := Node3D.new()
-	wurzel.name = "Wege"
-	add_child(wurzel)
-	_besitzer(wurzel)
-	var gruppen := {}
-	for name_ in ["Strassen", "Wege", "Bruecken"]:
-		var g := Node3D.new()
-		g.name = name_
-		wurzel.add_child(g)
-		_besitzer(g)
-		gruppen[name_] = g
-	var nr := 0
-	var gebaut: Array[Vector3] = []   # Brückenmitten – gemeinsam genutzte Brücken nur einmal bauen
-	for w in liste:
-		nr += 1
-		var typ: String = w["typ"]
-		var punkte: Array = w["punkte"]
-		var br: Array = w["bruecke"]
-		var pf := Path3D.new()
-		pf.name = "%s_%d" % [typ.capitalize(), nr]
-		pf.curve = Curve3D.new()
-		for q in punkte:
-			pf.curve.add_point(Vector3(q[0], q[1] + 0.1, q[2]))
-		pf.set_meta("typ", typ)
-		pf.set_meta("breite", w["breite"])
-		pf.add_to_group("welt_wege", true)
-		gruppen["Strassen" if typ == "strasse" else "Wege"].add_child(pf)
-		_besitzer(pf)
-		# zusammenhängende Brückenabschnitte zu je einem Modell
-		var k := 1
-		while k < punkte.size():
-			if int(br[k]) == 1:
-				var e := k
-				while e + 1 < punkte.size() and int(br[e + 1]) == 1:
-					e += 1
-				var ab := punkte.slice(k - 1, e + 1)
-				var m := (Vector3(ab[0][0], 0, ab[0][2]) + Vector3(ab[-1][0], 0, ab[-1][2])) / 2.0
-				var doppelt := false
-				for g in gebaut:
-					if g.distance_to(m) < 8.0:
-						doppelt = true
-				if not doppelt:
-					gebaut.append(m)
-					var bruecke := _bruecke_bauen(ab, float(w["breite"]))
-					bruecke.name = "Bruecke_%d" % gebaut.size()
-					gruppen["Bruecken"].add_child(bruecke)
-					_besitzer_rekursiv(bruecke)
-				k = e + 1
-			else:
-				k += 1
 
 
 ## Seen aus welt.json ("seen"): je See eine Wasserfläche auf Höhe seines Wasserspiegels unter "Seen".
@@ -473,81 +465,6 @@ func _fluesse_importieren(wasser: Material = null) -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		wurzel.add_child(mi)
 		_besitzer(mi)
-
-
-## Einfache Holzbrücke: Fahrbahn aus Planken, Geländer, Stützpfeiler bis zum Boden
-func _bruecke_bauen(punkte: Array, breite: float) -> Node3D:
-	var a := Vector3(punkte[0][0], punkte[0][1], punkte[0][2])
-	var b := Vector3(punkte[-1][0], punkte[-1][1], punkte[-1][2])
-	var mitte := (a + b) / 2.0
-	var richtung := b - a
-	var laenge := Vector2(richtung.x, richtung.z).length() + 6.0   # 3 m Auflage je Seite
-	var knoten := StaticBody3D.new()
-	knoten.position = mitte
-	knoten.rotation.y = atan2(-richtung.z, richtung.x)
-	var neigung := atan2(richtung.y, Vector2(richtung.x, richtung.z).length())
-	var holz := StandardMaterial3D.new()
-	holz.albedo_color = Color(0.42, 0.29, 0.18)
-	holz.roughness = 0.9
-	var dunkel := StandardMaterial3D.new()
-	dunkel.albedo_color = Color(0.3, 0.2, 0.12)
-	dunkel.roughness = 0.9
-	var b_breite := breite + 1.0
-	var deck := Node3D.new()
-	deck.rotation.z = neigung
-	knoten.add_child(deck)
-	# Fahrbahn
-	_kiste(deck, Vector3(laenge, 0.35, b_breite), Vector3(0, -0.05, 0), holz)
-	# Querbalken sichtbar unter der Fahrbahn
-	var x := -laenge / 2.0 + 0.6
-	while x < laenge / 2.0:
-		_kiste(deck, Vector3(0.3, 0.3, b_breite + 0.4), Vector3(x, -0.35, 0), dunkel)
-		x += 1.6
-	# Geländer
-	for seite in [-1.0, 1.0]:
-		_kiste(deck, Vector3(laenge, 0.15, 0.15), Vector3(0, 1.0, seite * b_breite / 2.0), holz)
-		x = -laenge / 2.0 + 0.3
-		while x <= laenge / 2.0:
-			_kiste(deck, Vector3(0.2, 1.1, 0.2), Vector3(x, 0.5, seite * b_breite / 2.0), dunkel)
-			x += 2.5
-	# Stützpfeiler alle ~8 m bis zum Boden
-	var anzahl := int(laenge / 8.0)
-	for i in range(1, anzahl + 1):
-		var t := float(i) / float(anzahl + 1)
-		var welt_pos := a.lerp(b, t)
-		var boden := hoehe_bei(welt_pos)
-		var h := welt_pos.y - 0.4 - boden + 1.0
-		if h < 1.0:
-			continue
-		var lokal_x := (t - 0.5) * (laenge - 6.0)
-		for seite in [-1.0, 1.0]:
-			var p := MeshInstance3D.new()
-			var zyl := CylinderMesh.new()
-			zyl.top_radius = 0.22
-			zyl.bottom_radius = 0.28
-			zyl.height = h
-			p.mesh = zyl
-			p.material_override = dunkel
-			p.position = Vector3(lokal_x, -0.4 - h / 2.0 + (welt_pos.y - mitte.y), seite * (b_breite / 2.0 - 0.3))
-			knoten.add_child(p)
-	# Kollision: Fahrbahn
-	var form := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(laenge, 0.4, b_breite)
-	form.shape = box
-	form.rotation.z = neigung
-	knoten.add_child(form)
-	return knoten
-
-
-func _kiste(eltern: Node3D, groesse: Vector3, pos: Vector3, mat: Material) -> void:
-	var m := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = groesse
-	m.mesh = box
-	m.material_override = mat
-	m.position = pos
-	eltern.add_child(m)
 
 
 func _besitzer_rekursiv(n: Node) -> void:

@@ -1,8 +1,9 @@
 extends Node3D
 ## Bodenbewuchs rund um den Spieler: Gras, Farne, Kräuter/kleine Sträucher und Blumen als MultiMeshes in
-## 16-m-Kacheln bis RADIUS (ferner trägt die Bodentextur). Mischung, Dichte und Farbton nach Biom:
-## im Wald vor allem Farne und Kräuter, auf Wiesen Gras mit Blumenflecken, in der Steppe trockenes Gras.
-## Nicht auf Wegen, in Feldern, Seen und Flüssen, auf Fels/Schnee und an Steilhängen. Nutzt die Daten von scripts/natur.gd.
+## 16-m-Kacheln bis RADIUS (ferner trägt die Bodentextur). Mischung, Dichte und Farbton nach den Biom-Regeln
+## (data/biome.json, "gras"): im Wald vor allem Farne und Kräuter, auf Wiesen Gras mit Blumenflecken.
+## Kein Bewuchs in Flüssen, Städten/Dörfern, Feldern, Seen, am Strand, auf Fels/Schnee und an Steilhängen.
+## Nutzt die Daten von scripts/natur.gd.
 
 const GrasShader := preload("res://scripts/gras.gdshader")
 const GrasScanShader := preload("res://scripts/gras_scan.gdshader")
@@ -14,16 +15,8 @@ const BUDGET_US := 3000          # Zeit je Frame für neue Kacheln
 const NAH := 15.0                # bis hier volle Dichte, dahinter halb so viel (etwas größer)
 
 enum { GRAS, FARN, KRAUT, BLUME }
-## Wahrscheinlichkeit je Stelle und Art, je Biom: Strand, Wiese, Laubwald, Nadelwald, Sumpf, Steppe, Fels, Schnee
-const ANTEIL := [
-	[0.06, 0.8, 0.32, 0.18, 0.6, 0.8, 0.04, 0.0],    # Gras
-	[0.0, 0.004, 0.1, 0.13, 0.06, 0.0, 0.01, 0.0],   # Farn
-	[0.01, 0.05, 0.2, 0.12, 0.12, 0.03, 0.02, 0.0],  # Kraut
-	[0.0, 0.07, 0.05, 0.015, 0.04, 0.02, 0.0, 0.0],  # Blume (in Flecken gehäuft)
-]
-## Blattfarbe je Biom (Gras) und Grundton für Farn/Kraut
-const FARBE := [Color(0.62, 0.62, 0.38), Color(0.4, 0.58, 0.2), Color(0.34, 0.48, 0.18), Color(0.32, 0.42, 0.2),
-	Color(0.38, 0.48, 0.22), Color(0.72, 0.64, 0.34), Color(0.45, 0.5, 0.3), Color(0.6, 0.6, 0.6)]
+## Anteile und Farben je Biom stehen in data/biome.json unter "gras" (gras, farn, kraut, blume, farbe, ton)
+const ARTEN := ["gras", "farn", "kraut", "blume"]
 const FARN_FARBE := Color(0.26, 0.42, 0.16)
 const KRAUT_FARBE := Color(0.3, 0.44, 0.2)
 
@@ -46,11 +39,6 @@ const SCANS := [
 	[["celandine_01", "_a_", Vector2(1.3, 1.8)], ["celandine_01", "_b_", Vector2(1.3, 1.8)], ["celandine_01", "_e_", Vector2(1.3, 1.8)]],
 	[["dandelion_01", "_c_", Vector2(1.3, 1.7)], ["dandelion_01", "_d_", Vector2(1.5, 2.0)], ["dandelion_01", "_e_", Vector2(1.3, 1.7)]],
 ]
-## Farbton der Scans je Biom (Strand, Wiese, Laubwald, Nadelwald, Sumpf, Steppe, Fels, Schnee)
-const SCAN_TINT := [Color(1.1, 1.05, 0.75), Color(1.0, 1.0, 1.0), Color(0.9, 0.95, 0.85), Color(0.85, 0.9, 0.8),
-	Color(0.95, 1.0, 0.85), Color(1.2, 1.05, 0.65), Color(0.9, 0.9, 0.8), Color.WHITE]
-
-
 func setup(natur_node, spieler: Node3D) -> void:
 	natur = natur_node
 	ziel = spieler
@@ -149,7 +137,7 @@ func _kachel_bauen(k: Vector2i, voll: bool) -> Node3D:
 			hs[j * 9 + i] = natur._hoehe(x0 + i * 2.0, z0 + j * 2.0)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(Vector3i(k.x, k.y, 77))
-	# Wege/Flüsse/Felder/freie Kreise nur prüfen, wenn die Kachel überhaupt welche berührt
+	# Felder/freie Kreise nur prüfen, wenn die Kachel überhaupt welche berührt
 	var pruefen: bool = natur.sperr.has(Vector2i(floori(x0 / 32.0), floori(z0 / 32.0)))
 	for f in frei:
 		if Rect2(x0, z0, KACHEL, KACHEL).grow(f[1]).has_point(f[0]):
@@ -167,15 +155,16 @@ func _kachel_bauen(k: Vector2i, voll: bool) -> Node3D:
 			var farbwahl := rng.randf()
 			var x := x0 + lx
 			var z := z0 + lz
-			var b: int = natur._biom(x, z)
-			if b < 0:
+			var regel: Dictionary = natur._regel(x, z)
+			var anteil: Dictionary = regel.get("gras", {})
+			if anteil.is_empty():
 				continue
 			# Art auswählen; Blumen wachsen in Flecken (Rauschen)
 			var flecken: float = clampf(natur.rauschen.get_noise_2d(x * 4.0, z * 4.0) * 2.5 + 0.4, 0.1, 2.5)
 			var art := -1
 			var summe := 0.0
 			for a in 4:
-				summe += ANTEIL[a][b] * faktor * (flecken if a == BLUME else 1.0)
+				summe += float(anteil.get(ARTEN[a], 0.0)) * faktor * (flecken if a == BLUME else 1.0)
 				if r < summe:
 					art = a
 					break
@@ -197,19 +186,21 @@ func _kachel_bauen(k: Vector2i, voll: bool) -> Node3D:
 			var h := lerpf(lerpf(h00, h10, tx), lerpf(h01, h11, tx), tz)
 			if h < 0.4 or maxf(absf(h10 - h00), absf(h01 - h00)) > 1.4:
 				continue
-			if pruefen and (natur._auf_weg(x, z) or natur._im_feld(x, z) or _im_freien_kreis(x, z)):
+			if pruefen and (natur._im_feld(x, z) or _im_freien_kreis(x, z)):
 				continue
 			var c: Color
+			var farbe := _farbe(anteil.get("farbe", [0.4, 0.58, 0.2]))
 			if _scans:
-				c = SCAN_TINT[b].lerp(SCAN_TINT[b] * Color(1.1, 1.08, 0.9), rng.randf())
+				var ton := _farbe(anteil.get("ton", [1.0, 1.0, 1.0]))
+				c = ton.lerp(ton * Color(1.1, 1.08, 0.9), rng.randf())
 			else:
 				match art:
 					GRAS:
-						c = FARBE[b]
+						c = farbe
 					FARN:
 						c = FARN_FARBE
 					_:
-						c = KRAUT_FARBE.lerp(FARBE[b], 0.4)
+						c = KRAUT_FARBE.lerp(farbe, 0.4)
 				c = c.lerp(Color(c.r * 1.25, c.g * 1.15, c.b * 0.9), rng.randf())
 			# Blütenfarbe im Alpha (nur eigene Formen): meist lila, sonst weiß, gelb, rosa
 			c.a = 0.0 if farbwahl < 0.45 else (0.33 if farbwahl < 0.7 else (0.66 if farbwahl < 0.88 else 1.0))
@@ -219,7 +210,7 @@ func _kachel_bauen(k: Vector2i, voll: bool) -> Node3D:
 				var vi := rng.randi_range(0, varianten.size() - 1)
 				var sv: Vector2 = varianten[vi]["s"]
 				var s := (groesse if not _scans else 1.0) * lerpf(sv.x, sv.y, rng.randf())
-				var basis := Basis(Vector3.UP, dreh + kk * 2.1).scaled(Vector3(s, s * (1.1 if b == WIESE_ID else 0.9), s))
+				var basis := Basis(Vector3.UP, dreh + kk * 2.1).scaled(Vector3(s, s * (1.1 if regel["biom"] == "wiese" else 0.9), s))
 				var versatz := Vector3(rng.randf_range(-0.25, 0.25), 0, rng.randf_range(-0.3, 0.3)) * minf(kk, 1.0)
 				listen[art].append([Transform3D(basis, Vector3(x, h - 0.03, z) + versatz) * (varianten[vi]["xf"] as Transform3D), c, vi])
 	var knoten := Node3D.new()
@@ -250,7 +241,10 @@ func _kachel_bauen(k: Vector2i, voll: bool) -> Node3D:
 	add_child(knoten)
 	return knoten
 
-const WIESE_ID := 1
+
+
+func _farbe(werte: Array) -> Color:
+	return Color(float(werte[0]), float(werte[1]), float(werte[2]))
 
 
 func _im_freien_kreis(x: float, z: float) -> bool:

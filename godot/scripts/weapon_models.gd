@@ -4,7 +4,7 @@ extends RefCounted
 const MeshUtil := preload("res://scripts/mesh_util.gd")
 
 
-static func build(model: String, parent: Node3D) -> void:
+static func build(model: String, parent: Node3D, glow := Color(1.0, 0.85, 0.5)) -> void:
 	var metal := MeshUtil.mat(Color(0.75, 0.77, 0.8), 0.8, 0.3)
 	var dark_metal := MeshUtil.mat(Color(0.4, 0.4, 0.43), 0.8, 0.4)
 	var wood := MeshUtil.mat(Color(0.48, 0.32, 0.17))
@@ -54,13 +54,21 @@ static func build(model: String, parent: Node3D) -> void:
 			MeshUtil.part(parent, MeshUtil.box(Vector3(0.08, 0.14, 0.4)), wood, Vector3(0, -0.03, 0.08))
 			MeshUtil.part(parent, MeshUtil.box(Vector3(0.06, 0.06, 0.5)), wood, Vector3(0, 0, -0.35))
 			MeshUtil.part(parent, MeshUtil.box(Vector3(0.045, 0.045, 1.0)), dark_metal, Vector3(0, 0.03, -0.6))
+		"staff": # Zauberstab mit leuchtendem Kristall in der Farbe des Elements
+			MeshUtil.part(parent, MeshUtil.box(Vector3(0.05, 0.05, 1.6)), wood, Vector3(0, 0, -0.35))
+			MeshUtil.part(parent, _sphere(0.11), _glow(glow), Vector3(0, 0, -1.22))
+			for x in [-1.0, 1.0]:
+				MeshUtil.part(parent, MeshUtil.box(Vector3(0.03, 0.03, 0.25)), wood, Vector3(x * 0.08, 0, -1.1))
+		"orb": # Leerenkugel: schwebt über der Hand
+			MeshUtil.part(parent, _sphere(0.16), _glow(glow), Vector3(0, 0.15, -0.35))
+			MeshUtil.part(parent, MeshUtil.box(Vector3(0.12, 0.04, 0.12)), dark_metal, Vector3(0, -0.05, -0.35))
 		"crossbow":
 			MeshUtil.part(parent, MeshUtil.box(Vector3(0.07, 0.08, 0.7)), wood, Vector3(0, 0, -0.2))
 			MeshUtil.part(parent, MeshUtil.box(Vector3(0.9, 0.04, 0.05)), wood, Vector3(0, 0.02, -0.5))
 			MeshUtil.part(parent, MeshUtil.box(Vector3(0.85, 0.01, 0.01)), string_mat, Vector3(0, 0.03, -0.3))
 
 
-static func build_projectile(kind: String, parent: Node3D) -> void:
+static func build_projectile(kind: String, parent: Node3D, color := Color.WHITE) -> void:
 	var wood := MeshUtil.mat(Color(0.55, 0.4, 0.25))
 	var metal := MeshUtil.mat(Color(0.8, 0.8, 0.85), 0.8, 0.3)
 	match kind:
@@ -78,6 +86,16 @@ static func build_projectile(kind: String, parent: Node3D) -> void:
 			MeshUtil.part(parent, _sphere(0.05), glow)
 		"axe":
 			build("axe", parent)
+		"orb":
+			MeshUtil.part(parent, _sphere(0.14), _glow(color))
+
+
+static func _glow(color: Color) -> StandardMaterial3D:
+	var m := MeshUtil.mat(color)
+	m.emission_enabled = true
+	m.emission = color
+	m.emission_energy_multiplier = 2.5
+	return m
 
 
 static func _sphere(radius: float) -> SphereMesh:

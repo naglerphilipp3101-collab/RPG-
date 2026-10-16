@@ -7,14 +7,20 @@ signal changed
 var capacity := 100.0
 var items: Dictionary = {} # item_id -> Anzahl
 var gear: Array[Dictionary] = [] # einzelne Ausrüstungsstücke, siehe Game.roll_gear
+var weight_factors: Dictionary = {} # Kategorie -> Faktor (z. B. "Erz": 0.8 durch Stärke-Schwellen)
+
+
+func item_weight(id: String) -> float:
+	var def := Game.item(id)
+	return float(def.get("weight", 0.0)) * float(weight_factors.get(def.get("category", ""), 1.0))
 
 
 func weight() -> float:
 	var total := 0.0
 	for id in items:
-		total += float(Game.item(id).get("weight", 0.0)) * int(items[id])
+		total += item_weight(id) * int(items[id])
 	for g in gear:
-		total += float(Game.item(g["id"]).get("weight", 0.0))
+		total += item_weight(g["id"])
 	return total
 
 
@@ -24,7 +30,7 @@ func count(id: String) -> int:
 
 ## Wie viele Stück von `id` noch in die Tasche passen.
 func space_for(id: String) -> int:
-	var w := float(Game.item(id).get("weight", 0.0))
+	var w := item_weight(id)
 	if w <= 0.0:
 		return 1_000_000
 	return int(floor((capacity - weight()) / w + 0.0001))
@@ -68,7 +74,7 @@ func add_gear(g: Dictionary) -> bool:
 
 
 func space_for_gear(id: String) -> int:
-	return 1 if weight() + float(Game.item(id).get("weight", 0.0)) <= capacity + 0.0001 else 0
+	return 1 if weight() + item_weight(id) <= capacity + 0.0001 else 0
 
 
 func take_gear(uid: int) -> Dictionary:

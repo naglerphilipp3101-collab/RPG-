@@ -2,7 +2,7 @@ extends RefCounted
 ## Speichern und Laden des Spielstands als JSON-Datei.
 ## Ort unter Windows: %APPDATA%\Godot\app_userdata\RPG\savegame.json
 
-const VERSION := 1
+const VERSION := 3 # 2: Berufe als Skill 0–300, Charakterlevel, Attribute, Tageszeit. 3: Waffen mit 2 Seiten (M6)
 
 
 static func has_save(path: String) -> bool:
@@ -17,6 +17,8 @@ static func save(tree: SceneTree, path: String) -> bool:
 		"version": VERSION,
 		"saved_at": Time.get_datetime_string_from_system(false, true),
 		"next_uid": Game._next_uid,
+		"time_of_day": Game.time_of_day,
+		"day": Game.day,
 		"player": player.to_save(),
 	}
 	# Erst in eine temporäre Datei schreiben, dann ersetzen: so bleibt bei einem Absturz der alte Stand erhalten
@@ -47,7 +49,11 @@ static func load_into(tree: SceneTree, path: String) -> bool:
 	if player == null:
 		return false
 	Game._next_uid = maxi(Game._next_uid, int(data.get("next_uid", 1)))
-	player.from_save(data["player"])
+	Game.time_of_day = fposmod(float(data.get("time_of_day", Game.START_HOUR)), 24.0)
+	Game.day = maxi(int(data.get("day", 1)), 1)
+	var player_data: Dictionary = data["player"]
+	player_data["_version"] = int(data.get("version", 1))
+	player.from_save(player_data)
 	return true
 
 

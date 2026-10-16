@@ -8,8 +8,10 @@ const GROESSE := 1024
 const ZUORDNUNG := {
 	"sand": "coast_sand_01", "wiese": "leafy_grass", "laubboden": "forest_leaves_02", "nadelboden": "forest_ground_04",
 	"sumpf": "brown_mud_03", "steppe": "dry_ground_01", "fels": "rock_face_03", "schnee": "snow_02",
-	"weg": "rocky_trail_02", "kopfstein": "cobblestone_floor_08", "kopfstein_moos": "mossy_cobblestone",
+	"kies": "river_small_rocks",
 }
+## Ersatz, wenn ein Scan nicht geladen wurde
+const ERSATZ := {"kies": "rocky_trail_02"}
 
 
 func _process(_delta: float) -> bool:
@@ -17,6 +19,8 @@ func _process(_delta: float) -> bool:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(ziel))
 	for name_ in ZUORDNUNG:
 		var id: String = ZUORDNUNG[name_]
+		if not FileAccess.file_exists(ProjectSettings.globalize_path("res://assets/scans/%s/%s_diffuse_2k.jpg" % [id, id])):
+			id = ERSATZ.get(name_, id)
 		var basis := ProjectSettings.globalize_path("res://assets/scans/%s/%s_" % [id, id])
 		var farbe := _laden(basis + "diffuse_2k.jpg")
 		var hoehe := _laden(basis + "displacement_2k.jpg")
