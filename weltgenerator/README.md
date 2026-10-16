@@ -33,6 +33,7 @@ Linke Maus = malen · rechte Maus oder Leertaste+Ziehen = verschieben · Mausrad
 
 **Tipp:** Nach dem Malen von Bergen einmal *Erosion anwenden* – das macht gemalte Formen natürlich.
 *Flussbetten einschneiden* gräbt die blau angezeigten Flüsse 1–4 m tief ein (für Wasser in Godot später).
+Besser ist *Landschaft überarbeiten* (Abschnitt Regionen): wenige Flüsse in Tälern; danach zeigt die Karte genau diese Flussläufe.
 
 Die Karte zeigt Höhenlinien alle 10 m (dicker alle 50 m), damit auch kleine Höhenunterschiede sichtbar sind.
 Unten rechts im Bild steht beim Überfahren die genaue Höhe.
@@ -74,12 +75,13 @@ Abschnitt **Regionen & Siedlungen** (in dieser Reihenfolge benutzen):
 | **Zentralberg formen** | hebt die Inselmitte zu einem großen Berg an (Regler *Höhe Zentralberg*), mit Graten und Erosion |
 | **Regionen berechnen** | Startgebiet im Süden (Regler *Startgebiet %*), Fraktionsregionen ringförmig um den Berg (Regler *Fraktionsregionen*), Zentralberg ab *Berg-Grenze*. Die Grenzen folgen Flüssen, Seen und steilen Hängen, die Flächen werden angeglichen. Namen nach Himmelsrichtung. |
 | **Siedlungen vorschlagen** | je Region *Städte pro Region*, je Stadt *Dörfer je Stadt* in ihrer Nähe (Name z. B. „Nord – Dorf 2a“ gehört zu „Nord – Stadt 2“), Startdorf, Gipfel-POI und Dungeon-Eingang am Südhang des Bergs, ein Dungeon je Nebeninsel. Ersetzt Städte, Dörfer, Dungeons und POIs (Felder und Minen bleiben). |
+| **Landschaft überarbeiten** | nach Regionen und Siedlungen, nach dem Vorbild New World (Haken einzeln abwählbar): **Hochebenen** schieben das Gelände zu Stufen je Höhenlage zusammen (flache Ebenen mit Hängen dazwischen, am Zentralberg ausgeblendet). **Pässe**: auf den Regionsgrenzen entstehen Bergrücken, offen bleiben 1–3 Pässe je Grenze (der erste an der tiefsten Stelle), Flussdurchbrüche, Küste und Seen. **Seen**: einige neue Seen in flachen Mulden, durch die später Flüsse laufen. **Flüsse**: nur noch große Flüsse (Einzugsgebiet ab 0,6 km²) in eigenen Tälern, geschwungen, 11–24 m breit; der Wasserspiegel liegt überall unter dem Ufer. Küste, Zentralberg sowie Städte, Dörfer und Felder bleiben unverändert, alte Wege werden verworfen (sie passen nicht mehr zum Gelände). Rückgängig mit Strg+Z. |
 
 Alle Entfernungen sind für 8 km gewählt und wachsen bei größeren Welten mit.
 
 ### Varianten
 **Varianten erzeugen** baut mit der eingestellten Weltgröße nacheinander komplette Karten (Gelände, Zentralberg, Nebeninsel,
-1–2 Seen, Regionen, Siedlungen), jede mit eigenen Zufallswerten für Seed, Inselform, Küste, Gebirge und Hügel.
+1–2 Seen, Regionen, Siedlungen, danach *Landschaft überarbeiten*), jede mit eigenen Zufallswerten für Seed, Inselform, Küste, Gebirge und Hügel.
 Die **Galerie** zeigt alle Karten mit Kennzahlen; ein Klick lädt eine Karte in den Editor (danach Wege, Ressourcen, Export wie gewohnt).
 Die Varianten liegen nur im Speicher des Browsers – die gewählte Karte also mit *Projekt speichern* sichern.
 
@@ -123,7 +125,7 @@ Dichte-Regler je Art. Nach Änderungen an Karte/Markern zeigt der Editor „neu 
   - Auflösung wählbar: **1 m pro Pixel** oder **2 m pro Pixel**. Bei 8 km sind 1 m = 8192² (~540 MB Export, braucht viel RAM im Browser
     und in Godot) – empfohlen dort 2 m (4096², ~140 MB). Bis 4 km ist 1 m problemlos. Über 8 km gibt es 2 m oder 4 m pro Pixel.
   - `hoehe_<Auflösung>.r32` – Höhen in Metern (Gelände wird beim Export fein hochgerechnet,
-    dazu kommen kleine Bodenwellen: Regler *Feindetail*)
+    dazu kommen kleine Bodenwellen: Regler *Feindetail*; an Flüssen und Seen ohne Bodenwellen, damit das Wasser nicht schwebt)
   - `steuerung_4096.r32` – Biom-Steuerkarte im Terrain3D-Format (welche Bodentextur wo, mit weichen Übergängen)
   - `biome_1024.u8` – Biom je 4-m-Zelle (0–7), z. B. um Bäume/Ressourcen passend zu verteilen
   - `wege.json` – alle Strecken als 3D-Linien (Meter, y = Fahrbahnhöhe) mit Brückenabschnitten

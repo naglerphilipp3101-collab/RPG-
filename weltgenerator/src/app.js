@@ -10,6 +10,7 @@ const zustand = {
   A: new Float32Array(N * N),
   B: new Uint8Array(N * N),                // automatische Biome
   O: new Uint8Array(N * N).fill(255),      // gemalte Biome (255 = automatisch)
+  FM: null,                                // Flussflächen aus „Landschaft überarbeiten“ (1 = Wasser), sonst null
   modus: "biome",                          // Kartenansicht: "biome" oder "hoehe"
   werkzeug: "anheben",
   groesse: 200, staerke: 0.5,
@@ -46,7 +47,11 @@ function auftrag(msg, transfer = []) {
         erodiere(msg.H, msg.N, msg.anzahl, msg.seed, st("Erosion")); thermisch(msg.H, msg.N, 2, 3.2); resolve({ H: msg.H, ...ana(msg.H) });
       } else if (msg.auftrag === "analyse") resolve({ ...ana(msg.H), version: msg.version });
       else if (msg.auftrag === "flussbetten") { flussbetten(msg.H, msg.N, fluesse(msg.H, msg.N), msg.schwelle); resolve({ H: msg.H, ...ana(msg.H) }); }
-      else if (msg.auftrag === "hochskalieren") resolve({ out: hochskalieren(msg.H, msg.N, msg.M, msg.seed, msg.feindetail, st("Export"), msg.welt) });
+      else if (msg.auftrag === "hochskalieren") resolve({ out: hochskalieren(msg.H, msg.N, msg.M, msg.seed, msg.feindetail, st("Export"), msg.welt, msg.nass) });
+      else if (msg.auftrag === "ueberarbeiten") {
+        const r = landschaftUeberarbeiten(msg.H, msg.N, msg.zelle, msg.REG, msg.SEE, msg.seen, msg.schutz, msg.seed, msg.o, st("Landschaft überarbeiten"));
+        resolve({ ...r, ...ana(r.H) });
+      }
       else if (msg.auftrag === "steuerkarte") resolve({ out: steuerkarte(msg.E, msg.N, msg.M, msg.seed, st("Export Biome")) });
     }, 20);
   });
@@ -119,7 +124,7 @@ function weltgroesseSetzen(meter) {
   WELT = meter; ZELLE = zelleFuer(meter); N = WELT / ZELLE; FLUSS_SCHWELLE = Math.round(1500 * (4 / ZELLE) ** 2);
   zustand.H = new Float32Array(N * N); zustand.A = new Float32Array(N * N);
   zustand.B = new Uint8Array(N * N); zustand.O = new Uint8Array(N * N).fill(255);
-  zustand.undo = []; zustand.redo = [];
+  zustand.undo = []; zustand.redo = []; zustand.FM = null;
   bild = new ImageData(N, N); farbe = new Uint8ClampedArray(N * N * 4);
   basis.width = N; basis.height = N; bctx = basis.getContext("2d");
   if (typeof markerZustand !== "undefined") { markerZustand.liste = []; markerZustand.auswahl = -1; markerZustand.ressourcen = null; markerPanel(); ressourcenInfo(); }
@@ -158,8 +163,9 @@ function zeichneBereich(x0, y0, x1, y1) {
     } else if (zustand.modus === "biome" && h > 0) {
       const bf = BIOM_FARBEN[biomBei(i)]; r = bf[0]; g = bf[1]; b = bf[2];
     } else { const li = lutIndex(h); r = LUT[li]; g = LUT[li + 1]; b = LUT[li + 2]; }
-    const fluss = !see && zustand.fluesseZeigen && A[i] > FLUSS_SCHWELLE && h > 0;
-    if (fluss) { const s = Math.min(1, 0.55 + 0.12 * Math.log2(A[i] / FLUSS_SCHWELLE)); r += (52 - r) * s; g += (110 - g) * s; b += (190 - b) * s; }
+    // nach „Landschaft überarbeiten“ zeigt die Karte die angelegten Flussläufe (FM), sonst das Einzugsgebiet
+    const fluss = !see && zustand.fluesseZeigen && h > 0 && (zustand.FM ? zustand.FM[i] > 0 : A[i] > FLUSS_SCHWELLE);
+    if (fluss) { const s = zustand.FM ? 0.85 : Math.min(1, 0.55 + 0.12 * Math.log2(A[i] / FLUSS_SCHWELLE)); r += (52 - r) * s; g += (110 - g) * s; b += (190 - b) * s; }
     const q = i * 4;
     farbe[q] = r; farbe[q + 1] = g; farbe[q + 2] = b; farbe[q + 3] = 255;
     if (h > 0 && !see) {
@@ -285,13 +291,20 @@ function undoPunkt() {
   if (zustand.undo.length > 30) zustand.undo.shift();
   zustand.redo = [];
 }
+// Schritte wie „Landschaft überarbeiten“ ändern auch Flüsse und Seen: der Undo-Punkt trägt sie dann als „wasser“ mit
+const wasserStand = () => ({ FM: zustand.FM, liste: flussZustand.liste, SEE: regionenZustand.SEE, seen: regionenZustand.seen });
+function wasserSetzen(w) {
+  zustand.FM = w.FM; flussZustand.liste = w.liste; regionenZustand.SEE = w.SEE; regionenZustand.seen = w.seen; regionenInfo();
+}
 function rueckgaengig() {
   if (!zustand.undo.length) return;
-  zustand.redo.push({ H: zustand.H, O: zustand.O }); const u = zustand.undo.pop(); zustand.H = u.H; zustand.O = u.O; nachAenderung(true);
+  const u = zustand.undo.pop(); zustand.redo.push({ H: zustand.H, O: zustand.O, wasser: u.wasser && wasserStand() });
+  zustand.H = u.H; zustand.O = u.O; if (u.wasser) wasserSetzen(u.wasser); nachAenderung(true);
 }
 function wiederholen() {
   if (!zustand.redo.length) return;
-  zustand.undo.push({ H: zustand.H, O: zustand.O }); const u = zustand.redo.pop(); zustand.H = u.H; zustand.O = u.O; nachAenderung(true);
+  const u = zustand.redo.pop(); zustand.undo.push({ H: zustand.H, O: zustand.O, wasser: u.wasser && wasserStand() });
+  zustand.H = u.H; zustand.O = u.O; if (u.wasser) wasserSetzen(u.wasser); nachAenderung(true);
 }
 
 let flussTimer = null;
@@ -394,7 +407,7 @@ async function generieren() {
   const r = await auftrag({ auftrag: "generieren", p: params(), ...analyseArgs() });
   if (zustand.version > 0 && !neu) undoPunkt();
   seenZuruecksetzen();
-  flussZustand.liste = null;
+  flussZustand.liste = null; zustand.FM = null;
   zustand.H = r.H; zustand.A = r.A; zustand.B = r.B; zustand.version++;
   $("p-weltgroesse").dispatchEvent(new Event("input"));
   zeichneAlles(); status("Fertig"); beschaeftigt(false);
@@ -414,6 +427,7 @@ async function erosionAnwenden(saat) {
 const flussZustand = { liste: null };
 function flussverlaeufeBerechnen() {
   const netz = flussNetz(zustand.H, N, FLUSS_SCHWELLE, regionenZustand.SEE);
+  zustand.FM = null;
   flussZustand.liste = netz.map((f) => {
     let spiegel = Infinity;
     return { punkte: f.punkte.map(([x, y, a]) => {
@@ -425,7 +439,10 @@ function flussverlaeufeBerechnen() {
   return flussZustand.liste.length;
 }
 function fluesseExport() {
-  const h = WELT / 2;
+  const h = WELT / 2, m = (v) => +(v * ZELLE - h + ZELLE / 2).toFixed(1);
+  // v2 (Landschaft überarbeiten): [x, y, Wasserspiegel, Breite m]
+  if (flussZustand.liste.length && flussZustand.liste[0].v === 2)
+    return flussZustand.liste.map((f) => ({ punkte: f.punkte.map(([x, y, s, b]) => [m(x), +s.toFixed(2), m(y), b]) }));
   return flussZustand.liste.map((f) => ({
     punkte: f.punkte.map(([x, y, s, a]) => [+(x * ZELLE - h + ZELLE / 2).toFixed(1), +s.toFixed(2), +(y * ZELLE - h + ZELLE / 2).toFixed(1),
       +Math.min(24, 10 + 3 * Math.log2(Math.max(1, a / FLUSS_SCHWELLE))).toFixed(1)]),
@@ -466,6 +483,7 @@ async function projektSpeichern() {
     ...(wegeZustand.liste ? [{ name: "wege.json", daten: textBytes(JSON.stringify(wegeExport())) }] : []),
     ...(wegeZustand.liste ? [{ name: "wege.json", daten: textBytes(JSON.stringify(wegeZustand.liste)) }] : []),
     ...(flussZustand.liste ? [{ name: "fluesse.json", daten: textBytes(JSON.stringify(flussZustand.liste)) }] : []),
+    ...(zustand.FM ? [{ name: "flussmaske.u8", daten: zustand.FM }] : []),
   ]), `welt_projekt_${meta.params.seed}.zip`);
   status("Projekt gespeichert");
 }
@@ -488,6 +506,7 @@ async function projektLaden(datei) {
     markerZustand.ressourcen = lies("ressourcen.json"); markerZustand.ressourcenAlt = false;
     wegeZustand.liste = lies("wege.json"); wegeZustand.alt = false;
     flussZustand.liste = lies("fluesse.json");
+    zustand.FM = z["flussmaske.u8"] && z["flussmaske.u8"].length === N * N ? z["flussmaske.u8"].slice() : null;
     regionenLaden(z["regionen.u8"], meta.regionen);
     seenLaden(z["seen.u8"], meta.seen);
     markerPanel(); ressourcenInfo(); wegeInfo();
@@ -499,7 +518,9 @@ async function exportieren() {
   beschaeftigt(true);
   const M = parseInt($("p-exportgroesse").value, 10);
   const feindetail = parseFloat($("p-feindetail").value);
-  const r = await auftrag({ auftrag: "hochskalieren", H: zustand.H.slice(), N, M, welt: WELT, seed: params().seed, feindetail, wege: wegeZustand.liste || [] });
+  const nass = zustand.FM || regionenZustand.SEE ? new Uint8Array(N * N) : null;
+  if (nass) for (let i = 0; i < N * N; i++) nass[i] = (zustand.FM && zustand.FM[i]) || (regionenZustand.SEE && regionenZustand.SEE[i]) ? 1 : 0;
+  const r = await auftrag({ auftrag: "hochskalieren", H: zustand.H.slice(), N, M, welt: WELT, seed: params().seed, feindetail, wege: wegeZustand.liste || [], nass });
   const E = effektiveBiome();
   const st = await auftrag({ auftrag: "steuerkarte", E: E.slice(), N, M, seed: params().seed });
   if (r.maske) wegInSteuerkarte(st.out, r.maske);
@@ -636,7 +657,7 @@ function waehle(id) {
 
 // für automatische Tests
 window.WELT_API = { weltgroesseSetzen, wegeZustand, wegeGenerierenStarten, markerZustand, markerNeu, vorschlaegeMachen, ressourcenVerteilenStarten, zustand, effektiveBiome, generieren, erosionAnwenden, flussbettenEinschneiden, exportieren, projektSpeichern, pinsel, waehle, tab, ansicht, N, params,
-  flussZustand, flussverlaeufeBerechnen, regionenZustand, nebeninselFormen, zentralbergFormen, seeFormen, regionenBerechnen, siedlungenVorschlagen, variantenErzeugen, varianteLaden, varianten,
+  flussZustand, flussverlaeufeBerechnen, fluesseExport, projektLaden, landschaftUeberarbeitenStarten, regionenZustand, nebeninselFormen, zentralbergFormen, seeFormen, regionenBerechnen, siedlungenVorschlagen, variantenErzeugen, varianteLaden, varianten,
   strichTest(werkzeug, punkte, dt = 0.05) { waehle(werkzeug); undoPunkt(); strich = { ziel: zustand.H[Math.round(punkte[0][1]) * N + Math.round(punkte[0][0])] };
     for (const [x, y] of punkte) pinsel(x, y, dt); strich = null; nachAenderung(true); } };
 aufbauen();
