@@ -16,7 +16,7 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
   Regionen, Seen und Varianten-Galerie in `src/regionen.js`; `WELT_API.variantenErzeugen(anzahl, startSaat)` baut komplette Karten.
   „Landschaft überarbeiten“ (`landschaftUeberarbeiten` in `kern.js`, Knopf in `regionen.js`): Hochebenen, Bergrücken mit Pässen auf den Regionsgrenzen,
   neue Seen, wenige Flüsse in Tälern (ab 0,6 km²). Flussläufe im Format `{v:2, punkte:[[x,y,spiegel,breite]]}` (Zellen, Breite in m), Flussflächen in `zustand.FM`
-  (Projekt: `flussmaske.u8`). Der Export rechnet an Wasser bilinear und ohne Feindetail hoch. `FLUSS_SCHWELLE` (Biome/Feuchte) bleibt bewusst klein.
+  (Projekt: `flussmaske.u8`). Der Export rechnet an Wasser bilinear und ohne Feindetail hoch. Godot: Seen als Flächen aus den Seezellen (+1 Zelle), Kies als Seeboden, Felder ohne Platzhalter-Platte. `FLUSS_SCHWELLE` (Biome/Feuchte) bleibt bewusst klein.
 
 ### Assets (`godot/assets/`)
 

@@ -407,7 +407,7 @@ async function generieren() {
   const r = await auftrag({ auftrag: "generieren", p: params(), ...analyseArgs() });
   if (zustand.version > 0 && !neu) undoPunkt();
   seenZuruecksetzen();
-  flussZustand.liste = null; zustand.FM = null;
+  flussZustand.liste = null; zustand.FM = null; zustand.ueberarbeitet = false;
   zustand.H = r.H; zustand.A = r.A; zustand.B = r.B; zustand.version++;
   $("p-weltgroesse").dispatchEvent(new Event("input"));
   zeichneAlles(); status("Fertig"); beschaeftigt(false);
@@ -439,8 +439,8 @@ function flussverlaeufeBerechnen() {
   return flussZustand.liste.length;
 }
 function fluesseExport() {
-  const h = WELT / 2, m = (v) => +(v * ZELLE - h + ZELLE / 2).toFixed(1);
-  // v2 (Landschaft überarbeiten): [x, y, Wasserspiegel, Breite m]
+  const h = WELT / 2, m = (v) => +(v * ZELLE - h).toFixed(1);
+  // v2 (Landschaft überarbeiten): [x, y, Wasserspiegel, Breite m], x/y in Zellen, schon auf die Zellmitte bezogen (+0,5)
   if (flussZustand.liste.length && flussZustand.liste[0].v === 2)
     return flussZustand.liste.map((f) => ({ punkte: f.punkte.map(([x, y, s, b]) => [m(x), +s.toFixed(2), m(y), b]) }));
   return flussZustand.liste.map((f) => ({
@@ -469,7 +469,7 @@ const textBytes = (s) => new TextEncoder().encode(s);
 async function canvasPng(c) { return new Uint8Array(await (await new Promise((r) => c.toBlob(r, "image/png"))).arrayBuffer()); }
 
 async function projektSpeichern() {
-  const meta = { programm: "Weltgenerator", version: 3, N, welt_m: WELT, params: params(), biome: biomParams(),
+  const meta = { programm: "Weltgenerator", version: 3, N, welt_m: WELT, params: params(), biome: biomParams(), ueberarbeitet: !!zustand.ueberarbeitet,
     regionen: regionenZustand.REG ? { namen: regionenZustand.namen, gipfel: regionenZustand.gipfel } : null,
     seen: regionenZustand.seen.length ? regionenZustand.seen : null };
   herunterladen(zipErstellen([
@@ -507,6 +507,7 @@ async function projektLaden(datei) {
     wegeZustand.liste = lies("wege.json"); wegeZustand.alt = false;
     flussZustand.liste = lies("fluesse.json");
     zustand.FM = z["flussmaske.u8"] && z["flussmaske.u8"].length === N * N ? z["flussmaske.u8"].slice() : null;
+    zustand.ueberarbeitet = !!meta.ueberarbeitet;
     regionenLaden(z["regionen.u8"], meta.regionen);
     seenLaden(z["seen.u8"], meta.seen);
     markerPanel(); ressourcenInfo(); wegeInfo();

@@ -938,6 +938,41 @@ function schutzFeld(N, zelle, schutz) {
   return S;
 }
 
+// Schmale Rinnen auffüllen: alte eingeschnittene Flussbetten („Flussbetten einschneiden“), Erosionsrillen an Bächen und
+// schmale Meeresarme an der Küste (Schließen = Maximum-, dann Minimumfilter über ~60 m). Seen bleiben unberührt.
+function rinnenFuellen(H, N, zelle, SEE) {
+  const n = N * N, r = Math.max(2, Math.round(28 / zelle));
+  // Max-/Min-Filter über ein Achteck (abwechselnd 3x3-Quadrat und Kreuz), damit keine eckigen Ränder entstehen
+  const filter = (Q, max) => {
+    let A = Float32Array.from(Q);
+    for (let k = 0; k < r; k++) {
+      const B = new Float32Array(n), quadrat = k % 2 === 0;
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const i = y * N + x; let m = A[i];
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+          if ((!quadrat && dx && dy) || x + dx < 0 || y + dy < 0 || x + dx >= N || y + dy >= N) continue;
+          const v = A[i + dy * N + dx]; m = max ? Math.max(m, v) : Math.min(m, v);
+        }
+        B[i] = m;
+      }
+      A = B;
+    }
+    return A;
+  };
+  const C = filter(filter(H, true), false);
+  // nur an Wasserläufen (auch kleinen) und an der Küste, nie in oder dicht an Seen
+  const { A } = abfluss(H, N), bach = 1500 * (4 / zelle) ** 2, quelle = new Uint8Array(n);
+  for (let i = 0; i < n; i++) if ((A[i] > bach && H[i] > 0) || Math.abs(H[i]) < 4) quelle[i] = 1;
+  const nahBach = abstandMeter(N, zelle, quelle), see = SEE ? abstandMeter(N, zelle, SEE) : null;
+  let gefuellt = 0;
+  for (let i = 0; i < n; i++) {
+    if (nahBach[i] > 40 || (see && see[i] < 3 * zelle)) continue;
+    const neu = Math.min(C[i], H[i] + 6);
+    if (neu > H[i] + 0.2) { H[i] = neu; gefuellt++; }
+  }
+  return gefuellt;
+}
+
 // Hochebenen: Höhen werden zu Stufen zusammengeschoben (monoton, es entstehen keine neuen Senken).
 // Die Stufenhöhen wandern mit grobem Rauschen, damit keine Ringe um den Berg entstehen.
 function hochebenen(H, N, zelle, seed, meer, seeNah, berg, staerke) {
@@ -1171,6 +1206,13 @@ function flussLaeufe(H, N, zelle, SEE, seen, T, seed, S) {
     fertig[k] = { punkte, st, bodenEnde, anschluss, startSpiegel: st.vonSee >= 0 ? seen[st.vonSee].spiegel : null };
     laeufe.push(fertig[k]);
   }
+  // kurze Stummel (z. B. ein paar Meter zwischen zwei Seezellen) weglassen, sofern kein anderer Fluss an ihnen hängt
+  const angeschlossen = new Set(laeufe.filter((l) => l.anschluss).map((l) => l.anschluss[0]));
+  for (let k = laeufe.length - 1; k >= 0; k--) {
+    const l = laeufe[k], P = l.punkte; let L = 0;
+    for (let i = 1; i < P.length; i++) L += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]) * zelle;
+    if (L < 200 && !angeschlossen.has(l) && !(l.st.vonSee >= 0 && l.st.ende === "meer")) laeufe.splice(k, 1);
+  }
   // 3) nächster Flusspunkt je Zelle (Vektor-Ausbreitung von fein gerasterten Punkten)
   const NX = new Float32Array(n).fill(-1e6), NY = new Float32Array(n).fill(-1e6), NL = new Int32Array(n).fill(-1), NP = new Int32Array(n).fill(-1);
   const nah = new Float32Array(n).fill(1e9);
@@ -1188,17 +1230,38 @@ function flussLaeufe(H, N, zelle, SEE, seen, T, seed, S) {
   };
   ausbreiten();
   // 4) Wasserspiegel: flussabwärts nie steigend, quer über die ganze Breite (samt Rand unter der Böschung) unter dem Gelände
+  //    Querschnitte, die in einen See reichen, zählen dort nicht (der Seeboden ist kein Ufer); Punkte im See liegen auf dessen Spiegel.
+  const seeBei = (x, y) => { const i = Math.min(N - 1, Math.max(0, y | 0)) * N + Math.min(N - 1, Math.max(0, x | 0)); return SEE[i] ? seen[SEE[i] - 1].spiegel : null; };
   const quer = (p, a, q, W) => { const tx = q[0] - a[0], ty = q[1] - a[1], tl = Math.hypot(tx, ty) || 1; let m = Infinity;
-    for (let o = -W / 2 - 3; o <= W / 2 + 3; o += 1) m = Math.min(m, bilinear(H, N, p[0] - ty / tl * o / zelle - 0.5, p[1] + tx / tl * o / zelle - 0.5)); return m; };
+    for (let o = -W / 2 - 3; o <= W / 2 + 3; o += 1) { const x = p[0] - ty / tl * o / zelle, y = p[1] + tx / tl * o / zelle;
+      if (seeBei(x, y) == null) m = Math.min(m, bilinear(H, N, x - 0.5, y - 0.5)); } return m; };
   for (const l of laeufe) {
     let wl = l.startSpiegel != null ? l.startSpiegel : Infinity;
     const P = l.punkte;
     for (let i = 0; i < P.length; i++) {
+      const sp = seeBei(P[i][0], P[i][1]);
+      if (sp != null) { wl = Math.min(wl, sp); P[i][2] = sp; continue; }
       const q = P[Math.min(P.length - 1, i + 4)], p0 = P[Math.max(0, i - 4)];
       wl = Math.min(wl, quer(P[i], p0, q, P[i][3] + 2 * zelle) - 0.5);
       P[i][2] = wl;
     }
+    // am Seeabfluss nicht mit einer Stufe beginnen: vom Seespiegel aus sanft abfallen, soweit das Ufer es zulässt
+    if (l.startSpiegel != null)
+      for (let i = 0, weg = 0; i < P.length; i++) {
+        if (i) weg += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]) * zelle;
+        if (weg > 300) break;
+        const q = P[Math.min(P.length - 1, i + 4)], p0 = P[Math.max(0, i - 4)];
+        P[i][2] = Math.max(P[i][2], Math.min(l.startSpiegel - 0.03 * weg, quer(P[i], p0, q, P[i][3] + 2 * zelle) - 0.2));
+        if (i) P[i][2] = Math.min(P[i][2], P[i - 1][2]);
+      }
     const boden = l.anschluss ? l.anschluss[0].punkte[l.anschluss[1]][2] : l.bodenEnde;
+    // zum Ende hin sanft auf den Spiegel des Hauptflusses bzw. Sees zulaufen (nur absenken), damit an der Mündung keine Stufe bleibt
+    if (l.anschluss || l.st.ende === "see")
+      for (let i = P.length - 1, rest = 0; i >= 0; i--) {
+        if (i < P.length - 1) rest += Math.hypot(P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1]) * zelle;
+        if (rest > 400) break;
+        P[i][2] = Math.min(P[i][2], boden + 0.006 * rest);
+      }
     for (const p of P) p[2] = Math.max(p[2], boden);
   }
   // höchster Wasserspiegel in der Nähe (in Kurven liegt der Lauf flussaufwärts oft näher als der Punkt quer gegenüber)
@@ -1262,9 +1325,10 @@ function landschaftUeberarbeiten(H, N, zelle, REG, SEE, seen, schutz, seed, o, f
   const melde = (t) => fortschritt && fortschritt(t);
   const T = FLUSS_KM2 * 1e6 / (zelle * zelle);
   const S = schutzFeld(N, zelle, schutz);
+  const info = {};
+  if (o.rinnen !== false) { melde(0.05); info.rinnen = rinnenFuellen(H, N, zelle, SEE); }
   const meer = abstandMeter(N, zelle, Uint8Array.from(H, (h) => (h <= 1.5 ? 1 : 0)));
   let seeNah = abstandMeter(N, zelle, SEE);
-  const info = {};
   if (o.hochebenen) { melde(0.1); hochebenen(H, N, zelle, seed, meer, seeNah, abstandMeter(N, zelle, REG ? Uint8Array.from(REG, (r) => (r === 250 ? 1 : 0)) : new Uint8Array(N * N)), 0.6); }
   if (o.grate && REG) { melde(0.25); info.paesse = grateAnlegen(H, N, zelle, REG, abfluss(H, N).A, T, seed, meer, seeNah, S); }
   if (o.seen) { melde(0.45); const f = abfluss(H, N); info.neueSeen = seenAnlegen(H, N, zelle, SEE, seen, f.A, f.ziel, T, REG, S, meer, Math.round(3 * N * zelle / 16384 + 2), seed); }
