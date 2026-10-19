@@ -6,12 +6,12 @@ extends SceneTree
 const GROESSE := 1024
 ## Bodenname (wie in welt_import.gd) -> Poly-Haven-Scan
 const ZUORDNUNG := {
-	"sand": "coast_sand_01", "wiese": "leafy_grass", "laubboden": "forest_leaves_02", "nadelboden": "forest_ground_04",
+	"sand": "sand_01", "wiese": "leafy_grass", "laubboden": "forest_leaves_02", "nadelboden": "forest_ground_04",
 	"sumpf": "brown_mud_03", "steppe": "dry_ground_01", "fels": "rock_face_03", "schnee": "snow_02",
 	"kies": "river_small_rocks",
 }
 ## Ersatz, wenn ein Scan nicht geladen wurde
-const ERSATZ := {"kies": "rocky_trail_02"}
+const ERSATZ := {"kies": "rocky_trail_02", "sand": "coast_sand_01"}
 
 
 func _process(_delta: float) -> bool:
