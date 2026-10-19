@@ -379,6 +379,7 @@ function siedlungenVorschlagen() {
 
 // ---------- Landschaft überarbeiten (Hochebenen, Pässe, Seen, Flüsse; Rechnung in kern.js) ----------
 async function landschaftUeberarbeitenStarten(o) {
+  if (!o && zustand.ueberarbeitet && !confirm("Diese Karte wurde schon überarbeitet. Ein zweiter Durchgang legt weitere Seen, Stufen und Grate an. Trotzdem fortfahren?")) return null;
   o = o || { hochebenen: $("lu-hochebenen").checked, grate: $("lu-grate").checked, seen: $("lu-seen").checked, fluesse: $("lu-fluesse").checked };
   // Siedlungen und Felder bleiben unverändert (Minen liegen bewusst am Hang)
   const schutz = markerZustand.liste.filter((m) => m.typ !== "mine")
@@ -388,7 +389,7 @@ async function landschaftUeberarbeitenStarten(o) {
     SEE: regionenZustand.SEE ? regionenZustand.SEE.slice() : new Uint8Array(N * N), seen: structuredClone(regionenZustand.seen),
     schutz, seed: params().seed, o });
   zustand.H = r.H; zustand.A = r.A; zustand.B = r.B; zustand.version++;
-  regionenZustand.SEE = r.SEE; regionenZustand.seen = r.seen;
+  regionenZustand.SEE = r.SEE; regionenZustand.seen = r.seen; zustand.ueberarbeitet = true;
   if (r.liste) { flussZustand.liste = r.liste; zustand.FM = r.FM; }
   // alte Wege passen nicht mehr zum Gelände (sie würden beim Export Rinnen durch die neuen Bergrücken ziehen)
   wegeZustand.liste = null; wegeInfo();
@@ -565,7 +566,7 @@ function varianteLaden(nr) {
   zustand.H = v.H.slice(); zustand.O = v.O.slice();
   regionenZustand.REG = v.REG.slice(); regionenZustand.namen = { ...v.namen }; regionenZustand.gipfel = v.gipfel.slice();
   regionenZustand.SEE = v.SEE ? v.SEE.slice() : null; regionenZustand.seen = structuredClone(v.seen);
-  zustand.FM = v.FM ? v.FM.slice() : null; flussZustand.liste = v.fluesse ? structuredClone(v.fluesse) : null;
+  zustand.FM = v.FM ? v.FM.slice() : null; flussZustand.liste = v.fluesse ? structuredClone(v.fluesse) : null; zustand.ueberarbeitet = !!v.FM;
   regionenBildBauen(); regionenInfo();
   markerZustand.liste = structuredClone(v.marker); markerZustand.auswahl = -1; markerZustand.ressourcen = null; wegeZustand.liste = null;
   markerPanel(); ressourcenInfo(); wegeInfo();

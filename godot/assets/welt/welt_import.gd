@@ -207,9 +207,64 @@ func _steuerkarte_umbauen(sb: PackedByteArray, n: int, mpp: float, welt_m: float
 			werte[zeile + x] = (v & ~((31 << 27) | (31 << 22))) | (nb << 27) | (na << 22)
 			geaendert += 1
 	var kies := _flussbett(werte, n, mpp, welt_m)
-	print("Weltimport: Böden nach Biom-Regeln, %d Pixel neu zugeordnet (%d alte Weg-Pixel), %d Pixel Kiesbett, %.1f s" % [
-		geaendert, weg, kies, (Time.get_ticks_msec() - start) / 1000.0])
+	var seeboden := _seeboden(werte, n, meta)
+	print("Weltimport: Böden nach Biom-Regeln, %d Pixel neu zugeordnet (%d alte Weg-Pixel), %d Pixel Kiesbett, %d Pixel Seeboden, %.1f s" % [
+		geaendert, weg, kies, seeboden, (Time.get_ticks_msec() - start) / 1000.0])
 	return werte.to_byte_array()
+
+
+## Seeboden aus seen_<Raster>.u8: Kies statt Wiese oder Wald unter dem Wasser, am Rand mit Überblendung. Gibt die Pixelzahl zurück.
+func _seeboden(werte: PackedInt32Array, n: int, meta: Dictionary) -> int:
+	var kies_id := BiomRegeln.textur_id("kies")
+	if meta.get("seen") == null or kies_id < 0:
+		return 0
+	var raster: int = int(meta["raster"])
+	var maske := FileAccess.get_file_as_bytes(daten_ordner.path_join(meta["seen"]["datei"]))
+	if maske.size() != raster * raster:
+		return 0
+	# je See nur sein Rechteck durchgehen
+	var boxen := {}
+	for y in raster:
+		for x in raster:
+			var nr := maske[y * raster + x]
+			if nr == 0:
+				continue
+			if not boxen.has(nr):
+				boxen[nr] = Rect2i(x, y, 1, 1)
+			else:
+				boxen[nr] = (boxen[nr] as Rect2i).expand(Vector2i(x, y)).expand(Vector2i(x + 1, y + 1))
+	var anzahl := 0
+	var schritt := float(raster) / float(n)
+	var erledigt := {}
+	for nr in boxen:
+		var r: Rect2i = boxen[nr]
+		for y in range(maxi(0, int((r.position.y - 1) / schritt)), mini(n, int((r.end.y + 1) / schritt) + 1)):
+			var fy := (y + 0.5) * schritt - 0.5
+			var ry := clampi(int(round(fy)), 0, raster - 1)
+			var y0 := clampi(int(floor(fy)), 0, raster - 2)
+			for x in range(maxi(0, int((r.position.x - 1) / schritt)), mini(n, int((r.end.x + 1) / schritt) + 1)):
+				var o := y * n + x
+				if erledigt.has(o):
+					continue
+				var fx := (x + 0.5) * schritt - 0.5
+				var rx := clampi(int(round(fx)), 0, raster - 1)
+				# Anteil Seezellen in der 2x2-Umgebung -> weicher Rand
+				var x0 := clampi(int(floor(fx)), 0, raster - 2)
+				var teil := 0
+				for k in [0, 1, raster, raster + 1]:
+					if maske[y0 * raster + x0 + k] > 0:
+						teil += 1
+				if teil == 0 and maske[ry * raster + rx] == 0:
+					continue
+				erledigt[o] = true
+				var v := werte[o]
+				if teil >= 4:
+					v = (v & ~((31 << 27) | (31 << 22) | (255 << 14))) | (kies_id << 27) | (kies_id << 22)
+				else:
+					v = (v & ~((31 << 22) | (255 << 14))) | (kies_id << 22) | ((teil * 60) << 14)
+				werte[o] = v
+				anzahl += 1
+	return anzahl
 
 
 ## Kiesbett entlang der Flüsse aus fluesse.json: voller Kies bis 0,5 m über die Wasserbreite hinaus,
@@ -335,8 +390,8 @@ func _marker_importieren() -> void:
 
 
 ## Seen aus welt.json ("seen"): je See eine Wasserfläche auf Höhe seines Wasserspiegels unter "Seen".
-## Die Fläche deckt das Rechteck der Seezellen aus seen_<Raster>.u8 ab; das Ufer ringsum liegt höher, deshalb
-## ist das Wasser nur im See zu sehen. Jede Fläche ist in der Gruppe "welt_seen" mit Metadaten (nr, wasserspiegel, flaeche_m2).
+## Die Fläche besteht aus den Seezellen aus seen_<Raster>.u8 plus einer Zelle Rand (die liegt unter dem Ufer).
+## Ein Rechteck reichte früher über das Ufer hinaus und setzte tiefer liegendes Land daneben unter Wasser. Jede Fläche ist in der Gruppe "welt_seen" mit Metadaten (nr, wasserspiegel, flaeche_m2).
 func _seen_importieren(wasser: Material = null) -> void:
 	var alt := get_node_or_null("Seen")
 	if alt:
@@ -356,18 +411,20 @@ func _seen_importieren(wasser: Material = null) -> void:
 		push_warning("Weltimport: Seen-Maske hat die falsche Größe, Seen werden übersprungen.")
 		return
 	var liste: Array = seen["liste"]
-	# Rechteck je See (in Zellen): [min_x, min_y, max_x, max_y]
-	var rechteck := {}
-	for s in liste:
-		rechteck[int(s["nr"])] = [raster, raster, -1, -1]
+	# Seezellen um eine Zelle erweitern (je See für sich), damit das Wasser bis unter das Ufer reicht
+	var flaeche := PackedByteArray()
+	flaeche.resize(raster * raster)
 	for y in raster:
-		var zeile := y * raster
 		for x in raster:
-			var nr := maske[zeile + x]
-			if nr == 0 or not rechteck.has(nr):
+			var nr := maske[y * raster + x]
+			if nr == 0:
 				continue
-			var r: Array = rechteck[nr]
-			r[0] = mini(r[0], x); r[1] = mini(r[1], y); r[2] = maxi(r[2], x); r[3] = maxi(r[3], y)
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					var xx := x + dx
+					var yy := y + dy
+					if xx >= 0 and yy >= 0 and xx < raster and yy < raster and flaeche[yy * raster + xx] == 0:
+						flaeche[yy * raster + xx] = nr
 	if wasser == null:
 		var m := StandardMaterial3D.new()
 		m.albedo_color = Color(0.12, 0.34, 0.45, 0.85)
@@ -380,17 +437,45 @@ func _seen_importieren(wasser: Material = null) -> void:
 	add_child(wurzel)
 	_besitzer(wurzel)
 	var halb := raster * zelle / 2.0
+	# je See: Zeilen zu Streifen zusammenfassen (ein Rechteck je zusammenhängendem Stück einer Zeile)
+	var flaechen := {}
+	var mitte := {}
 	for s in liste:
-		var r: Array = rechteck[int(s["nr"])]
-		if r[2] < 0:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		flaechen[int(s["nr"])] = st
+		mitte[int(s["nr"])] = Vector3(float(s["x"]), float(s["wasserspiegel"]), float(s["z"]))
+	for y in raster:
+		var x := 0
+		while x < raster:
+			var nr := flaeche[y * raster + x]
+			if nr == 0 or not flaechen.has(nr):
+				x += 1
+				continue
+			var x1 := x
+			while x1 + 1 < raster and flaeche[y * raster + x1 + 1] == nr:
+				x1 += 1
+			var st: SurfaceTool = flaechen[nr]
+			var m: Vector3 = mitte[nr]
+			var a := Vector3(x * zelle - halb, 0, y * zelle - halb) - Vector3(m.x, 0, m.z)
+			var b := Vector3((x1 + 1) * zelle - halb, 0, (y + 1) * zelle - halb) - Vector3(m.x, 0, m.z)
+			for e in [Vector3(a.x, 0, a.z), Vector3(b.x, 0, a.z), Vector3(b.x, 0, b.z), Vector3(a.x, 0, a.z), Vector3(b.x, 0, b.z), Vector3(a.x, 0, b.z)]:
+				st.set_normal(Vector3.UP)
+				st.set_uv(Vector2(e.x + m.x, e.z + m.z))
+				st.add_vertex(e)
+			x = x1 + 1
+	for s in liste:
+		var nr := int(s["nr"])
+		var st: SurfaceTool = flaechen[nr]
+		var mesh := st.commit()
+		if mesh.get_surface_count() == 0:
 			continue
-		var ebene := PlaneMesh.new()
-		ebene.size = Vector2((r[2] - r[0] + 3) * zelle, (r[3] - r[1] + 3) * zelle)
 		var see := MeshInstance3D.new()
-		see.name = "See_%d" % int(s["nr"])
-		see.mesh = ebene
+		see.name = "See_%d" % nr
+		see.mesh = mesh
 		see.material_override = wasser
-		see.position = Vector3((r[0] + r[2] + 1) / 2.0 * zelle - halb, float(s["wasserspiegel"]), (r[1] + r[3] + 1) / 2.0 * zelle - halb)
+		see.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		see.position = mitte[nr]
 		for k in s.keys():
 			see.set_meta(k, s[k])
 		see.add_to_group("welt_seen", true)
@@ -478,6 +563,8 @@ func _platzhalter(mk: Marker3D, m: Dictionary) -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = farbe
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	if m["typ"] == "feld":
+		return # Felder bleiben unsichtbar, bis sie gebaut werden (die flachen Platten schwebten an Hängen)
 	var vis := MeshInstance3D.new()
 	vis.name = "Platzhalter"
 	if m["typ"] == "feld":
