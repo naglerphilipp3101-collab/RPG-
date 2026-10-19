@@ -377,6 +377,31 @@ function siedlungenVorschlagen() {
   return { staedte, doerfer };
 }
 
+// ---------- Landschaft überarbeiten (Hochebenen, Pässe, Seen, Flüsse; Rechnung in kern.js) ----------
+async function landschaftUeberarbeitenStarten(o) {
+  o = o || { hochebenen: $("lu-hochebenen").checked, grate: $("lu-grate").checked, seen: $("lu-seen").checked, fluesse: $("lu-fluesse").checked };
+  // Siedlungen und Felder bleiben unverändert (Minen liegen bewusst am Hang)
+  const schutz = markerZustand.liste.filter((m) => m.typ !== "mine")
+    .map((m) => ({ x: m.x, y: m.y, r: m.typ === "feld" ? Math.max(m.breite, m.laenge) / 2 : (m.radius || 40) }));
+  undoPunkt(); zustand.undo[zustand.undo.length - 1].wasser = wasserStand();
+  const r = await auftrag({ auftrag: "ueberarbeiten", H: zustand.H.slice(), ...analyseArgs(), REG: regionenZustand.REG ? regionenZustand.REG.slice() : null,
+    SEE: regionenZustand.SEE ? regionenZustand.SEE.slice() : new Uint8Array(N * N), seen: structuredClone(regionenZustand.seen),
+    schutz, seed: params().seed, o });
+  zustand.H = r.H; zustand.A = r.A; zustand.B = r.B; zustand.version++;
+  regionenZustand.SEE = r.SEE; regionenZustand.seen = r.seen;
+  if (r.liste) { flussZustand.liste = r.liste; zustand.FM = r.FM; }
+  // alte Wege passen nicht mehr zum Gelände (sie würden beim Export Rinnen durch die neuen Bergrücken ziehen)
+  wegeZustand.liste = null; wegeInfo();
+  markerZustand.ressourcenAlt = !!markerZustand.ressourcen;
+  regionenInfo(); zeichneAlles();
+  const i = r.info, teile = [];
+  if (i.paesse != null) teile.push(`${i.paesse} Pässe`);
+  if (i.neueSeen != null) teile.push(`${i.neueSeen} neue Seen`);
+  if (i.fluesse != null) teile.push(`${i.fluesse} Flüsse`);
+  status(`Landschaft überarbeitet${teile.length ? ": " + teile.join(", ") : ""}`);
+  return i;
+}
+
 // ---------- Anzeige ----------
 function regionenBildBauen() {
   const REG = regionenZustand.REG; if (!REG) return;
@@ -455,6 +480,7 @@ async function variantenErzeugen(anzahl, startSaat) {
       varianten.push({ ...ergebnis, nr: varianten.length + 1, v, dauer: Math.round((performance.now() - t0) / 1000),
         bild: kartenbild(720), H: zustand.H.slice(), O: zustand.O.slice(), REG: regionenZustand.REG.slice(),
         SEE: regionenZustand.SEE ? regionenZustand.SEE.slice() : null, seen: structuredClone(regionenZustand.seen),
+        FM: zustand.FM, fluesse: flussZustand.liste,
         namen: { ...regionenZustand.namen }, gipfel: regionenZustand.gipfel.slice(), welt: WELT,
         marker: structuredClone(markerZustand.liste) });
       galerieAktualisieren();
@@ -480,6 +506,8 @@ async function karteErzeugen(v) {
   zustand.undo = []; zustand.redo = [];   // Rückgängig-Stapel würde bei 10 Karten sehr viel Speicher belegen
   const abw = regionenBerechnen();
   const { staedte, doerfer } = siedlungenVorschlagen();
+  await landschaftUeberarbeitenStarten({ hochebenen: true, grate: true, seen: true, fluesse: true });
+  zustand.undo = [];
   let landZellen = 0; for (let i = 0; i < N * N; i++) if (zustand.H[i] > 0) landZellen++;
   return { insel, seenAnzahl: seen, staedte, doerfer, abw, gipfelHoehe: Math.round(zustand.H[regionenZustand.gipfel[1] * N + regionenZustand.gipfel[0]]),
     landKm2: Math.round(landZellen * ZELLE * ZELLE / 1e6) };
@@ -537,6 +565,7 @@ function varianteLaden(nr) {
   zustand.H = v.H.slice(); zustand.O = v.O.slice();
   regionenZustand.REG = v.REG.slice(); regionenZustand.namen = { ...v.namen }; regionenZustand.gipfel = v.gipfel.slice();
   regionenZustand.SEE = v.SEE ? v.SEE.slice() : null; regionenZustand.seen = structuredClone(v.seen);
+  zustand.FM = v.FM ? v.FM.slice() : null; flussZustand.liste = v.fluesse ? structuredClone(v.fluesse) : null;
   regionenBildBauen(); regionenInfo();
   markerZustand.liste = structuredClone(v.marker); markerZustand.auswahl = -1; markerZustand.ressourcen = null; wegeZustand.liste = null;
   markerPanel(); ressourcenInfo(); wegeInfo();
@@ -557,6 +586,7 @@ function regionenAufbauen() {
   $("zentralberg").onclick = ausfuehren(() => zentralbergFormen());
   $("regionen-berechnen").onclick = ausfuehren(regionenBerechnen);
   $("siedlungen-vorschlagen").onclick = ausfuehren(siedlungenVorschlagen);
+  $("landschaft-ueberarbeiten").onclick = ausfuehren(() => landschaftUeberarbeitenStarten());
   $("varianten-erzeugen").onclick = ausfuehren(() => variantenErzeugen());
   $("galerie-zeigen").onclick = () => galerieZeigen();
   $("regionen-zeigen").onchange = (e) => { regionenZustand.zeigen = e.target.checked; ansicht.zeichne(); };
