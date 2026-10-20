@@ -120,6 +120,9 @@ func _initialize() -> void:
 					natur.TOTBAUM:
 						art = "totbaum"
 						farbe = Color(0.3, 0.2, 0.1)
+					natur.STEIN:
+						art = ("feuerstein_%d" if int(e[5]) >= 10 else "stein_%d") % int(e[4])
+						farbe = Color(0.85, 0.85, 0.85) if int(e[5]) < 10 else Color(0.1, 0.1, 0.1)
 					_:
 						art = String(e[4])
 						farbe = Color(0.5, 0.3, 0.1) if art != "pfuetze" else Color(0.2, 0.4, 0.9)
