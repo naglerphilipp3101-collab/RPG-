@@ -659,7 +659,7 @@ func _recalc_stats() -> void:
 		armor += _stat(key, "armor")
 	if shield_active():
 		armor += _stat("shield", "armor")
-	armor *= 1.0 + float(attr_stats.get("armor_pct", 0.0))
+	armor *= 1.0 + float(attr_stats.get("armor_pct", 0.0)) + float(passive.get("armor_pct", 0.0))
 	var old_max := max_health
 	max_health = BASE_MAX_HEALTH + _stat("ring", "health") + float(passive.get("health", 0.0)) \
 		+ float(attr_stats.get("health", 0.0))
@@ -684,7 +684,7 @@ func get_tool_power(profession: String) -> float:
 
 # --- Meisterschaft & Skillbaum ------------------------------------------
 
-## Meisterschaftsdaten eines Waffentyps; beim ersten Mal ist die erste Fähigkeit der ersten Seite frei.
+## Meisterschaftsdaten eines Waffentyps; beim ersten Mal geht der Punkt von Stufe 1 in die erste Fähigkeit der ersten Seite.
 func _mastery(type: String) -> Dictionary:
 	if not masteries.has(type):
 		masteries[type] = {"level": 1, "xp": 0.0, "unlocked": [], "equipped": [], "passive": "", "ultimate": ""}
@@ -695,7 +695,7 @@ func _mastery(type: String) -> Dictionary:
 	return masteries[type]
 
 
-## Erste Fähigkeit der ersten Seite: von Anfang an freigeschaltet und kostenlos.
+## Erste Fähigkeit der ersten Seite: von Anfang an freigeschaltet (kostet den Punkt von Stufe 1).
 func start_node(type: String) -> String:
 	var sides := Game.weapon_sides(type)
 	if sides.is_empty() or sides[0]["skills"].is_empty():
@@ -703,19 +703,28 @@ func start_node(type: String) -> String:
 	return String(sides[0]["skills"][0]["id"])
 
 
-## Punkte: Meisterschaft Stufe n gibt n Punkte (Kosten in Game.NODE_COSTS, Startfähigkeit frei).
+## Punkte: Meisterschaft Stufe n gibt n Punkte, jeder Knoten kostet Game.node_cost (1).
 func mastery_points_free(type: String) -> int:
 	var m := _mastery(type)
 	var spent := 0
-	var start := start_node(type)
 	for node_id in m["unlocked"]:
-		if node_id != start:
-			spent += Game.node_cost(Game.tree_node(type, node_id))
+		spent += Game.node_cost(Game.tree_node(type, node_id))
 	return int(m["level"]) - spent
 
 
+## Punkte, die in einer Seite stecken (für große Passive, untere Fähigkeiten und Ultimative).
+func side_points(type: String, side: int) -> int:
+	var m := _mastery(type)
+	var spent := 0
+	for node_id in m["unlocked"]:
+		var node := Game.tree_node(type, node_id)
+		if int(node.get("side", -1)) == side:
+			spent += Game.node_cost(node)
+	return spent
+
+
 ## Prüft, ob ein Knoten freigeschaltet werden kann. Gibt eine Fehlermeldung oder "" zurück.
-## Passive und Fähigkeiten sind frei wählbar; die Ultimative braucht die Passive und 2 Fähigkeiten ihrer Seite.
+## Ein Knoten braucht seinen Vorgänger ("req") und genug Punkte in seiner Seite ("points").
 func unlock_check(type: String, node_id: String) -> String:
 	var m := _mastery(type)
 	if m["unlocked"].has(node_id):
@@ -723,19 +732,26 @@ func unlock_check(type: String, node_id: String) -> String:
 	var node := Game.tree_node(type, node_id)
 	if node.is_empty():
 		return "Unbekannter Knoten"
-	if node["type"] == "ultimate":
-		var side: Dictionary = Game.weapon_sides(type)[int(node["side"])]
-		if not m["unlocked"].has(side["passive"]["id"]):
-			return "Zuerst die Passive dieser Seite freischalten"
-		var skills := 0
-		for s in side["skills"]:
-			if m["unlocked"].has(s["id"]):
-				skills += 1
-		if skills < 2:
-			return "Zuerst 2 Fähigkeiten dieser Seite freischalten"
+	var req: String = node.get("req", "")
+	if req != "" and not m["unlocked"].has(req):
+		return "Zuerst „%s“ freischalten" % Game.tree_node(type, req).get("name", req)
+	var need := int(node.get("points", 0))
+	if side_points(type, int(node["side"])) < need:
+		return "Braucht %d Punkte in dieser Seite" % need
 	if Game.node_cost(node) > mastery_points_free(type):
 		return "Nicht genug Punkte"
 	return ""
+
+
+## Alle freigeschalteten Knoten erfüllen ihre Bedingungen (nach dem Laden geprüft).
+func tree_valid(type: String) -> bool:
+	var m := _mastery(type)
+	for node_id in m["unlocked"]:
+		var node := Game.tree_node(type, node_id)
+		var req: String = node.get("req", "")
+		if (req != "" and not m["unlocked"].has(req)) or side_points(type, int(node["side"])) < int(node.get("points", 0)):
+			return false
+	return true
 
 
 func unlock_node(type: String, node_id: String) -> String:
@@ -774,6 +790,8 @@ func toggle_skill(type: String, node_id: String) -> String:
 			m["ultimate"] = node_id
 			equipment_changed.emit()
 			return ""
+		"upgrade", "minor":
+			return "" # wirken immer, sobald freigeschaltet
 	if m["equipped"].has(node_id):
 		m["equipped"].erase(node_id)
 	elif m["equipped"].size() >= MAX_EQUIPPED_SKILLS:
@@ -797,7 +815,7 @@ func reset_tree(type: String) -> void:
 	_recalc_stats()
 
 
-## Nur die gewählte Passive der aktiven Waffe wirkt: ihre Werte und ihre Mechanik.
+## Von der aktiven Waffe wirken die gewählte große Passive (Werte und Mechanik) und alle kleinen Passiven.
 func _recalc_passives() -> void:
 	passive = {}
 	var m := _mastery(weapon_type)
@@ -809,9 +827,15 @@ func _recalc_passives() -> void:
 		magazine = 0
 	passive_node = node
 	passive_mech = String(node.get("mechanic", ""))
-	var stats: Dictionary = node.get("stats", {})
-	for stat in stats:
-		passive[stat] = float(passive.get(stat, 0.0)) + float(stats[stat])
+	var sources: Array = [node]
+	for node_id in m["unlocked"]: # kleine Passiven wirken alle, solange die Waffe in der Hand ist
+		var minor := Game.tree_node(weapon_type, node_id)
+		if minor.get("type", "") == "minor":
+			sources.append(minor)
+	for source in sources:
+		var stats: Dictionary = source.get("stats", {})
+		for stat in stats:
+			passive[stat] = float(passive.get(stat, 0.0)) + float(stats[stat])
 	if passive_mech == "repetierer" and magazine <= 0:
 		magazine = int(_pp("magazine"))
 
@@ -851,8 +875,13 @@ func get_skill_info(index: int) -> Dictionary:
 	}
 
 
+## Fähigkeit samt freigeschalteter Verbesserungen.
+func skill_def(node: Dictionary) -> Dictionary:
+	return Game.effective_skill(node, _mastery(weapon_type)["unlocked"])
+
+
 func _skill_cooldown(node: Dictionary) -> float:
-	var cd := float(node.get("skill", {}).get("cooldown", 10.0)) * (1.0 - clampf(bonus("cooldown_pct"), 0.0, 0.6))
+	var cd := float(skill_def(node).get("cooldown", 10.0)) * (1.0 - clampf(bonus("cooldown_pct"), 0.0, 0.6))
 	if passive_mech == "berserker":
 		cd *= _pp("cooldown_mult", 1.0)
 	if is_magic():
@@ -1090,7 +1119,7 @@ func from_save(data: Dictionary) -> void:
 		reset_attributes()
 	masteries.clear()
 	var saved_masteries: Dictionary = data.get("masteries", {})
-	var old_trees := int(data.get("_version", 3)) < 3
+	var old_trees := int(data.get("_version", 4)) < 4 # 4: Skillbäume wie New World (1 Punkt je Knoten)
 	for saved_type in saved_masteries:
 		var m: Dictionary = saved_masteries[saved_type]
 		var type: String = Game.OLD_WEAPON_TYPES.get(saved_type, saved_type)
@@ -1118,10 +1147,10 @@ func from_save(data: Dictionary) -> void:
 		for key in ["passive", "ultimate"]:
 			var id: String = m.get(key, "")
 			fresh[key] = id if fresh["unlocked"].has(id) and Game.tree_node(type, id).get("type", "") == key else ""
-		if mastery_points_free(type) < 0:
+		if mastery_points_free(type) < 0 or not tree_valid(type):
 			reset_tree(type)
 	if old_trees and not saved_masteries.is_empty():
-		notify.emit("Waffen wurden überarbeitet: Skillpunkte erstattet (K)", Color(1.0, 0.85, 0.5))
+		notify.emit("Skillbäume wurden überarbeitet: Skillpunkte erstattet (K)", Color(1.0, 0.85, 0.5))
 
 	weapon_def = {} # erzwingt Neuaufbau der Waffe
 	_recalc_stats()
@@ -1945,7 +1974,7 @@ func _try_ultimate() -> void:
 
 ## Führt eine Fähigkeit oder Ultimative nach ihrer Vorlage (template) aus.
 func _cast_skill(node: Dictionary, ultimate := false) -> void:
-	var skill: Dictionary = node.get("skill", {})
+	var skill := skill_def(node)
 	var effects: Dictionary = skill.get("effects", {}).duplicate()
 	var mult_factor := _cast_heat(HEAT_ULTIMATE if ultimate else HEAT_SKILL)
 	if element() == "lightning" and charges > 0: # Fähigkeiten entladen alle Ladungen
