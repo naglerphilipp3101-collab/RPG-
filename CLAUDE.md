@@ -113,6 +113,11 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
   Nach Änderungen an Böden muss der Weltimport neu laufen. Vorschau ohne Terrain3D: `tests/biom_vorschau.gd` (2D-Karten, Zählung) und
   `tests/biom_3d.tscn` (3D, `-- --biom moor [--luft] [--blick 120] [--objekt Totbaum]`, mit `--rendering-method gl_compatibility`; Sand/Kies wirken dort überbelichtet).
   Test im Spiel: `--island --natur [--biom wald|moor|…] [--uralt]`.
+- ✅ (20.10.) **Steine:** 35 Modelle (`assets/erz/blender/steine.py` → `assets/erz/modelle/stein_<größe 1–5>_<variante 1–7>.glb`):
+  Icosphere, jeder Punkt mit 9 Noise-Schichten verschoben (Grundform, Buckel, Bruchflächen, Schichtung, Großrisse, Kerben, Körnung, Haarrisse, Rauheit),
+  7 Varianten rund/kantig/plattig/gespalten/hoch/liegend/zerklüftet, Höhlen-Abdunklung als Vertexfarbe. `felsbrocken.gd` (groesse, variante, art Stein/Feuerstein)
+  mit `scripts/fels_triplanar.gdshader` (Fels-Scan aus `texturen_scan/`, sonst eigene Felstextur). natur.gd setzt sie nach `"steine"` in biome.json
+  (dichte, Feuerstein-Anteil, Gewichte der Größen und Formen, Steinfelder per Rauschen, kleine Begleitsteine um große). Abbau: gathering.json felsbrocken_klein/–/_gross, feuerstein.
 - Weiter offen: Gegner/Tiere (wartet auf Modelle + Animationen), feindliche Lager, Schwierigkeit, Erze in Minen, Siedlungen, Regionsgrenzen auf der Karte.
 - Spielfigur, NPCs und Gegner aus fertigen Paketen (Quaternius/KayKit + Mixamo). Downloads macht der Nutzer selbst.
 - Danach geht es nach dem Umsetzungsplan in KONZEPT.md weiter: ✅ M6 Waffen-Umbau, ✅ M7 Magie, als Nächstes M8 Startgebiet …

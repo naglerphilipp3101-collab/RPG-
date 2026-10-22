@@ -1,7 +1,7 @@
 extends Node3D
 ## Natur auf der ganzen Insel nach den Biom-Regeln aus data/biome.json (scripts/biom_regeln.gd):
 ## Bäume (Fichte, Kiefer, Eiche, tote Bäume), Äste-Büsche, Sammelpflanzen (Hanf, Beeren, Kräuter) und
-## Bodenobjekte (Stöcke, liegende Stämme, Treibholz, Algen, Pfützen).
+## Bodenobjekte (Stöcke, liegende Stämme, Treibholz, Algen, Pfützen) und abbaubare Steine (Stein, Feuerstein).
 ##
 ## Wo etwas wächst, bestimmt das Biom an der Stelle (Biomkarte des Weltgenerators, Flüsse aus fluesse.json,
 ## Städte/Dörfer aus marker.json), dazu Gelände und Rauschen – in Kacheln von 64 m, jede mit eigenem festen
@@ -15,6 +15,7 @@ const QuelleScript := preload("res://scripts/natur_quelle.gd")
 const BaumSzene := preload("res://assets/baeume/baum.tscn")
 const BuschSzene := preload("res://assets/baeume/aeste_busch.tscn")
 const PflanzeSzene := preload("res://assets/sammeln/sammelpflanze.tscn")
+const FelsSzene := preload("res://assets/erz/felsbrocken.tscn")
 const FernShader := preload("res://scripts/natur_fern.gdshader")
 const Wasser := preload("res://scripts/wasser.gd")
 
@@ -25,7 +26,7 @@ const FERN_RADIUS := 950.0
 const NEU_ZENTRIEREN := 8.0      # Meter Bewegung, ab der der Nahbereich neu sortiert wird
 const BUDGET_US := 4000          # Zeit je Frame für neue Nah-Objekte (ein Modell braucht ~2 ms)
 
-enum { BAUM, BUSCH, PFLANZE, TOTBAUM, BODEN }
+enum { BAUM, BUSCH, PFLANZE, TOTBAUM, BODEN, STEIN }
 ## Baum-Arten wie in assets/baeume/baum.gd: 0 Fichte, 1 Kiefer, 2 Eiche · Größe (Breite, Höhe) je Alter [jung, alt, uralt]
 const BAUM_GROESSE := [[Vector2(2.7, 5.8), Vector2(5.0, 12.9), Vector2(6.6, 20.5)], [Vector2(2.9, 5.2), Vector2(6.8, 11.8), Vector2(8.4, 18.5)],
 	[Vector2(2.9, 5.0), Vector2(7.5, 10.7), Vector2(10.5, 16.8)]]
@@ -38,6 +39,9 @@ const BODENOBJEKTE := {
 	"alge": [4.0, false, false], "pfuetze": [8.0, false, false],
 }
 const MODELL_ORDNER := "res://assets/natur/modelle/"
+## Steine: Eintrag in gathering.json je Größe 1–5 (Feuerstein hat einen eigenen) und Interaktionsradius
+const STEIN_ID := ["felsbrocken_klein", "felsbrocken_klein", "felsbrocken", "felsbrocken_gross", "felsbrocken_gross"]
+const STEIN_RADIUS := [1.3, 1.6, 2.0, 2.5, 3.1]
 
 var terrain                       # Terrain3D (Höhen)
 var ziel: Node3D                  # Spieler
@@ -351,8 +355,72 @@ func _kachel(k: Vector2i) -> Array:
 				var h := _boden(x, z, 0.12 if name_ == "pfuetze" else 0.6)
 				if not is_nan(h):
 					out.append([BODEN, x, h, z, name_, r_var, r_dreh])
+	_steine(rng, x0, z0, out)
 	_daten[k] = out
 	return out
+
+
+## Steine: 16-m-Raster, gehäuft, wo das Rauschen hoch ist (Steinfelder). Größe und Form nach den Gewichten des Bioms,
+## um große Brocken liegen oft ein paar kleine. Eintrag: [STEIN, x, h, z, Größe, Form + 10 × Art, Drehung]
+func _steine(rng: RandomNumberGenerator, x0: float, z0: float, out: Array) -> void:
+	var n := 4
+	var s := KACHEL / n
+	for gz in n:
+		for gx in n:
+			var x := x0 + (gx + 0.1 + 0.8 * rng.randf()) * s
+			var z := z0 + (gz + 0.1 + 0.8 * rng.randf()) * s
+			var r := rng.randf()
+			var r_groesse := rng.randf()
+			var r_form := rng.randf()
+			var r_art := rng.randf()
+			var r_dreh := rng.randf() * TAU
+			var r_begleiter := rng.randi_range(0, 3)
+			var regel := _regel(x, z)
+			if regel.is_empty():
+				continue
+			var st: Dictionary = regel.get("steine", {})
+			var feld := clampf(0.5 + 0.9 * rauschen.get_noise_2d(x * 2.3 + 500.0, z * 2.3), 0.0, 1.0)
+			if r >= float(st.get("dichte", 0.0)) * (0.2 + 1.8 * feld) or _gesperrt(x, z):
+				continue
+			var steil: float = float(st.get("steil", 0.8))
+			var h := _boden(x, z, steil)
+			if is_nan(h):
+				continue
+			var art := 1 if r_art < float(st.get("feuerstein", 0.0)) else 0
+			var g := _gewichtet(st.get("groessen", [1]), r_groesse) + 1
+			if art == 1:
+				g = mini(g, 2)
+			var form := _gewichtet(st.get("formen", [1]), r_form) + 1
+			out.append([STEIN, x, _stein_hoehe(x, z, g), z, g, form + 10 * art, r_dreh])
+			if g < 3:
+				continue
+			for i in r_begleiter:
+				var w := r_dreh + i * 2.1 + rng.randf()
+				var d: float = STEIN_RADIUS[g - 1] * rng.randf_range(0.9, 1.4)
+				var bx := x + cos(w) * d
+				var bz := z + sin(w) * d
+				var bg := rng.randi_range(1, 2)
+				var bf := _gewichtet(st.get("formen", [1]), rng.randf()) + 1
+				if not is_nan(_boden(bx, bz, steil)) and not _gesperrt(bx, bz) and _regel(bx, bz) == regel:
+					out.append([STEIN, bx, _stein_hoehe(bx, bz, bg), bz, bg, bf, rng.randf() * TAU])
+
+
+## Index aus einer Liste von Gewichten nach r (0–1)
+func _gewichtet(gewichte: Array, r: float) -> int:
+	var summe := 0.0
+	for w in gewichte:
+		summe += float(w)
+	var t := r * summe
+	for i in gewichte.size():
+		t -= float(gewichte[i])
+		if t < 0.0:
+			return i
+	return gewichte.size() - 1
+
+
+## Steine stehen auf dem tiefsten Punkt ihrer Grundfläche, damit sie am Hang nicht schweben
+func _stein_hoehe(x: float, z: float, g: int) -> float:
+	return _tiefster_punkt(x, z, float(STEIN_RADIUS[g - 1]) * 0.45)
 
 
 # --- Streaming --------------------------------------------------------------
@@ -430,6 +498,19 @@ func _nah_erzeugen(e: Array) -> Node3D:
 		BODEN:
 			return _bodenobjekt(e)
 	var q = QuelleScript.new()
+	if int(e[0]) == STEIN:
+		var fels := FelsSzene.instantiate()
+		var g := int(e[4])
+		fels.set("groesse", g)
+		fels.set("variante", int(e[5]) % 10)
+		fels.set("art", int(e[5]) / 10)
+		fels.set("zufalls_variation", false)
+		fels.rotation.y = float(e[6])
+		fels.scale = Vector3.ONE * (0.88 + 0.24 * fposmod(float(e[6]) * 7.3, 1.0))
+		q.position = Vector3(e[1], e[2], e[3])
+		q.setup("feuerstein" if int(e[5]) >= 10 else STEIN_ID[g - 1], fels, STEIN_RADIUS[g - 1])
+		_wurzel_nah.add_child(q)
+		return q
 	q.position = Vector3(e[1], e[2], e[3])
 	var modell: Node3D
 	match int(e[0]):
