@@ -66,6 +66,9 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
 - **M5** (15.10.) Charakterlevel 1–100, 5 Attribute mit Schwellen (P), Tod −20 % EP, Waffen-EP nach Schadensanteil, Berufe Skill 0–300 mit 6 Tiers, Aufspüren (Kompass), Bonus-Ausbeute, Tag/Nacht. Details in KONZEPT.md unter „M5 umgesetzt“
 - **M6** (15.10.) 10 Waffen mit je 2 Seiten (Passive, 4 Fähigkeiten, Ultimative), 20 Passiven-Mechaniken, Betäubung/Spott/Rüstungsbruch/Gift/Tarnung, Kopftreffer, Ultimative-Leiste, 3. Waffenplatz vorbereitet, Spielstand-Version 3 mit Umzug. Details in KONZEPT.md unter „M6 umgesetzt“
 - **M7** (15.10.) 5 Magiewaffen (Feuer/Eis/Blitz/Leben/Leere, je 2 Seiten) mit Hitze, Frost, Ladung, Brennen, Beschwörungen (`scripts/beschwoerung.gd`), Heilung; Arkanes Sanktum stellt sie her. Details in KONZEPT.md unter „M7 umgesetzt“
+- **Skillbäume wie New World** (22.10., Prototyp Schwert und Schild): 1 Punkt je Meisterschaftsstufe und Knoten, je Seite 4 Fähigkeiten (Sechsecke) mit 2 Verbesserungen (`upgrades`: `add`/`mul`/`set` auf die Fähigkeitswerte),
+  6 kleine Passiven (`minors`), große Passive (ab 3 Punkten) und Ultimative (ab 7). Eine große Passive und eine Ultimative aktiv. Logik in `Game._build_weapon_trees`/`effective_skill`, Fenster `skill_tree_ui.gd`,
+  Bilder `skill_icons.gd` (Datei unter `assets/icons/faehigkeiten/<id>.png|svg` hat Vorrang). Die übrigen 14 Waffen haben noch keine Verbesserungen/kleinen Passiven. Details in KONZEPT.md „Skillbäume (22.10.)“
 - **Tasten:** Q/E/R Fähigkeiten, X Ultimative, F Interagieren, T/Mausrad Waffe wechseln, 1 Trank, 2 Essen (3/4 gesperrt bis M8-Level-Quests), K Skillbaum, P Charakter, B Fehler melden (nicht F9: die pausiert im Godot-Editor das laufende Spiel)
 
 **Designregeln des Nutzers:**

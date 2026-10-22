@@ -293,6 +293,26 @@ func _check(name: String, ok: bool, detail := "") -> void:
 	print("AUTOTEST %s %s%s" % ["OK    " if ok else "FEHLER", name, ("   (" + detail + ")") if detail != "" else ""])
 
 
+## Schaltet einen Knoten samt Vorgänger frei; fehlen Punkte in der Seite, werden vorher andere Knoten der Seite gekauft.
+func _freischalten(type: String, node_id: String) -> void:
+	var node := Game.tree_node(type, node_id)
+	if node.is_empty() or player._mastery(type)["unlocked"].has(node_id):
+		return
+	if String(node.get("req", "")) != "":
+		_freischalten(type, node["req"])
+	var side := int(node["side"])
+	while player.side_points(type, side) < int(node.get("points", 0)):
+		var bought := false
+		for other in Game.weapon_sides(type)[side]["nodes"]:
+			if other["type"] in ["active", "upgrade", "minor"] and player.unlock_check(type, other["id"]) == "":
+				player.unlock_node(type, other["id"])
+				bought = true
+				break
+		if not bought:
+			break
+	player.unlock_node(type, node_id)
+
+
 func _near(a: float, b: float, eps := 0.001) -> bool:
 	return absf(a - b) <= eps
 
@@ -464,30 +484,57 @@ func _m6_test() -> void:
 	_check("Tasten Q/E/R, X, F, T, 1–4", keys == {"skill_1": "Q", "skill_2": "E", "skill_3": "R", "ultimate": "X",
 		"interact": "F", "swap_weapon": "T", "quick_1": "1", "quick_4": "4"}, str(keys))
 
-	# Meisterschaft: Stufe n = n + 1 Punkte, Startfähigkeit kostenlos auf Q
+	# Skillbaum wie New World (Schwert und Schild): 1 Punkt je Stufe und Knoten, Startfähigkeit kostet den Punkt von Stufe 1
+	player.equipment["weapon"] = Game.roll_gear("training_sword_shield", [])
+	player._recalc_stats()
+	player.masteries.erase("sword_shield")
+	var m: Dictionary = player._mastery("sword_shield")
+	_check("Stufe 1: Startfähigkeit auf Q, 0 Punkte frei", player.mastery_points_free("sword_shield") == 0 and m["equipped"] == ["ss_bash"],
+		"%d Punkte, %s" % [player.mastery_points_free("sword_shield"), str(m["equipped"])])
+	m["level"] = Game.MAX_MASTERY_LEVEL
+	var upgrade_error: String = player.unlock_node("sword_shield", "ss_rush_u1")
+	var dash_before: float = player.skill_def(Game.tree_node("sword_shield", "ss_rush")).get("distance", 0.0)
+	player.unlock_node("sword_shield", "ss_rush")
+	player.unlock_node("sword_shield", "ss_rush_u1")
+	var dash_after: float = player.skill_def(Game.tree_node("sword_shield", "ss_rush")).get("distance", 0.0)
+	_check("Verbesserung braucht ihre Fähigkeit und wirkt (+3 m Ansturm)", upgrade_error != "" and dash_before == 7.0 and dash_after == 10.0,
+		"%s / %.0f → %.0f m" % [upgrade_error, dash_before, dash_after])
+	var cd_before: float = player._skill_cooldown(Game.tree_node("sword_shield", "ss_bash"))
+	player.unlock_node("sword_shield", "ss_bash_u1")
+	player.unlock_node("sword_shield", "ss_bash_u2")
+	var cd_after: float = player._skill_cooldown(Game.tree_node("sword_shield", "ss_bash"))
+	_check("Verbesserung: Schildstoß 2 s kürzer", _near(cd_after / cd_before, 7.0 / 9.0, 0.01), "%.2f → %.2f s" % [cd_before, cd_after])
+	var ult_error: String = player.unlock_node("sword_shield", "ss_fortress")
+	var dr_before: float = player.bonus("damage_reduction")
+	player.unlock_node("sword_shield", "ss_m_zaeh")
+	var minor_error: String = player.unlock_node("sword_shield", "ss_m_wind")
+	player.unlock_node("sword_shield", "ss_trotz")
+	player.unlock_node("sword_shield", "ss_m_schildwall")
+	player.unlock_node("sword_shield", "ss_m_haltung")
+	_check("Kleine Passiven: Kette und Wirkung (+5 % Schadensreduktion)", minor_error == "" and _near(player.bonus("damage_reduction") - dr_before, 0.05),
+		"%s / %.2f" % [minor_error, player.bonus("damage_reduction") - dr_before])
+	var ult_ok: String = player.unlock_node("sword_shield", "ss_fortress")
+	_check("Ultimative erst ab 7 Punkten in der Seite", ult_error != "" and ult_ok == "" and m["ultimate"] == "ss_fortress"
+		and player.side_points("sword_shield", 0) == 11, "%s / %s / %d" % [ult_error, ult_ok, player.side_points("sword_shield", 0)])
+	var passive_error: String = player.unlock_node("sword_shield", "ss_herausforderer")
+	for id in ["ss_taunt", "ss_whirl", "ss_m_fell", "ss_herausforderer"]:
+		player.unlock_node("sword_shield", id)
+	var first_mech: String = player.passive_mech
+	player.toggle_skill("sword_shield", "ss_herausforderer")
+	_check("Große Passive ab 3 Punkten, nur eine aktiv", passive_error != "" and first_mech == "trotz" and player.passive_mech == "herausforderer",
+		"%s / %s → %s" % [passive_error, first_mech, player.passive_mech])
+	_check("Stufe 20: 15 Knoten, 5 Punkte frei, höchstens 3 auf Q/E/R", player.mastery_points_free("sword_shield") == 5
+		and m["equipped"].size() == 3, "%d, %s" % [player.mastery_points_free("sword_shield"), str(m["equipped"])])
+	player.toggle_skill("sword_shield", "ss_trotz")
+
+	# Axt mit Berserker-Seite (Waffe noch ohne ausgebauten Baum: Passive frei wählbar, Ultimative ab 4 Punkten)
 	player.equipment["weapon"] = Game.roll_gear("training_axe", [])
 	player._recalc_stats()
 	player.masteries.erase("axe")
-	var m: Dictionary = player._mastery("axe")
-	_check("Stufe 1: 1 Punkt frei, Startfähigkeit auf Q", player.mastery_points_free("axe") == 1 and m["equipped"] == ["ax_split"],
-		"%d Punkte, %s" % [player.mastery_points_free("axe"), str(m["equipped"])])
-	m["level"] = Game.MAX_MASTERY_LEVEL
-	var ult_error: String = player.unlock_node("axe", "ax_feast")
-	player.unlock_node("axe", "ax_blutrausch")
-	player.unlock_node("axe", "ax_rend")
-	var ult_ok: String = player.unlock_node("axe", "ax_feast")
-	_check("Ultimative erst nach Passive + 2 Fähigkeiten", ult_error != "" and ult_ok == "" and m["ultimate"] == "ax_feast",
-		"%s / %s" % [ult_error, ult_ok])
-	player.unlock_node("axe", "ax_throw")
-	player.unlock_node("axe", "ax_frenzy")
-	_check("Stufe 20: ganze Seite kostet 11, 9 bleiben", player.mastery_points_free("axe") == 9, str(player.mastery_points_free("axe")))
-	_check("Höchstens 3 Fähigkeiten auf Q/E/R", m["equipped"].size() == 3, str(m["equipped"]))
-	player.unlock_node("axe", "ax_berserker")
-	var first_mech: String = player.passive_mech
+	player._mastery("axe")["level"] = Game.MAX_MASTERY_LEVEL
+	_freischalten("axe", "ax_berserker")
 	player.toggle_skill("axe", "ax_berserker")
-	_check("Nur eine Passive aktiv, umschaltbar", first_mech == "blutrausch" and player.passive_mech == "berserker",
-		"%s → %s" % [first_mech, player.passive_mech])
-
+	_freischalten("axe", "ax_feast")
 	# Berserker: Fähigkeit kostet 6 % LP, halbe Abklingzeit
 	player.health = player.max_health
 	player.skill_cooldowns.clear()
@@ -553,7 +600,7 @@ func _m6_test() -> void:
 	player.equipment["weapon"] = Game.roll_gear("training_crossbow", [])
 	player._recalc_stats()
 	player._mastery("crossbow")["level"] = Game.MAX_MASTERY_LEVEL
-	player.unlock_node("crossbow", "cb_repetierer")
+	_freischalten("crossbow", "cb_repetierer")
 	player.toggle_skill("crossbow", "cb_repetierer")
 	var full: int = player.magazine
 	player.state = player.State.NORMAL
@@ -569,7 +616,7 @@ func _m6_test() -> void:
 	player.equipment["weapon"] = Game.roll_gear("training_rapier", [])
 	player._recalc_stats()
 	player._mastery("rapier")["level"] = Game.MAX_MASTERY_LEVEL
-	player.unlock_node("rapier", "ra_riposte_p")
+	_freischalten("rapier", "ra_riposte_p")
 	player.iframes = 0.3
 	player.take_damage(20.0, wolf.global_position)
 	_check("Riposte nach perfektem Ausweichen", player.crit_ready)
@@ -580,7 +627,7 @@ func _m6_test() -> void:
 	player.equipment["weapon"] = Game.roll_gear("training_sword_shield", [])
 	player._recalc_stats()
 	player._mastery("sword_shield")["level"] = Game.MAX_MASTERY_LEVEL
-	player.unlock_node("sword_shield", "ss_trotz")
+	_freischalten("sword_shield", "ss_trotz")
 	player.blocking = true
 	player.state = player.State.NORMAL
 	var front: Vector3 = player.global_position + player._forward() * 2.0
@@ -631,13 +678,14 @@ func _m6_test() -> void:
 		"%s %s, Stufen %s/%s/%s" % [player.equipment["weapon"]["id"], player.equipment["weapon2"]["id"],
 		ms.get("sword_shield", {}).get("level"), ms.get("greatsword", {}).get("level"), ms.get("axe", {}).get("level")])
 
-	# Fürs Bild: Axt mit Blutrausch-Seite, beide Passiven und eine Ultimative
-	player.equipment["weapon"] = Game.roll_gear("training_axe", [])
+	# Fürs Bild: Schwert und Schild mit ausgebauter Bollwerk-Seite und etwas Herausforderer
+	player.equipment["weapon"] = Game.roll_gear("training_sword_shield", [])
 	player._recalc_stats()
-	var am: Dictionary = player._mastery("axe")
-	am["level"] = 14
-	for id in ["ax_blutrausch", "ax_rend", "ax_throw", "ax_feast", "ax_berserker", "ax_maelstrom"]:
-		player.unlock_node("axe", id)
+	player.masteries.erase("sword_shield")
+	player._mastery("sword_shield")["level"] = 14
+	for id in ["ss_rush", "ss_rush_u1", "ss_bash_u1", "ss_m_zaeh", "ss_m_wind", "ss_trotz", "ss_m_schildwall", "ss_storm",
+			"ss_fortress", "ss_whirl", "ss_whirl_u1"]:
+		_freischalten("sword_shield", id)
 	player.ultimate_charge = 64.0
 	player.health = player.max_health
 	print("AUTOTEST M6-Test: %d Fehler" % check_failed)
@@ -886,8 +934,8 @@ func _physics_process(delta: float) -> void:
 				player.swap_weapons()
 				var m: Dictionary = player._mastery("greatsword")
 				m["level"] = 6
-				player.unlock_node("greatsword", "gs_klingensturm")
-				player.unlock_node("greatsword", "gs_whirl")
+				_freischalten("greatsword", "gs_klingensturm")
+				_freischalten("greatsword", "gs_whirl")
 				player.ultimate_charge = 70.0
 			elif time > 2.5 and time < 2.6 and player.state == player.State.NORMAL:
 				var enemy = _find(func(n): return n.has_method("take_damage") and n.is_alive())
@@ -1016,7 +1064,7 @@ func _magie_waffe(type: String, passive_id: String) -> void:
 	player.equipment["weapon"] = Game.roll_gear("training_" + type, [])
 	player._recalc_stats()
 	player._mastery(type)["level"] = Game.MAX_MASTERY_LEVEL
-	player.unlock_node(type, passive_id)
+	_freischalten(type, passive_id)
 	if player._mastery(type).get("passive", "") != passive_id:
 		player.toggle_skill(type, passive_id)
 	player.buffs.clear()
@@ -1177,7 +1225,7 @@ func _m7_test() -> void:
 	# Fürs Bild: Feuerstab mit Glutherz-Seite und etwas Hitze
 	_magie_waffe("fire_magic", "fi_glutherz")
 	for id in ["fi_lance", "fi_blast", "fi_ignite", "fi_phoenix", "fi_fireball"]:
-		player.unlock_node("fire_magic", id)
+		_freischalten("fire_magic", id)
 	player.heat = 64.0
 	player.ultimate_charge = 70.0
 
