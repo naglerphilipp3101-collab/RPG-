@@ -1,0 +1,13 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_alt_farbe.jpg" id="1_yafdv"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_alt_normal.jpg" id="2_d0v31"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_alt_rauheit.jpg" id="3_q0qj8"]
+
+[resource]
+resource_name = "holz_alt"
+albedo_texture = ExtResource("1_yafdv")
+roughness_texture = ExtResource("3_q0qj8")
+normal_enabled = true
+normal_texture = ExtResource("2_d0v31")
+texture_filter = 5
