@@ -1,0 +1,16 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://assets/props/materialien/balken.gdshader" id="1_222s8"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_verkohlt_farbe.jpg" id="2_30xnx"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_verkohlt_normal.jpg" id="3_nfenl"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_verkohlt_rauheit.jpg" id="4_v421x"]
+
+[resource]
+resource_name = "holz_verkohlt_balken"
+render_priority = 0
+shader = ExtResource("1_222s8")
+shader_parameter/farbe = ExtResource("2_30xnx")
+shader_parameter/normal_karte = ExtResource("3_nfenl")
+shader_parameter/rauheit = ExtResource("4_v421x")
+shader_parameter/achse = Vector3(1, 0, 0)
+shader_parameter/schritt = null

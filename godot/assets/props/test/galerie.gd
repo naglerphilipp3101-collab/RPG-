@@ -72,35 +72,32 @@ func _ready() -> void:
 
 
 ## Beispiel aus dem Baukasten wie in der Raster-Skizze: Wände und Balken mittig auf den Rasterlinien,
-## jedes Teil mit dem Ursprung auf einem Rasterpunkt. Vorrang bei Überlappung: Eckklotz > Balken > Ständer > Strebe
+## jedes Teil mit dem Ursprung auf einem Rasterpunkt, Balken stehen je Ende 10 cm über.
+## Ständer = Balken um 90° um z gedreht. Vorrang bei Überlappung: je waagerechter, desto höher (balken.gdshader)
 func _haus(mitte: Vector3) -> void:
+	# [Modell, Position, Drehung (Grad um x, y, z), kaputt]
 	var teile := [
-		["wand", Vector3(0, 0, 0), 0.0, false], ["wand", Vector3(2, 0, 0), 0.0, false],
-		["wand_2x1", Vector3(0, 2, 0), 0.0, false], ["wand", Vector3(4, 0, 0), 0.0, true],
-		["strebe_2m", Vector3(2, 0, 0), 0.0, false],
+		["wand", Vector3(0, 0, 0), Vector3.ZERO, false], ["wand", Vector3(2, 0, 0), Vector3.ZERO, false],
+		["wand_2x1", Vector3(0, 2, 0), Vector3.ZERO, false], ["wand", Vector3(4, 0, 0), Vector3.ZERO, true],
+		["strebe_2m", Vector3(2, 0, 0), Vector3.ZERO, false],
 		# Seitenwand nach hinten (um y gedreht), damit eine echte Außenecke entsteht
-		["wand", Vector3(0, 0, 0), 90.0, false], ["balken_2m", Vector3(0, 0, 0), 90.0, false],
-		["balken_2m", Vector3(0, 2, 0), 90.0, false], ["staender_2m", Vector3(0, 0, -2), 0.0, false],
+		["wand", Vector3(0, 0, 0), Vector3(0, 90, 0), false], ["balken_2m", Vector3(0, 0, 0), Vector3(0, 90, 0), false],
+		["balken_2m", Vector3(0, 2, 0), Vector3(0, 90, 0), false], ["balken_2m", Vector3(0, 0, -2), Vector3(0, 0, 90), false],
 	]
 	for x in [0, 2, 4, 6]:
-		teile.append(["staender_2m", Vector3(x, 0, 0), 0.0, x == 6])
+		teile.append(["balken_2m", Vector3(x, 0, 0), Vector3(0, 0, 90), x == 6])
 	for x in [0, 2]:
-		teile.append(["staender_1m", Vector3(x, 2, 0), 0.0, false])
+		teile.append(["balken_1m", Vector3(x, 2, 0), Vector3(0, 0, 90), false])
 	for x in [0, 2, 4]:
-		teile.append(["balken_2m", Vector3(x, 0, 0), 0.0, false])
-		teile.append(["balken_2m", Vector3(x, 2, 0), 0.0, x == 4])
-	teile.append(["balken_2m", Vector3(0, 3, 0), 0.0, false])
-	# Eckklötze auf allen Knoten, an denen Balken zusammenkommen
-	for k in [Vector3(0, 0, 0), Vector3(0, 2, 0), Vector3(0, 3, 0), Vector3(2, 0, 0), Vector3(2, 2, 0),
-			Vector3(2, 3, 0), Vector3(4, 0, 0), Vector3(4, 2, 0), Vector3(6, 0, 0),
-			Vector3(0, 0, -2), Vector3(0, 2, -2)]:
-		teile.append(["eckklotz", k, 0.0, k == Vector3(6, 0, 0)])
+		teile.append(["balken_2m", Vector3(x, 0, 0), Vector3.ZERO, false])
+		teile.append(["balken_2m", Vector3(x, 2, 0), Vector3.ZERO, x == 4])
+	teile.append(["balken_2m", Vector3(0, 3, 0), Vector3.ZERO, false])
 	for t in teile:
 		var p := Prop.new()
 		p.modell = t[0]
 		p.kaputt = t[3]
 		p.position = mitte + t[1]
-		p.rotation_degrees.y = t[2]
+		p.rotation_degrees = t[2]
 		add_child(p)
 
 

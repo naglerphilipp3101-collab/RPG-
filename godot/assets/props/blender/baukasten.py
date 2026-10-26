@@ -12,15 +12,14 @@ Teile:
   wand          massive Wand 2 x 2 m (x 0..2, z 0..2), 0.10 m dick (y -0.05..0.05), Putz auf beiden Seiten.
   wand_2x1      2 m breit, 1 m hoch (hochkant gedreht: 1 m breit, 2 m hoch).
   wand_1x1      1 x 1 m.
-  balken_2m     Balken 20 x 20 cm, x 0..2 (bzw. 0..1), Mitte auf der Rasterlinie (y, z um 0). Waagerecht auf eine
-  balken_1m     Wandkante legen, als Ständer um 90° hochkant drehen (steht dann auf dem Rasterpunkt).
-  staender_2m   Senkrechter Balken (19,6 cm), steht auf dem Rasterpunkt und läuft 2 bzw. 1 m nach oben.
-  staender_1m
+  balken_2m     Balken 20 x 20 cm für 2 m (bzw. 1 m) von Rasterpunkt zu Rasterpunkt, steht an beiden Enden 10 cm über:
+  balken_1m     x -0.1..2.1 (2,2 m lang). Mitte auf der Rasterlinie (y, z um 0). Waagerecht auf eine Wandkante legen,
+                als Ständer um 90° hochkant drehen. An jedem Rasterpunkt reicht ein Balken damit genau so weit wie ein
+                querliegender, Ecken sind ohne Stufe geschlossen.
   strebe_2m     Schräge über eine 2 x 2-Wand: Mittellinie von (0|0) nach (2|2), Enden waagerecht abgeschnitten.
-  eckklotz      Würfel 20,4 cm um einen Rasterpunkt: füllt Ecken und Kreuzungen, wo Balken zusammenkommen.
 
-Vorrang bei Überlappung (welche Textur sichtbar ist): eckklotz > balken > staender > strebe, siehe ECKKLOTZ usw.
-Die Teile sind dafür absichtlich nicht verbogen: schon 3 mm Krümmung würden die Reihenfolge stellenweise umdrehen."""
+Vorrang bei Überlappung (welche Fläche sichtbar ist) regelt das Material in Godot (materialien/balken.gdshader):
+je waagerechter, desto höher. Die Teile sind dafür alle gleich dick und nicht verbogen."""
 import bpy, bmesh, math, sys, os
 from mathutils import Vector, Matrix, noise
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -31,12 +30,7 @@ import props
 RASTER = 2.0
 WAND_D = 0.10                    # Wanddicke
 BALKEN = 0.20                    # Balkenquerschnitt 20 x 20 cm, Mitte auf der Rasterlinie
-# Vorrang bei Überlappung: wo sich Teile durchdringen, liegen sonst gleiche Flächen genau aufeinander und flackern.
-# Darum ist jede Stufe je Seite 2 mm schmaler als die nächsthöhere; die sichtbare Fläche gehört immer dem höheren Teil.
-#   1. eckklotz (20,4 cm)   2. balken (20 cm, waagerecht, läuft durch)   3. staender (19,6 cm)   4. strebe (19,2 cm)
-ECKKLOTZ = BALKEN + 0.004
-STAENDER = BALKEN - 0.004
-STREBE = BALKEN - 0.008
+UEBERSTAND = BALKEN / 2           # Balken stehen je Ende 10 cm über den Rasterpunkt (2 m Raster -> 2,2 m lang)
 
 
 def wand_flaeche(m, kaputt, breite, hoehe):
@@ -87,17 +81,19 @@ def wand_1x1(m, kaputt):
     wand_flaeche(m, kaputt, 1.0, 1.0)
 
 
-def balken(m, kaputt, laenge, dicke=BALKEN):
-    """Balken dicke x dicke von x = 0 bis laenge, Mitte auf der Rasterlinie (y und z um 0)."""
+def balken(m, kaputt, raster):
+    """Balken 20 x 20 cm über raster Meter (Rasterpunkt 0 bis raster), je Ende UEBERSTAND länger.
+    Mitte auf der Rasterlinie (y und z um 0)."""
+    laenge = raster + 2 * UEBERSTAND
     if not kaputt:
-        bm = quader(laenge, dicke, dicke, max(1, int(laenge / 0.5)), 1, 1)
-        m.teil(bm, "holz", M((laenge / 2, 0, 0)))
+        bm = quader(laenge, BALKEN, BALKEN, max(1, int(laenge / 0.5)), 1, 1)
+        m.teil(bm, "holz", M((raster / 2, 0, 0)))
         return
     # Kaputt: verkohlt, das hintere Ende abgebrochen (nur die Bruchstelle ist uneben)
     rest = laenge * 0.62
-    bm = quader(rest, dicke, dicke, max(1, int(rest / 0.3)), 4, 4)
+    bm = quader(rest, BALKEN, BALKEN, max(1, int(rest / 0.3)), 4, 4)
     bruchkante(bm, m.rnd, 1, 0.16)
-    m.teil(bm, "holz_verkohlt", M((rest / 2, 0, 0)))
+    m.teil(bm, "holz_verkohlt", M((rest / 2 - UEBERSTAND, 0, 0)))
 
 
 def balken_2m(m, kaputt):
@@ -108,43 +104,15 @@ def balken_1m(m, kaputt):
     balken(m, kaputt, 1.0)
 
 
-def staender(m, kaputt, laenge):
-    """Senkrechter Balken: steht auf dem Rasterpunkt, läuft nach oben (in Blender +z, in Godot +y).
-    Gebaut wie ein Balken entlang x und dann aufgestellt, damit die Maserung senkrecht läuft."""
-    m.G = Matrix.Rotation(math.radians(-90), 4, "Y")
-    balken(m, kaputt, laenge, STAENDER)
-    m.G = None
-
-
-def staender_2m(m, kaputt):
-    staender(m, kaputt, 2.0)
-
-
-def staender_1m(m, kaputt):
-    staender(m, kaputt, 1.0)
-
-
-def eckklotz(m, kaputt):
-    """Würfel um einen Rasterpunkt (Mitte = Ursprung). Füllt die Stufe an Außenecken und deckt Kreuzungen ab."""
-    if not kaputt:
-        m.teil(quader(ECKKLOTZ, ECKKLOTZ, ECKKLOTZ, 1, 1, 1), "holz", None, uv="boxz")
-        return
-    bm = quader(ECKKLOTZ, ECKKLOTZ, ECKKLOTZ, 3, 3, 3)
-    for v in bm.verts:                       # angekohlt und an den Kanten abgeplatzt, bleibt aber im Raster
-        if v.co.z > ECKKLOTZ / 2 - 1e-4 and v.co.x > 0:
-            v.co.z -= m.rnd.uniform(0.0, 0.04)
-    m.teil(bm, "holz_verkohlt", None, uv="boxz")
-
-
 def strebe_2m(m, kaputt):
     """Schräge Strebe: Mittellinie vom Rasterpunkt (0|0) zum Rasterpunkt (2|2), Enden waagerecht abgeschnitten
     (sie stecken in den waagerechten Balken)."""
-    d = STREBE / 2 * math.sqrt(2)            # halbe Breite, waagerecht gemessen
+    d = BALKEN / 2 * math.sqrt(2)            # halbe Breite, waagerecht gemessen
     h = 2.0 if not kaputt else 1.1           # kaputt: bei 55 % der Höhe abgebrochen
     pts = [(-d, 0.0), (d, 0.0), (h + d, h), (h - d, h)]
     bm = bmesh.new()
-    a = [bm.verts.new((x, -STREBE / 2, z)) for x, z in pts]
-    b = [bm.verts.new((x, STREBE / 2, z)) for x, z in pts]
+    a = [bm.verts.new((x, -BALKEN / 2, z)) for x, z in pts]
+    b = [bm.verts.new((x, BALKEN / 2, z)) for x, z in pts]
     bm.faces.new(a); bm.faces.new(list(reversed(b)))
     for i in range(4):
         bm.faces.new((a[i], b[i], b[(i + 1) % 4], a[(i + 1) % 4]))
@@ -161,8 +129,7 @@ def strebe_2m(m, kaputt):
     m.teil(bm, "holz" if not kaputt else "holz_verkohlt", rot.inverted())
 
 
-MODELLE = {"wand": wand, "wand_2x1": wand_2x1, "wand_1x1": wand_1x1, "balken_2m": balken_2m, "balken_1m": balken_1m, "strebe_2m": strebe_2m,
-           "staender_2m": staender_2m, "staender_1m": staender_1m, "eckklotz": eckklotz}
+MODELLE = {"wand": wand, "wand_2x1": wand_2x1, "wand_1x1": wand_1x1, "balken_2m": balken_2m, "balken_1m": balken_1m, "strebe_2m": strebe_2m}
 
 
 if __name__ == "__main__":

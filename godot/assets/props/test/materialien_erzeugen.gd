@@ -43,6 +43,17 @@ func _init() -> void:
 	asche.normal_texture = load(ORDNER + "texturen/holz_verkohlt_normal.jpg")
 	asche.roughness = 1.0
 	_speichern(asche, "asche")
+	# Baukasten: Holz mit Vorrang bei Überlappung (balken.gdshader), je für Balken (entlang x) und Strebe (schräg)
+	for name in ["holz", "holz_verkohlt"]:
+		for teil in ["balken", "strebe"]:
+			var v := ShaderMaterial.new()
+			v.resource_name = name + "_" + teil
+			v.shader = load(ORDNER + "materialien/balken.gdshader")
+			v.set_shader_parameter("farbe", load(ORDNER + "texturen/%s_farbe.jpg" % name))
+			v.set_shader_parameter("normal_karte", load(ORDNER + "texturen/%s_normal.jpg" % name))
+			v.set_shader_parameter("rauheit", load(ORDNER + "texturen/%s_rauheit.jpg" % name))
+			v.set_shader_parameter("achse", Vector3(1, 0, 0) if teil == "balken" else Vector3(1, 1, 0).normalized())
+			_speichern(v, name + "_" + teil)
 	quit()
 
 

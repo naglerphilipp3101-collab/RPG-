@@ -9,6 +9,8 @@ extends Node3D
 const ORDNER := "res://assets/props/"
 ## Kleine Props bekommen eine konvexe Hülle (schnell), alle anderen die genaue Form (Zelt, Bogen, Mauer ...)
 const KONVEX := ["kiste", "fass", "stuhl", "hocker", "tisch", "bank", "laterne"]
+## Baukasten-Hölzer: bekommen Holz mit Vorrang bei Überlappung (materialien/balken.gdshader)
+const VORRANG := {"balken_2m": "_balken", "balken_1m": "_balken", "strebe_2m": "_strebe"}
 
 ## Name des Modells ohne _kaputt, z. B. "kiste", "zelt", "wand_fenster"
 @export var modell: String = "kiste":
@@ -78,7 +80,9 @@ func _aufbauen() -> void:
 		for i in mi.mesh.get_surface_count():
 			var alt := mi.mesh.surface_get_material(i)
 			var name := alt.resource_name if alt else ""
-			var neu := material(name)
+			var neu: Material = material(name + VORRANG[modell]) if modell in VORRANG else null
+			if not neu:
+				neu = material(name)
 			if neu:
 				mi.set_surface_override_material(i, neu)
 			if name == "glut" and licht and not kaputt:

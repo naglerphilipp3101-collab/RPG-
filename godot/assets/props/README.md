@@ -30,18 +30,19 @@ Anfangspunkt auf einem Rasterpunkt, von dort läuft es 1 oder 2 m entlang x; ged
 | Teil | Maße / Anschluss |
 |---|---|
 | `wand`, `wand_2x1`, `wand_1x1` | massiv, 2 × 2 m, 2 × 1 m (gedreht 1 × 2 m) und 1 × 1 m, 0,10 m dick, Putz |
-| `balken_2m`, `balken_1m` | 20 × 20 cm, steht je Seite 5 cm über die Wand. Waagerecht auf eine Wandkante, hochkant (90° um z) als Ständer auf einen Rasterpunkt |
-| `staender_2m`, `staender_1m` | senkrechter Balken (19,6 cm), steht auf dem Rasterpunkt und läuft nach oben |
+| `balken_2m`, `balken_1m` | 20 × 20 cm für 2 bzw. 1 m von Rasterpunkt zu Rasterpunkt, je Ende 10 cm Überstand (2,2 bzw. 1,2 m lang). Waagerecht auf eine Wandkante, hochkant (90° um z) als Ständer |
 | `strebe_2m` | Schräge über eine 2 × 2-Wand, Mittellinie von (0/0) nach (2/2) |
-| `eckklotz` | Würfel 20,4 cm um einen Rasterpunkt: füllt Außenecken, deckt Kreuzungen ab |
 
-**Vorrang bei Überlappung** (welche Textur sichtbar ist): Eckklotz > Balken (waagerecht, läuft durch) > Ständer > Strebe.
-Jede Stufe ist je Seite 2 mm schmaler als die nächsthöhere, deshalb liegen nie zwei Flächen genau aufeinander und nichts flackert.
-Darum senkrecht immer `staender_*` nehmen (nicht den Balken drehen) und auf jeden Knoten, an dem Balken zusammenkommen, einen `eckklotz` setzen.
+Durch den Überstand reicht ein Balken an jedem Rasterpunkt genau so weit wie ein querliegender: Ecken sind ohne Stufe geschlossen.
+
+**Vorrang bei Überlappung:** Wo sich Teile treffen, zeigt die Fläche nur das Teil mit dem höchsten Vorrang, die anderen verlieren dort ihre Fläche.
+Je waagerechter, desto höher (waagerecht > schräg > senkrecht); bei gleicher Neigung geht entlang x vor entlang z, und zwei aneinanderstoßende
+Balken wechseln sich fest nach der Rasterposition ab. Das macht das Holz-Material `materialien/balken.gdshader` aus der Lage des Teils,
+von Hand ist nichts einzustellen. Was höher ist oder übersteht, sieht man ganz normal.
 
 ## Materialien
 Die Modelle enthalten nur Material-Namen. `prop.gd` setzt dafür `materialien/<name>.tres` ein:
-holz, holz_alt, holz_verkohlt, eisen, stoff, seil, stein, putz, schindeln, dielen, glut, glas, asche.
+holz, holz_alt, holz_verkohlt (für Balken/Strebe als `*_balken`/`*_strebe` mit Vorrang), eisen, stoff, seil, stein, putz, schindeln, dielen, glut, glas, asche.
 Die Texturen (`texturen/`, 1024², kachelbar) sind prozedural erzeugt (`blender/texturen.py`, numpy),
 die UVs der Modelle sind schon in Metern gerechnet. Ein Material im Inspector ändern = alle Props ändern sich mit.
 Neu anlegen: `Godot --headless --path godot -s res://assets/props/test/materialien_erzeugen.gd`.
