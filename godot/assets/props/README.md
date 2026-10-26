@@ -21,12 +21,12 @@ am Ende ein Fachwerk-Beispiel; Pfeiltasten drehen/fahren, Mausrad Zoom, N Tag/Na
 palisade (2 m), zelt, lagerfeuer, karren, laterne (Ring zum Aufhängen 0,30 m über dem Boden), laternenpfahl,
 saeule, mauer (3 m), bogen.
 
-**Haus-Baukasten** (`blender/baukasten.py`), wird gerade neu aufgebaut. Regeln: 2-m-Raster, alle Stoßflächen eben
+**Haus-Baukasten** (`blender/baukasten.py`), wird gerade neu aufgebaut. Regeln: 1-m-Raster (Stockwerkshöhe frei, Teile drehbar und überlappbar), alle Stoßflächen eben
 und genau im Raster (damit Blueprints einrasten und beim späteren Backen verdeckte Flächen entfernt werden können).
 
 | Teil | Maße / Anschluss |
 |---|---|
-| `wand` | massiv, 2 × 2 m, 0,10 m dick, Putz. Ursprung Mitte Unterkante |
+| `wand`, `wand_2x1`, `wand_1x1` | massiv, 2 × 2 m, 2 × 1 m (gedreht 1 × 2 m) und 1 × 1 m, 0,10 m dick, Putz. Ursprung Mitte Unterkante |
 | `balken_2m`, `balken_1m` | Fachwerk-Balken 0,14 × 0,16 m (steht je Seite 3 cm über die Wand). Ursprung Balkenmitte. Waagerecht innen an die Kanten (Mitte 0,07 m über Unter- bzw. unter Oberkante), senkrecht als Ständer auf den Stoß zweier Wände |
 | `strebe_2m` | Schräge über eine ganze Wand, unten links nach oben rechts. Ursprung wie die Wand |
 

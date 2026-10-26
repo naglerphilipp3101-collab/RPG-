@@ -27,7 +27,7 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
   Terrain3D-Textur-IDs: 0 Sand, 1 Wiese, 2 Laubboden, 3 Nadelboden, 4 Sumpf, 5 Steppe, 6 Fels, 7 Schnee, 8 Kies (Flussbett).
   Der Import ordnet die Böden nach den Biom-Regeln neu zu, ersetzt alte Weg-Pixel (ID 8 in alten Exporten) und legt Kies unter die Flüsse.
 - `props/`: Props und Haus-Baukasten, je heil und kaputt (Blender `props/blender/props.py`, `baukasten.py`, Texturen prozedural `texturen.py`).
-  `prop.gd` (Prop: modell, kaputt) setzt die Materialien aus `props/materialien/*.tres` ein; Galerie: `props/test/galerie.tscn`. Baukasten wird neu aufgebaut (26.10., Philipp): massive Wand 2×2×0,1 m, Balken als eigene Modelle, später Blueprints und „Blueprint backen“ (ein Mesh, verdeckte Flächen raus). Noch nicht in der Welt platziert (kommt mit dem Karten-Editor).
+  `prop.gd` (Prop: modell, kaputt) setzt die Materialien aus `props/materialien/*.tres` ein; Galerie: `props/test/galerie.tscn`. Baukasten wird neu aufgebaut (26.10., Philipp): massive Wände 2×2, 2×1, 1×1 m (0,1 m dick, 1-m-Raster, Stockwerkshöhe frei), Balken als eigene Modelle, später Blueprints und „Blueprint backen“ (ein Mesh, verdeckte Flächen raus). Noch nicht in der Welt platziert (kommt mit dem Karten-Editor).
 - `natur/`: Bodenobjekte und tote Bäume (Blender `natur/blender/natur_modelle.py` → `natur/modelle/`: totbaum, baumstamm, stock, treibholz, alge), nur Deko.
 - Terrain3D ist ein Plugin aus der AssetLib und liegt **nicht** im Repository (muss unter `godot/addons/` installiert werden).
 - **6 Erz-Tiers:** Iron, Palladium, Mithril, Glacialore, Sungold, Darksteel. Das Repository ist der neuere Stand und hat bei Abweichungen Vorrang (Nutzerentscheidung).
