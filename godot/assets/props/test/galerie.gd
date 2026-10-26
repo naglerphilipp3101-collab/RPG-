@@ -1,7 +1,7 @@
 extends Node3D
 ## Alle Props nebeneinander: vorne heil, dahinter kaputt, am Ende ein Fachwerk-Beispiel aus dem Baukasten. F6 im Editor.
 ## Pfeiltasten links/rechts: drehen, hoch/runter: an der Reihe entlangfahren, Mausrad: Zoom, N: Tag/Nacht.
-## Bildschirmfoto: -- --screenshot [--ziel=x,z|<modell>|haus] [--abstand=m] [--winkel=grad] [--nacht]
+## Bildschirmfoto: -- --screenshot [--ziel=x,z|<modell>|haus|ecke] [--abstand=m] [--winkel=grad] [--nacht]
 ## (speichert user://galerie.png)
 
 var _kamera: Camera3D
@@ -72,27 +72,35 @@ func _ready() -> void:
 
 
 ## Beispiel aus dem Baukasten wie in der Raster-Skizze: Wände und Balken mittig auf den Rasterlinien,
-## jedes Teil mit dem Ursprung auf einem Rasterpunkt (Balken hochkant = Drehung 90° um z)
+## jedes Teil mit dem Ursprung auf einem Rasterpunkt. Vorrang bei Überlappung: Eckklotz > Balken > Ständer > Strebe
 func _haus(mitte: Vector3) -> void:
 	var teile := [
 		["wand", Vector3(0, 0, 0), 0.0, false], ["wand", Vector3(2, 0, 0), 0.0, false],
 		["wand_2x1", Vector3(0, 2, 0), 0.0, false], ["wand", Vector3(4, 0, 0), 0.0, true],
 		["strebe_2m", Vector3(2, 0, 0), 0.0, false],
+		# Seitenwand nach hinten (um y gedreht), damit eine echte Außenecke entsteht
+		["wand", Vector3(0, 0, 0), 90.0, false], ["balken_2m", Vector3(0, 0, 0), 90.0, false],
+		["balken_2m", Vector3(0, 2, 0), 90.0, false], ["staender_2m", Vector3(0, 0, -2), 0.0, false],
 	]
 	for x in [0, 2, 4, 6]:
-		teile.append(["balken_2m", Vector3(x, 0, 0), 90.0, x == 6])
+		teile.append(["staender_2m", Vector3(x, 0, 0), 0.0, x == 6])
 	for x in [0, 2]:
-		teile.append(["balken_1m", Vector3(x, 2, 0), 90.0, false])
+		teile.append(["staender_1m", Vector3(x, 2, 0), 0.0, false])
 	for x in [0, 2, 4]:
 		teile.append(["balken_2m", Vector3(x, 0, 0), 0.0, false])
 		teile.append(["balken_2m", Vector3(x, 2, 0), 0.0, x == 4])
 	teile.append(["balken_2m", Vector3(0, 3, 0), 0.0, false])
+	# Eckklötze auf allen Knoten, an denen Balken zusammenkommen
+	for k in [Vector3(0, 0, 0), Vector3(0, 2, 0), Vector3(0, 3, 0), Vector3(2, 0, 0), Vector3(2, 2, 0),
+			Vector3(2, 3, 0), Vector3(4, 0, 0), Vector3(4, 2, 0), Vector3(6, 0, 0),
+			Vector3(0, 0, -2), Vector3(0, 2, -2)]:
+		teile.append(["eckklotz", k, 0.0, k == Vector3(6, 0, 0)])
 	for t in teile:
 		var p := Prop.new()
 		p.modell = t[0]
 		p.kaputt = t[3]
 		p.position = mitte + t[1]
-		p.rotation_degrees.z = t[2]
+		p.rotation_degrees.y = t[2]
 		add_child(p)
 
 
@@ -133,10 +141,12 @@ func _screenshot() -> void:
 			_abstand = float(a.split("=")[1])
 		elif a.begins_with("--winkel="):
 			_winkel = deg_to_rad(float(a.split("=")[1]))
-		elif a.begins_with("--ziel="):   # x,z oder ein Modellname oder "haus"
+		elif a.begins_with("--ziel="):   # x,z, ein Modellname, "haus" oder "ecke"
 			var w := a.split("=")[1]
 			if w == "haus":
 				ziel = _haus_mitte + Vector3(3.0, 1.2, 0)
+			elif w == "ecke":
+				ziel = _haus_mitte + Vector3(0, 2.0, 0)
 			elif _positionen.has(w):
 				ziel = _positionen[w]
 			else:

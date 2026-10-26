@@ -14,7 +14,7 @@ Maße in Metern, Boden bei y = 0, Vorderseite zeigt in Godot nach +z (in Blender
 | `licht` | flackerndes Licht an Glut und Kerzen (Lagerfeuer, Laternen) |
 
 Ansehen: `test/galerie.tscn` öffnen und mit **F6** starten (vorne heil, dahinter kaputt;
-am Ende ein Fachwerk-Beispiel; Pfeiltasten drehen/fahren, Mausrad Zoom, N Tag/Nacht).
+am Ende ein Fachwerk-Beispiel mit Außenecke; Pfeiltasten drehen/fahren, Mausrad Zoom, N Tag/Nacht).
 
 ## Inhalt
 **Lager und Dorf** (`blender/props.py`): kiste, fass, stuhl, hocker, tisch, bank, zaun (2 m, Pfosten bei x = -1),
@@ -31,7 +31,13 @@ Anfangspunkt auf einem Rasterpunkt, von dort läuft es 1 oder 2 m entlang x; ged
 |---|---|
 | `wand`, `wand_2x1`, `wand_1x1` | massiv, 2 × 2 m, 2 × 1 m (gedreht 1 × 2 m) und 1 × 1 m, 0,10 m dick, Putz |
 | `balken_2m`, `balken_1m` | 20 × 20 cm, steht je Seite 5 cm über die Wand. Waagerecht auf eine Wandkante, hochkant (90° um z) als Ständer auf einen Rasterpunkt |
+| `staender_2m`, `staender_1m` | senkrechter Balken (19,6 cm), steht auf dem Rasterpunkt und läuft nach oben |
 | `strebe_2m` | Schräge über eine 2 × 2-Wand, Mittellinie von (0/0) nach (2/2) |
+| `eckklotz` | Würfel 20,4 cm um einen Rasterpunkt: füllt Außenecken, deckt Kreuzungen ab |
+
+**Vorrang bei Überlappung** (welche Textur sichtbar ist): Eckklotz > Balken (waagerecht, läuft durch) > Ständer > Strebe.
+Jede Stufe ist je Seite 2 mm schmaler als die nächsthöhere, deshalb liegen nie zwei Flächen genau aufeinander und nichts flackert.
+Darum senkrecht immer `staender_*` nehmen (nicht den Balken drehen) und auf jeden Knoten, an dem Balken zusammenkommen, einen `eckklotz` setzen.
 
 ## Materialien
 Die Modelle enthalten nur Material-Namen. `prop.gd` setzt dafür `materialien/<name>.tres` ein:
