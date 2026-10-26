@@ -1,5 +1,5 @@
 extends Node3D
-## Alle Props nebeneinander: vorne heil, dahinter kaputt. F6 im Editor.
+## Alle Props nebeneinander: vorne heil, dahinter kaputt, am Ende ein Fachwerk-Beispiel aus dem Baukasten. F6 im Editor.
 ## Pfeiltasten links/rechts: drehen, hoch/runter: an der Reihe entlangfahren, Mausrad: Zoom, N: Tag/Nacht.
 ## Bildschirmfoto: -- --screenshot [--ziel=x,z|<modell>|haus] [--abstand=m] [--winkel=grad] [--nacht]
 ## (speichert user://galerie.png)
@@ -71,27 +71,24 @@ func _ready() -> void:
 		_screenshot()
 
 
-## Kleines Haus aus dem Baukasten (4 x 4 m, ein Geschoss, Satteldach) als Beispiel, wie die Teile zusammenpassen
+## Beispiel aus dem Baukasten: drei Wände mit Fachwerk (Balken innen an den Kanten, Ständer auf den Stößen)
 func _haus(mitte: Vector3) -> void:
-	var teile := [
-		["wand_tuer", Vector3(-1, 0, 2), 0], ["wand_fenster", Vector3(1, 0, 2), 0],
-		["wand", Vector3(-1, 0, -2), 180], ["wand_fenster", Vector3(1, 0, -2), 180],
-		["wand", Vector3(-2, 0, -1), 90], ["wand_fenster", Vector3(-2, 0, 1), 90],
-		["wand", Vector3(2, 0, -1), -90], ["wand", Vector3(2, 0, 1), -90],
-		["tuer", Vector3(-1.5, 0, 2), 0],
-		["giebel", Vector3(-2, 3, 0), 90], ["giebel", Vector3(2, 3, 0), -90],
-	]
-	for x in [-1, 1]:
-		teile.append(["dach", Vector3(x, 3, 2), 0])
-		teile.append(["dach", Vector3(x, 3, -2), 180])
-		teile.append(["dach_first", Vector3(x, 5.36, 0), 0])
-		for z in [-1, 1]:
-			teile.append(["boden", Vector3(x, 0, z), 0])
+	var teile := []
+	for i in 3:
+		var x := (i - 1) * 2.0
+		teile.append(["wand", Vector3(x, 0, 0), 0.0, i == 2])
+		teile.append(["balken_2m", Vector3(x, 0.07, 0), 0.0, false])
+		teile.append(["balken_2m", Vector3(x, 1.93, 0), 0.0, i == 2])
+		teile.append(["balken_2m", Vector3(x - 1, 1, 0), 90.0, false])
+	teile.append(["balken_2m", Vector3(3, 1, 0), 90.0, false])
+	teile.append(["strebe_2m", Vector3(-2, 0, 0), 0.0, false])
+	teile.append(["balken_2m", Vector3(0, 1, 0), 0.0, false])
 	for t in teile:
 		var p := Prop.new()
 		p.modell = t[0]
+		p.kaputt = t[3]
 		p.position = mitte + t[1]
-		p.rotation_degrees.y = t[2]
+		p.rotation_degrees.z = t[2]
 		add_child(p)
 
 
@@ -135,7 +132,7 @@ func _screenshot() -> void:
 		elif a.begins_with("--ziel="):   # x,z oder ein Modellname oder "haus"
 			var w := a.split("=")[1]
 			if w == "haus":
-				ziel = _haus_mitte + Vector3(0, 2.0, 0)
+				ziel = _haus_mitte + Vector3(0, 1.0, 0)
 			elif _positionen.has(w):
 				ziel = _positionen[w]
 			else:

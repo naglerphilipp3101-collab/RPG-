@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://c0ku54bojlhfo"
-path="res://.godot/imported/tuer_kaputt.glb-27510228800450c226e1058dec8690b2.scn"
+uid="uid://cniw537m31n3i"
+path="res://.godot/imported/balken_1m.glb-3e2b27ad6ffe924ab50bdcd6466ee0af.scn"
 
 [deps]
 
-source_file="res://assets/props/modelle/tuer_kaputt.glb"
-dest_files=["res://.godot/imported/tuer_kaputt.glb-27510228800450c226e1058dec8690b2.scn"]
+source_file="res://assets/props/modelle/balken_1m.glb"
+dest_files=["res://.godot/imported/balken_1m.glb-3e2b27ad6ffe924ab50bdcd6466ee0af.scn"]
 
 [params]
 

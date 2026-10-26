@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bgmvw4bigud4p"
-path="res://.godot/imported/wand_fenster.glb-e456cfb734881f7b1ea7fd94d4e3b625.scn"
+uid="uid://bkqym0t2ag4gt"
+path="res://.godot/imported/balken_1m_kaputt.glb-ac5394e1c968262c963ea758da342969.scn"
 
 [deps]
 
-source_file="res://assets/props/modelle/wand_fenster.glb"
-dest_files=["res://.godot/imported/wand_fenster.glb-e456cfb734881f7b1ea7fd94d4e3b625.scn"]
+source_file="res://assets/props/modelle/balken_1m_kaputt.glb"
+dest_files=["res://.godot/imported/balken_1m_kaputt.glb-ac5394e1c968262c963ea758da342969.scn"]
 
 [params]
 

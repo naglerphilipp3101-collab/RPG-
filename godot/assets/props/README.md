@@ -14,26 +14,21 @@ Maße in Metern, Boden bei y = 0, Vorderseite zeigt in Godot nach +z (in Blender
 | `licht` | flackerndes Licht an Glut und Kerzen (Lagerfeuer, Laternen) |
 
 Ansehen: `test/galerie.tscn` öffnen und mit **F6** starten (vorne heil, dahinter kaputt;
-Pfeiltasten drehen/fahren, Mausrad Zoom, N Tag/Nacht).
+am Ende ein Fachwerk-Beispiel; Pfeiltasten drehen/fahren, Mausrad Zoom, N Tag/Nacht).
 
 ## Inhalt
 **Lager und Dorf** (`blender/props.py`): kiste, fass, stuhl, hocker, tisch, bank, zaun (2 m, Pfosten bei x = -1),
 palisade (2 m), zelt, lagerfeuer, karren, laterne (Ring zum Aufhängen 0,30 m über dem Boden), laternenpfahl,
 saeule, mauer (3 m), bogen.
 
-**Haus-Baukasten** (`blender/baukasten.py`), 2-m-Raster, Geschoss 3 m:
+**Haus-Baukasten** (`blender/baukasten.py`), wird gerade neu aufgebaut. Regeln: 2-m-Raster, alle Stoßflächen eben
+und genau im Raster (damit Blueprints einrasten und beim späteren Backen verdeckte Flächen entfernt werden können).
 
 | Teil | Maße / Anschluss |
 |---|---|
-| `wand`, `wand_fenster`, `wand_tuer` | Fachwerk 2 m breit, 3 m hoch, 0,2 m dick, Mitte auf der Rasterlinie. Eckständer halbiert: zwei Wände ergeben einen Ständer |
-| `tuer` | Türblatt 1 × 2,1 m, Ursprung an der Angel; in `wand_tuer` bei x = -0,5 einsetzen, dreht um die Hochachse |
-| `boden` | Dielen 2 × 2 m, Oberkante 0 (Erdgeschoss) |
-| `decke` | Dielen auf Balken, Oberkante 0; auf 3 m setzen = Boden oben, Decke unten |
-| `dach` | eine Dachfläche 45°, 2 m lang, von der Traufe zum First (2 m weiter, 2,36 m höher), 0,4 m Überstand; auf die Wandkrone, Gegenseite um 180° gedreht. Die Sparren liegen auf dem oberen Wandbalken |
-| `dach_first` | Firstbalken und Abdeckung, am First (2,36 m über der Wandkrone) |
-| `giebel` | Giebeldreieck für 4 m Hausbreite, auf die Wandkrone |
-| `treppe_holz` | 1 m breit, 4 m lang, 3 m hoch (ein Geschoss) |
-| `treppe_stein` | 2 m breit, 2 m lang, 1 m hoch, stapelbar |
+| `wand` | massiv, 2 × 2 m, 0,10 m dick, Putz. Ursprung Mitte Unterkante |
+| `balken_2m`, `balken_1m` | Fachwerk-Balken 0,14 × 0,16 m (steht je Seite 3 cm über die Wand). Ursprung Balkenmitte. Waagerecht innen an die Kanten (Mitte 0,07 m über Unter- bzw. unter Oberkante), senkrecht als Ständer auf den Stoß zweier Wände |
+| `strebe_2m` | Schräge über eine ganze Wand, unten links nach oben rechts. Ursprung wie die Wand |
 
 ## Materialien
 Die Modelle enthalten nur Material-Namen. `prop.gd` setzt dafür `materialien/<name>.tres` ein:

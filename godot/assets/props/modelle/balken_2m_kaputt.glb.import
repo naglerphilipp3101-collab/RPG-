@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://b7shvuax8er40"
-path="res://.godot/imported/decke_kaputt.glb-ed2b6556f602a272031c78bb0e1007d7.scn"
+uid="uid://dljwied3wo7u7"
+path="res://.godot/imported/balken_2m_kaputt.glb-3f5f2a1618a0f629e8f7dfdeb2b71f62.scn"
 
 [deps]
 
-source_file="res://assets/props/modelle/decke_kaputt.glb"
-dest_files=["res://.godot/imported/decke_kaputt.glb-ed2b6556f602a272031c78bb0e1007d7.scn"]
+source_file="res://assets/props/modelle/balken_2m_kaputt.glb"
+dest_files=["res://.godot/imported/balken_2m_kaputt.glb-3f5f2a1618a0f629e8f7dfdeb2b71f62.scn"]
 
 [params]
 

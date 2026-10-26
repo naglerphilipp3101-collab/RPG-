@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://uiop7v3d3eav"
-path="res://.godot/imported/wand_tuer.glb-adc1141e4bc043dae9cf5393576e54ab.scn"
+uid="uid://dvhqb0p8hxrmv"
+path="res://.godot/imported/balken_2m.glb-b26f466a948520d487c5934c6291346a.scn"
 
 [deps]
 
-source_file="res://assets/props/modelle/wand_tuer.glb"
-dest_files=["res://.godot/imported/wand_tuer.glb-adc1141e4bc043dae9cf5393576e54ab.scn"]
+source_file="res://assets/props/modelle/balken_2m.glb"
+dest_files=["res://.godot/imported/balken_2m.glb-b26f466a948520d487c5934c6291346a.scn"]
 
 [params]
 

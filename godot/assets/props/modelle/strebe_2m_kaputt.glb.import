@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dbxxea2nwsanj"
-path="res://.godot/imported/treppe_holz.glb-312c12da324c02531bfd736378232ce1.scn"
+uid="uid://708i82ogpl8d"
+path="res://.godot/imported/strebe_2m_kaputt.glb-0ea909fcc5a79aa55b10480b45356246.scn"
 
 [deps]
 
-source_file="res://assets/props/modelle/treppe_holz.glb"
-dest_files=["res://.godot/imported/treppe_holz.glb-312c12da324c02531bfd736378232ce1.scn"]
+source_file="res://assets/props/modelle/strebe_2m_kaputt.glb"
+dest_files=["res://.godot/imported/strebe_2m_kaputt.glb-0ea909fcc5a79aa55b10480b45356246.scn"]
 
 [params]
 

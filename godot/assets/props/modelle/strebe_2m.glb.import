@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bmpesfvgx6ehp"
-path="res://.godot/imported/giebel.glb-049290f051878c52536246409364544d.scn"
+uid="uid://b2iayepoiyd4e"
+path="res://.godot/imported/strebe_2m.glb-4de04e0aa62f58bc772b3e46bd806b18.scn"
 
 [deps]
 
-source_file="res://assets/props/modelle/giebel.glb"
-dest_files=["res://.godot/imported/giebel.glb-049290f051878c52536246409364544d.scn"]
+source_file="res://assets/props/modelle/strebe_2m.glb"
+dest_files=["res://.godot/imported/strebe_2m.glb-4de04e0aa62f58bc772b3e46bd806b18.scn"]
 
 [params]
 
