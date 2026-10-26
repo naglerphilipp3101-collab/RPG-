@@ -292,14 +292,18 @@ def dach_first(m, kaputt):
         m.brett(2.0, 0.22, 0.03, M((0, 0, 0.06)) @ rot @ M((0, s * 0.11, 0)), "holz_alt")
 
 
+## Die Giebelschrägen liegen so weit unter der Dachlinie, dass sie unter Sparren und Schindeln verschwinden
+UNTER = 0.28
+
+
 def giebel(m, kaputt):
     """Fachwerk-Giebeldreieck für ein 4 m breites Haus: Basis x -2..2 auf z = 0, Spitze bei z = 2."""
     rnd = m.rnd; b = BALKEN
     m.kantholz((-2, 0, b / 2), (2, 0, b / 2), D, b, "holz", oben=(0, 0, 1))
     for s in (-1, 1):
-        m.kantholz((s * 2.05, 0, 0.0), (0, 0, 2.05), b, D, holz_art(kaputt, rnd), oben=(0, -1, 0),
+        m.kantholz((s * (2.05 - UNTER), 0, 0.0), (0, 0, 2.05 - UNTER), b, D, holz_art(kaputt, rnd), oben=(0, -1, 0),
                    bruch=1 if kaputt and s > 0 else 0)
-    m.kantholz((0, 0, b), (0, 0, 1.95), b, D * 0.95, "holz", oben=(0, -1, 0))
+    m.kantholz((0, 0, b), (0, 0, 1.95 - UNTER), b, D * 0.95, "holz", oben=(0, -1, 0))
     m.kantholz((-1.0, 0, b), (-1.0, 0, 0.98), b * 0.8, D * 0.95, "holz", oben=(0, -1, 0))
     m.kantholz((1.0, 0, b), (1.0, 0, 0.98), b * 0.8, D * 0.95, "holz", oben=(0, -1, 0))
     m.kantholz((-1.0, 0, 1.0), (1.0, 0, 1.0), b * 0.8, D * 0.95, "holz", oben=(0, -1, 0))
@@ -307,12 +311,12 @@ def giebel(m, kaputt):
     def feld(x0, x1, z0, z1, loch=False):
         nx, nz = 6, 6
         if x0 * x1 > 0:                                   # Feld neben der Mitte: endet, wo die Schräge es abschneidet
-            z1 = min(z1, 2.0 - b * 0.75 - min(abs(x0), abs(x1)))
+            z1 = min(z1, 2.0 - UNTER - b * 0.75 - min(abs(x0), abs(x1)))
         for seite in (-1, 1):
             gitter = []
             for i in range(nz + 1):
                 z = z0 + (z1 - z0) * i / nz
-                rand = 2.0 - z - b * 0.75                     # Abstand der Schräge von der Mitte
+                rand = 2.0 - UNTER - z - b * 0.75                     # Abstand der Schräge von der Mitte
                 xa = max(x0, -rand); xe = max(min(x1, rand), xa + 0.002)
                 zeile = [(xa + (xe - xa) * j / nx, seite * (D / 2 - 0.025), z) for j in range(nx + 1)]
                 gitter.append(zeile if seite < 0 else list(reversed(zeile)))
@@ -324,9 +328,9 @@ def giebel(m, kaputt):
     feld(-1.0 + b * 0.4, -b / 2, b, 1.0 - b * 0.4, loch=kaputt)
     feld(b / 2, 1.0 - b * 0.4, b, 1.0 - b * 0.4)
     feld(1.0 + b * 0.4, 2, b, 1.0 - b * 0.4)
-    feld(-1.0, -b / 2, 1.0 + b * 0.4, 2.0)
+    feld(-1.0, -b / 2, 1.0 + b * 0.4, 2.0 - UNTER)
     if not kaputt:
-        feld(b / 2, 1.0, 1.0 + b * 0.4, 2.0)
+        feld(b / 2, 1.0, 1.0 + b * 0.4, 2.0 - UNTER)
 
 
 def treppe_holz(m, kaputt):
