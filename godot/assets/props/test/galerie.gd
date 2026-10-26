@@ -71,18 +71,22 @@ func _ready() -> void:
 		_screenshot()
 
 
-## Beispiel aus dem Baukasten: drei Wände mit Fachwerk (Balken innen an den Kanten, Ständer auf den Stößen)
+## Beispiel aus dem Baukasten wie in der Raster-Skizze: Wände und Balken mittig auf den Rasterlinien,
+## jedes Teil mit dem Ursprung auf einem Rasterpunkt (Balken hochkant = Drehung 90° um z)
 func _haus(mitte: Vector3) -> void:
-	var teile := []
-	for i in 3:
-		var x := (i - 1) * 2.0
-		teile.append(["wand", Vector3(x, 0, 0), 0.0, i == 2])
-		teile.append(["balken_2m", Vector3(x, 0.07, 0), 0.0, false])
-		teile.append(["balken_2m", Vector3(x, 1.93, 0), 0.0, i == 2])
-		teile.append(["balken_2m", Vector3(x - 1, 1, 0), 90.0, false])
-	teile.append(["balken_2m", Vector3(3, 1, 0), 90.0, false])
-	teile.append(["strebe_2m", Vector3(-2, 0, 0), 0.0, false])
-	teile.append(["balken_2m", Vector3(0, 1, 0), 0.0, false])
+	var teile := [
+		["wand", Vector3(0, 0, 0), 0.0, false], ["wand", Vector3(2, 0, 0), 0.0, false],
+		["wand_2x1", Vector3(0, 2, 0), 0.0, false], ["wand", Vector3(4, 0, 0), 0.0, true],
+		["strebe_2m", Vector3(2, 0, 0), 0.0, false],
+	]
+	for x in [0, 2, 4, 6]:
+		teile.append(["balken_2m", Vector3(x, 0, 0), 90.0, x == 6])
+	for x in [0, 2]:
+		teile.append(["balken_1m", Vector3(x, 2, 0), 90.0, false])
+	for x in [0, 2, 4]:
+		teile.append(["balken_2m", Vector3(x, 0, 0), 0.0, false])
+		teile.append(["balken_2m", Vector3(x, 2, 0), 0.0, x == 4])
+	teile.append(["balken_2m", Vector3(0, 3, 0), 0.0, false])
 	for t in teile:
 		var p := Prop.new()
 		p.modell = t[0]
@@ -132,7 +136,7 @@ func _screenshot() -> void:
 		elif a.begins_with("--ziel="):   # x,z oder ein Modellname oder "haus"
 			var w := a.split("=")[1]
 			if w == "haus":
-				ziel = _haus_mitte + Vector3(0, 1.0, 0)
+				ziel = _haus_mitte + Vector3(3.0, 1.2, 0)
 			elif _positionen.has(w):
 				ziel = _positionen[w]
 			else:

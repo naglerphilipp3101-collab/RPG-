@@ -24,11 +24,14 @@ saeule, mauer (3 m), bogen.
 **Haus-Baukasten** (`blender/baukasten.py`), wird gerade neu aufgebaut. Regeln: 1-m-Raster (Stockwerkshöhe frei, Teile drehbar und überlappbar), alle Stoßflächen eben
 und genau im Raster (damit Blueprints einrasten und beim späteren Backen verdeckte Flächen entfernt werden können).
 
+Wände (10 cm) und Balken (20 × 20 cm) liegen **mittig auf den Rasterlinien**. Ursprung jedes Teils ist sein
+Anfangspunkt auf einem Rasterpunkt, von dort läuft es 1 oder 2 m entlang x; gedreht wird um diesen Punkt.
+
 | Teil | Maße / Anschluss |
 |---|---|
-| `wand`, `wand_2x1`, `wand_1x1` | massiv, 2 × 2 m, 2 × 1 m (gedreht 1 × 2 m) und 1 × 1 m, 0,10 m dick, Putz. Ursprung Mitte Unterkante |
-| `balken_2m`, `balken_1m` | Fachwerk-Balken 0,14 × 0,16 m (steht je Seite 3 cm über die Wand). Ursprung Balkenmitte. Waagerecht innen an die Kanten (Mitte 0,07 m über Unter- bzw. unter Oberkante), senkrecht als Ständer auf den Stoß zweier Wände |
-| `strebe_2m` | Schräge über eine ganze Wand, unten links nach oben rechts. Ursprung wie die Wand |
+| `wand`, `wand_2x1`, `wand_1x1` | massiv, 2 × 2 m, 2 × 1 m (gedreht 1 × 2 m) und 1 × 1 m, 0,10 m dick, Putz |
+| `balken_2m`, `balken_1m` | 20 × 20 cm, steht je Seite 5 cm über die Wand. Waagerecht auf eine Wandkante, hochkant (90° um z) als Ständer auf einen Rasterpunkt |
+| `strebe_2m` | Schräge über eine 2 × 2-Wand, Mittellinie von (0/0) nach (2/2) |
 
 ## Materialien
 Die Modelle enthalten nur Material-Namen. `prop.gd` setzt dafür `materialien/<name>.tres` ein:

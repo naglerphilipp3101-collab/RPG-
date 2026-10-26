@@ -1,19 +1,20 @@
 """Haus-Baukasten im 1-m-Raster, jedes Teil heil und kaputt. Die Stockwerkshöhe legt Philipp beim Bauen selbst fest.
 Aufruf: python baukasten.py -- <zielordner/modelle> [--nur wand,balken_2m] [--vorschau <ordner>]
 
-Grundregeln (damit später Blueprints einrasten und beim Backen verdeckte Flächen sicher erkannt werden):
-  - Alle Maße liegen genau im Raster, Flächen sind eben und achsparallel (keine Fasen an Stoßflächen).
-  - Länge entlang x, Boden bei z = 0. In Blender zeigt die Vorderseite nach -y (in Godot nach +z).
+Grundregeln (Skizze: /mnt/project-files/bilder/props/raster_skizze.png):
+  - Wände (10 cm) und Balken (20 x 20 cm) liegen MITTIG auf den Rasterlinien.
+  - Ursprung jedes Teils ist sein Anfangspunkt auf einem Rasterpunkt; das Teil läuft von dort 1 oder 2 m entlang +x.
+    Gedreht wird immer um diesen Punkt.
+  - Alle Stoßflächen sind eben und liegen genau im Raster (für Blueprints und das spätere Backen).
+  - In Blender zeigt die Vorderseite nach -y (in Godot nach +z).
 
 Teile:
-  wand          massive Wand 2 x 2 m, 0.10 m dick (y -0.05..0.05), Putz auf beiden Seiten.
+  wand          massive Wand 2 x 2 m (x 0..2, z 0..2), 0.10 m dick (y -0.05..0.05), Putz auf beiden Seiten.
   wand_2x1      2 m breit, 1 m hoch (hochkant gedreht: 1 m breit, 2 m hoch).
-  wand_1x1      1 x 1 m. Alle Wände: Ursprung Mitte der Unterkante, frei drehbar, Überlappen erlaubt.
-  balken_2m     Fachwerk-Balken 2 m (x -1..1), Querschnitt 0.14 breit x 0.16 tief (steht je Wandseite 3 cm über).
-  balken_1m     Ursprung: Mitte des Balkens. Waagerecht auf eine Wandkante legen (z = 0 oder 2),
-                senkrecht als Ständer um 90° um die Querachse drehen (Mitte bei z = 1).
-  strebe_2m     schräge Strebe über eine ganze Wand, von unten links (x -1, z 0) nach oben rechts (x 1, z 2),
-                Enden waagerecht abgeschnitten. Ursprung wie bei der Wand. Für die Gegenrichtung um die Hochachse drehen."""
+  wand_1x1      1 x 1 m.
+  balken_2m     Balken 20 x 20 cm, x 0..2 (bzw. 0..1), Mitte auf der Rasterlinie (y, z um 0). Waagerecht auf eine
+  balken_1m     Wandkante legen, als Ständer um 90° hochkant drehen (steht dann auf dem Rasterpunkt).
+  strebe_2m     Schräge über eine 2 x 2-Wand: Mittellinie von (0|0) nach (2|2), Enden waagerecht abgeschnitten."""
 import bpy, bmesh, math, sys, os
 from mathutils import Vector, Matrix, noise
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -23,16 +24,17 @@ import props
 
 RASTER = 2.0
 WAND_D = 0.10                    # Wanddicke
-BALKEN_B = 0.14                  # Balkenbreite (in der Wandebene)
-BALKEN_T = 0.16                  # Balkentiefe (quer zur Wand)
+BALKEN = 0.20                    # Balkenquerschnitt 20 x 20 cm, Mitte auf der Rasterlinie
 
 
 def wand_flaeche(m, kaputt, breite, hoehe):
-    """Massive Wand breite x hoehe (x -breite/2..breite/2, z 0..hoehe). Kaputt: ausgebrochenes Loch,
+    """Massive Wand breite x hoehe (x 0..breite, z 0..hoehe). Kaputt: ausgebrochenes Loch,
     abgebröckelte Oberkante, Schutt am Boden. Alle Außenkanten, die stehen bleiben, liegen im Raster."""
+    m.G = Matrix.Translation((breite / 2, 0, 0))         # gebaut um die Mitte, Ursprung aber am Anfangspunkt
     if not kaputt:
         m.teil(quader(breite, WAND_D, hoehe, int(breite * 2), 1, int(hoehe * 2)), "putz", M((0, 0, hoehe / 2)),
                versatz=(0, 0))
+        m.G = None
         return
     # Gitter aus 5-cm-Zellen: Zellen im Loch und über der Bruchkante fehlen, dann auf Wanddicke aufgedickt
     z = 0.05
@@ -58,6 +60,7 @@ def wand_flaeche(m, kaputt, breite, hoehe):
         m.teil(basis.brocken(m.rnd, g * 1.5, g, g * 0.6), "putz",
                M((m.rnd.uniform(-0.4, 0.45) * breite, m.rnd.choice((-1, 1)) * m.rnd.uniform(0.12, 0.6), g * 0.3),
                  (0, 0, m.rnd.uniform(0, 180))))
+    m.G = None
 
 
 def wand(m, kaputt):
@@ -73,17 +76,18 @@ def wand_1x1(m, kaputt):
 
 
 def balken(m, kaputt, laenge):
+    """Balken 20 x 20 cm von x = 0 bis laenge, Mitte auf der Rasterlinie (y und z um 0)."""
     if not kaputt:
-        bm = quader(laenge, BALKEN_T, BALKEN_B, max(1, int(laenge / 0.5)), 1, 1)
+        bm = quader(laenge, BALKEN, BALKEN, max(1, int(laenge / 0.5)), 1, 1)
         verbiegen(bm, m.rnd, 0.003, 0.7, (0, 1, 1))          # leicht krumm, Stirnflächen bleiben im Raster
-        m.teil(bm, "holz", None)
+        m.teil(bm, "holz", M((laenge / 2, 0, 0)))
         return
-    # Kaputt: verkohlt, ein Ende abgebrochen
+    # Kaputt: verkohlt, das hintere Ende abgebrochen
     rest = laenge * 0.62
-    bm = quader(rest, BALKEN_T, BALKEN_B, max(1, int(rest / 0.3)), 4, 3)
-    bruchkante(bm, m.rnd, 1, 0.14)
+    bm = quader(rest, BALKEN, BALKEN, max(1, int(rest / 0.3)), 4, 4)
+    bruchkante(bm, m.rnd, 1, 0.16)
     verbiegen(bm, m.rnd, 0.004, 0.5)
-    m.teil(bm, "holz_verkohlt", M((-laenge / 2 + rest / 2, 0, 0)))
+    m.teil(bm, "holz_verkohlt", M((rest / 2, 0, 0)))
 
 
 def balken_2m(m, kaputt):
@@ -95,16 +99,14 @@ def balken_1m(m, kaputt):
 
 
 def strebe_2m(m, kaputt):
-    """Prisma zwischen den Ecken unten links und oben rechts, Schnitte waagerecht."""
-    d = BALKEN_B / 2 * math.sqrt(2)          # halbe Breite, waagerecht gemessen
-    if not kaputt:
-        pts = [(-1.0, 0.0), (-1 + 2 * d, 0.0), (1.0, 2.0), (1 - 2 * d, 2.0)]
-    else:                                    # bei 55 % der Höhe abgebrochen
-        h = 1.1
-        pts = [(-1.0, 0.0), (-1 + 2 * d, 0.0), (-1 + 2 * d + h, h), (-1 + h, h)]
+    """Schräge Strebe: Mittellinie vom Rasterpunkt (0|0) zum Rasterpunkt (2|2), Enden waagerecht abgeschnitten
+    (sie stecken in den waagerechten Balken)."""
+    d = BALKEN / 2 * math.sqrt(2)            # halbe Breite, waagerecht gemessen
+    h = 2.0 if not kaputt else 1.1           # kaputt: bei 55 % der Höhe abgebrochen
+    pts = [(-d, 0.0), (d, 0.0), (h + d, h), (h - d, h)]
     bm = bmesh.new()
-    a = [bm.verts.new((x, -BALKEN_T / 2, z)) for x, z in pts]
-    b = [bm.verts.new((x, BALKEN_T / 2, z)) for x, z in pts]
+    a = [bm.verts.new((x, -BALKEN / 2, z)) for x, z in pts]
+    b = [bm.verts.new((x, BALKEN / 2, z)) for x, z in pts]
     bm.faces.new(a); bm.faces.new(list(reversed(b)))
     for i in range(4):
         bm.faces.new((a[i], b[i], b[(i + 1) % 4], a[(i + 1) % 4]))
