@@ -84,7 +84,7 @@ func _haus(mitte: Vector3) -> void:
 	for x in [-1, 1]:
 		teile.append(["dach", Vector3(x, 3, 2), 0])
 		teile.append(["dach", Vector3(x, 3, -2), 180])
-		teile.append(["dach_first", Vector3(x, 5, 0), 0])
+		teile.append(["dach_first", Vector3(x, 5.36, 0), 0])
 		for z in [-1, 1]:
 			teile.append(["boden", Vector3(x, 0, z), 0])
 	for t in teile:

@@ -9,9 +9,10 @@ Maße und Anschlüsse (alle Teile rasten im 2-m-Raster ein, ein Geschoss ist 3 m
   boden        2 x 2 m Dielen, Oberkante z = 0 (Erdgeschoss, liegt auf dem Gelände).
   decke        2 x 2 m Dielen auf Balken, Oberkante z = 0, Balken darunter (von unten die Decke des Geschosses).
                Für das Obergeschoss auf z = 3 setzen.
-  dach         Eine Dachfläche 45°, 2 m entlang x, steigt von der Traufe (y = 0, z = 0) bis zum First (y = 2, z = 2),
+  dach         Eine Dachfläche 45°, 2 m entlang x, steigt von der Traufe (y = 0) bis zum First (y = 2, z = 2.36),
                dazu 0.4 m Überstand. Auf die Wandkrone (z = 3) setzen, die Gegenseite um 180° gedreht.
-  dach_first   Firstbalken mit Abdeckung, 2 m, bei y = 2, z = 2 der Dachfläche (Ursprung am First).
+               Die Sparren liegen auf der Außenkante des Wandrähms auf (Dachlinie 0.36 m über der Wandkrone).
+  dach_first   Firstbalken mit Abdeckung, 2 m, bei y = 2, z = 2.36 der Dachfläche (Ursprung am First).
   giebel       Dreieckige Fachwerk-Giebelwand für ein 4 m breites Haus: x -2..2, z 0..2, auf die Wandkrone.
   treppe_holz  Innentreppe 1 m breit, 4 m lang (y 0..4), 3 m hoch: ein Geschoss.
   treppe_stein Stadttreppe 2 m breit, 2 m lang, 1 m hoch (5 Stufen), stapelbar für längere Treppen."""
@@ -25,6 +26,8 @@ import props
 H = 3.0          # Geschosshöhe
 D = 0.2          # Wanddicke
 BALKEN = 0.16    # Fachwerk-Balken (Breite in der Wandebene)
+## Dachlinie über der Wandkrone: so liegen die Sparren auf der Außenkante des Rähms, statt dass der Balken durchs Dach ragt
+DACH_HUB = 0.36
 
 
 def holz_art(kaputt, rnd):
@@ -228,13 +231,13 @@ def decke(m, kaputt):
 
 
 def dach(m, kaputt):
-    """Dachfläche 45°: Sparren, Lattung, Schindeln. Traufe bei y = 0, z = 0; First bei y = 2, z = 2."""
+    """Dachfläche 45°: Sparren, Lattung, Schindeln. Traufe bei y = 0; First bei y = 2, z = 2 + DACH_HUB."""
     ueber = 0.4
     neig = M(rot=(45, 0, 0))                    # lokale y-Achse läuft die Dachschräge hinauf
     L = 2 * math.sqrt(2) + ueber * math.sqrt(2)  # Sparrenlänge entlang der Schräge
     y0 = -ueber * math.sqrt(2)                   # Start unten (Überstand)
     def schraeg(x, s, z):
-        return neig @ Vector((x, s, z))
+        return neig @ Vector((x, s, z)) + Vector((0, 0, DACH_HUB))
     # Sparren (3 je Modul, die äußeren halb: zwei Module nebeneinander ergeben einen ganzen)
     for i, x in enumerate((-1 + 0.04, -1 / 3 + 0.0, 1 / 3, 1 - 0.04)):
         if kaputt and i == 2:
@@ -293,7 +296,8 @@ def dach_first(m, kaputt):
 
 
 ## Die Giebelschrägen liegen so weit unter der Dachlinie, dass sie unter Sparren und Schindeln verschwinden
-UNTER = 0.28
+## (die Dachlinie liegt DACH_HUB über der Wandkrone)
+UNTER = 0.28 - DACH_HUB
 
 
 def giebel(m, kaputt):

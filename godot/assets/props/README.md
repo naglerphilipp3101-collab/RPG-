@@ -29,8 +29,8 @@ saeule, mauer (3 m), bogen.
 | `tuer` | Türblatt 1 × 2,1 m, Ursprung an der Angel; in `wand_tuer` bei x = -0,5 einsetzen, dreht um die Hochachse |
 | `boden` | Dielen 2 × 2 m, Oberkante 0 (Erdgeschoss) |
 | `decke` | Dielen auf Balken, Oberkante 0; auf 3 m setzen = Boden oben, Decke unten |
-| `dach` | eine Dachfläche 45°, 2 m lang, von der Traufe (0/0) zum First (2 m weiter, 2 m höher), 0,4 m Überstand; auf die Wandkrone, Gegenseite um 180° gedreht |
-| `dach_first` | Firstbalken und Abdeckung, am First |
+| `dach` | eine Dachfläche 45°, 2 m lang, von der Traufe zum First (2 m weiter, 2,36 m höher), 0,4 m Überstand; auf die Wandkrone, Gegenseite um 180° gedreht. Die Sparren liegen auf dem oberen Wandbalken |
+| `dach_first` | Firstbalken und Abdeckung, am First (2,36 m über der Wandkrone) |
 | `giebel` | Giebeldreieck für 4 m Hausbreite, auf die Wandkrone |
 | `treppe_holz` | 1 m breit, 4 m lang, 3 m hoch (ein Geschoss) |
 | `treppe_stein` | 2 m breit, 2 m lang, 1 m hoch, stapelbar |
