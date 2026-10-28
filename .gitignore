@@ -17,3 +17,5 @@ godot/assets/scans/*/
 godot/assets/welt/texturen_scan/
 # Aus den Baum-Scans geschnittene Zweige (neu erzeugen mit godot/tests/baum_scans_umwandeln.gd)
 godot/assets/baeume/texturen_scan/
+# Asset-Bibliothek von Poly Haven (neu laden mit "godot/Assets laden.bat")
+godot/assets/bibliothek/*/
