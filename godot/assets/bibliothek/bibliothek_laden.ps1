@@ -23,7 +23,7 @@ $texturen = [ordered]@{
 	"metall" = @("metal_plate_02", "corrugated_iron")
 }
 $modelle = [ordered]@{
-	"waffen_werkzeuge" = @("cannon_0", "antique_katana_01", "antique_estoc", "wooden_handle_saber", "ornate_medieval_dagger", "machete",
+	"waffen_werkzeuge" = @("cannon_01", "antique_katana_01", "antique_estoc", "wooden_handle_saber", "ornate_medieval_dagger", "machete",
 		"ornate_medieval_mace", "ornate_war_hammer", "kite_shield", "watering_can_metal_01", "cross_pein_hammer", "wooden_axe_02",
 		"wooden_axe_03", "handsaw_wood", "picke_dirty_01", "spinning_wheel_01")
 	"pflanzen" = @("grass_medium_01", "grass_bermuda_01", "fern_02", "searsia_lucida", "shrub_01", "leipoldtia_schultzei")
@@ -53,7 +53,7 @@ $alle = @{}
 (Invoke-RestMethod "https://api.polyhaven.com/assets").PSObject.Properties | ForEach-Object { $alle[$_.Name.ToLower()] = $_.Name }
 function Pruefen($id) {
 	$echt = $alle[$id.ToLower()]
-	if (-not $echt) { $script:fehlt += $id; Write-Output "  !! $id gibt es auf Poly Haven nicht (Tippfehler?)" }
+	if (-not $echt) { $script:fehlt += $id; Write-Host "  !! $id gibt es auf Poly Haven nicht (Tippfehler?)" }
 	return $echt
 }
 
