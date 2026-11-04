@@ -195,7 +195,7 @@ def klingen_schnitt(w, d, hohlkehle=0.0, kehl_breite=0.35, schneide=0.18, n_halb
 
 
 def klinge(t, z0, laenge, breite, dicke, material="klinge", hohlkehle=0.45, kehl_laenge=0.7, spitze=0.18,
-		   verjuengung=0.75, n_halb=7, schritte=14, breite_fn=None, krumm=0.0):
+		   verjuengung=0.75, n_halb=9, schritte=20, breite_fn=None, krumm=0.0):
 	"""Gerade Klinge entlang +Z ab z0. breite = volle Breite am Heft. spitze = Anteil der Länge für die Spitze.
 	breite_fn(u) kann die Breite (0..1 entlang der Klinge) frei vorgeben."""
 	schnitte = []

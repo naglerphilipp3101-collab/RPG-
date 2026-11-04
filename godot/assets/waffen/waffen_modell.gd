@@ -1,11 +1,18 @@
 class_name WaffenModell
 extends RefCounted
-## Lädt die Blender-Waffenmodelle (modelle/<form>.glb) und vergibt die Materialien nach Tier (gleiche Form in allen Tiers).
-## Die Modelle tragen nur Materialnamen (klinge, beschlag, leder, holz, leucht, stein, kristall, sehne, stoff, dunkel);
-## Farben und Glanz kommen von hier. Die Klinge zeigt nach -Z, der Griff liegt am Ursprung.
+## Modulare Waffen: jede Waffe besteht aus Teilen (Schwert: Klinge, Parierstange, Griff, Knauf), von jedem Teil gibt es
+## mehrere Formen (modelle/<waffe>/<teil>_<form>.glb, erzeugt von blender/waffen.py). Alle Teile liegen im selben
+## Koordinatensystem, darum passt jede Form auf jede andere. Das Tier färbt jedes Teil einzeln (Material nach Namen:
+## klinge, beschlag, leder, holz, leucht, stein, kristall, sehne, stoff, dunkel). Die Klinge zeigt nach -Z, der Griff liegt am Ursprung.
+## Die Teile sind nur Aussehen; die Werte der Waffe kommen weiter aus Rezept und Zufallswerten.
 
 const ORDNER := "res://assets/waffen/modelle/"
 const TIER_NAMEN := ["Iron", "Palladium", "Mithril", "Glacialore", "Sungold", "Darksteel"]
+
+# Waffe -> Teile in Bau-Reihenfolge, mit deutschem Namen für die Oberfläche
+const TEILE := {
+	"schwert": {"klinge": "Klinge", "parier": "Parierstange", "griff": "Griff", "knauf": "Knauf"},
+}
 
 # Je Tier: Klingenmetall, Beschläge, Leder, Leuchtfarbe, Edelstein
 const TIERS := [
@@ -26,18 +33,44 @@ const TIERS := [
 static var _cache := {}
 
 
-## Baut die Waffe als Kind von parent. tier 1–6. element (fire/ice/…) färbt Leuchten und Kristall der Magiewaffen.
-## Gibt false zurück, wenn es das Modell nicht gibt (dann bleibt der Platzhalter).
-static func erzeugen(form: String, tier: int, parent: Node3D, element_farbe: Variant = null) -> bool:
-	tier = clampi(tier, 1, 6)
-	var pfad := "%s%s.glb" % [ORDNER, form]
-	if not ResourceLoader.exists(pfad):
+## Baut die Waffe aus Teilen als Kind von parent.
+## auswahl: {teil: {"form": int, "tier": int}}; fehlende Teile bekommen Form 1 und standard_tier.
+## element_farbe färbt Leuchten und Kristall der Magiewaffen. Gibt false zurück, wenn es die Waffe nicht gibt.
+static func zusammenbauen(waffe: String, auswahl: Dictionary, parent: Node3D, standard_tier := 1,
+		element_farbe: Variant = null) -> bool:
+	if not TEILE.has(waffe):
 		return false
-	var szene: PackedScene = load(pfad)
-	var modell := szene.instantiate() as Node3D
-	parent.add_child(modell)
-	_materialien(modell, tier, element_farbe)
+	var wurzel := Node3D.new()
+	wurzel.name = waffe
+	parent.add_child(wurzel)
+	for teil: String in TEILE[waffe]:
+		var w: Dictionary = auswahl.get(teil, {})
+		var form: int = clampi(int(w.get("form", 1)), 1, formen(waffe, teil))
+		var tier: int = clampi(int(w.get("tier", standard_tier)), 1, 6)
+		var pfad := "%s%s/%s_%d.glb" % [ORDNER, waffe, teil, form]
+		if not ResourceLoader.exists(pfad):
+			continue
+		var modell := (load(pfad) as PackedScene).instantiate() as Node3D
+		modell.name = teil
+		wurzel.add_child(modell)
+		_materialien(modell, tier, element_farbe)
 	return true
+
+
+## Ganze Waffe in einem Tier mit den Standardformen.
+static func erzeugen(waffe: String, tier: int, parent: Node3D, element_farbe: Variant = null) -> bool:
+	return zusammenbauen(waffe, {}, parent, tier, element_farbe)
+
+
+## Anzahl der Formen eines Teils (zählt die Dateien einmal und merkt sie sich).
+static func formen(waffe: String, teil: String) -> int:
+	var schluessel := "_n_%s_%s" % [waffe, teil]
+	if not _cache.has(schluessel):
+		var n := 0
+		while ResourceLoader.exists("%s%s/%s_%d.glb" % [ORDNER, waffe, teil, n + 1]):
+			n += 1
+		_cache[schluessel] = maxi(n, 1)
+	return _cache[schluessel]
 
 
 static func _materialien(knoten: Node, tier: int, element_farbe: Variant) -> void:

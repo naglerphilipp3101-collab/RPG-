@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://b5g68085cfwo7"
-path="res://.godot/imported/sword.glb-f9540534d7afe42f0f648a6e449bdcf0.scn"
+uid="uid://c3jhgkydv4a85"
+path="res://.godot/imported/klinge_2.glb-3293a5752c99dc51f58d2265086f4ee4.scn"
 
 [deps]
 
-source_file="res://assets/waffen/modelle/sword.glb"
-dest_files=["res://.godot/imported/sword.glb-f9540534d7afe42f0f648a6e449bdcf0.scn"]
+source_file="res://assets/waffen/modelle/schwert/klinge_2.glb"
+dest_files=["res://.godot/imported/klinge_2.glb-3293a5752c99dc51f58d2265086f4ee4.scn"]
 
 [params]
 
