@@ -16,6 +16,9 @@ var zeile_y := 0.38
 var links := -0.2
 var vorn := 1.0
 var oben_rand := 0.2
+# Elementfarben der Magiewaffen (wie Game.ELEMENT_COLORS)
+const ELEMENT := {"feuerstab": Color(1.0, 0.45, 0.12), "eisstab": Color(0.55, 0.85, 1.0), "blitzstab": Color(0.7, 0.78, 1.0),
+	"lebensstab": Color(0.5, 1.0, 0.55), "leerenkugel": Color(0.65, 0.3, 0.95)}
 
 
 func _ready() -> void:
@@ -29,12 +32,14 @@ func _ready() -> void:
 	# Ausdehnung der Waffe entlang der Klinge: [hinten, vorn] in Metern
 	var ausdehnung: Array = {"schwert": [0.2, 0.9], "grossschwert": [0.25, 1.45], "degen": [0.2, 1.1], "messer": [0.15, 0.36],
 		"axt": [0.42, 0.95], "hammer": [0.42, 0.95], "speer": [0.82, 1.9], "schild": [0.45, 0.45],
-		"bogen": [0.75, 0.75], "armbrust": [0.45, 0.45], "muskete": [0.36, 1.06], "geschosse": [0.38, 0.4]}.get(waffe, [0.2, 1.0])
+		"bogen": [0.75, 0.75], "armbrust": [0.45, 0.45], "muskete": [0.36, 1.06], "geschosse": [0.38, 0.4],
+		"feuerstab": [0.95, 1.12], "eisstab": [0.95, 1.12], "blitzstab": [0.95, 1.12], "lebensstab": [0.95, 1.12], "leerenkugel": [0.15, 0.4]}.get(waffe, [0.2, 1.0])
 	links = -float(ausdehnung[0])
 	vorn = float(ausdehnung[1])
 	spalte_x = vorn - links + 0.15
 	zeile_y = {"axt": 0.5, "hammer": 0.42, "speer": 0.42, "schild": 1.05, "bogen": 0.42, "armbrust": 0.8,
-		"muskete": 0.34, "geschosse": 0.16}.get(waffe, 0.38)
+		"muskete": 0.34, "geschosse": 0.16,
+		"feuerstab": 0.3, "eisstab": 0.3, "blitzstab": 0.3, "lebensstab": 0.3, "leerenkugel": 0.36}.get(waffe, 0.38)
 	oben_rand = {"schild": 0.5, "bogen": 0.12, "armbrust": 0.5, "muskete": 0.12, "geschosse": 0.08}.get(waffe, 0.2)
 	_umgebung()
 	kamera = Camera3D.new()
@@ -54,6 +59,9 @@ func _aufbauen() -> void:
 		inhalt.queue_free()
 	inhalt = Node3D.new()
 	add_child(inhalt)
+	if waffe == "stabkoepfe":
+		_stabkoepfe()
+		return
 	var plaetze: Array = [] # [spalte, zeile, auswahl, standard_tier, beschriftung]
 	if waffe == "geschosse": # je Zeile ein Tier: Pfeil und Bolzen
 		for tier in range(1, 7):
@@ -100,7 +108,7 @@ func _aufbauen() -> void:
 		if p[2] is String:
 			WaffenModell.geschoss(p[2], p[3], halter)
 		else:
-			WaffenModell.zusammenbauen(waffe, p[2], halter, p[3])
+			WaffenModell.zusammenbauen(waffe, p[2], halter, p[3], ELEMENT.get(waffe))
 		if p[4] != "":
 			var l := Label3D.new()
 			l.text = p[4]
@@ -109,6 +117,8 @@ func _aufbauen() -> void:
 			l.position = halter.position + (Vector3(0, -0.5, 0.2) if waffe == "schild" else Vector3(vorn * 0.4, -0.08 - (zeile_y - 0.38) * 0.4, 0.05))
 			if waffe == "bogen":
 				l.position = halter.position + Vector3(0, -0.21, 0.3)
+			elif waffe == "leerenkugel":
+				l.position = halter.position + Vector3(0.05, -0.15, 0.3)
 			elif waffe == "armbrust":
 				l.position = halter.position + Vector3(0.22, -0.12, 0.3)
 			elif waffe == "geschosse":
@@ -178,3 +188,45 @@ func _umgebung() -> void:
 	fuell.light_energy = 0.5
 	fuell.light_color = Color(0.8, 0.85, 1.0)
 	add_child(fuell)
+
+
+## Nahansicht aller Stabköpfe: je Zeile ein Tier, je Spalte Element und Form (nur Kopf und Fokus, aufrecht).
+func _stabkoepfe() -> void:
+	var staebe := ["feuerstab", "eisstab", "blitzstab", "lebensstab"]
+	var sx := 0.26
+	var sy := 0.44
+	for tier in range(1, 7):
+		for e in staebe.size():
+			for form in [1, 2]:
+				var spalte: int = e * 2 + form - 1
+				var halter := Node3D.new()
+				# Kopf nach oben, Seite zur Kamera, leicht gedreht
+				halter.basis = Basis(Vector3.UP, 0.5) * Basis(Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(0, -1, 0))
+				halter.position = Vector3(spalte * sx + (0.05 if e > 0 else 0.0) * e, -(tier - 1) * sy - 0.95, 0)
+				inhalt.add_child(halter)
+				WaffenModell.zusammenbauen(staebe[e], {"kopf": {"tier": tier, "form": form}, "fokus": {"tier": tier, "form": form},
+					"schaft": {"tier": tier, "form": form}}, halter, tier, ELEMENT[staebe[e]])
+				var wurzel := halter.get_child(0)
+				wurzel.get_node("ende").queue_free()
+				wurzel.get_node("schaft").queue_free()
+				if tier == 1 and form == 1:
+					var k := Label3D.new()
+					k.text = ["Feuer", "Eis", "Blitz", "Leben"][e]
+					k.font_size = 40
+					k.pixel_size = 0.0012
+					k.position = Vector3(halter.position.x + sx / 2, 0.24, 0.3)
+					inhalt.add_child(k)
+		var l := Label3D.new()
+		l.text = WaffenModell.TIER_NAMEN[tier - 1]
+		l.font_size = 40
+		l.pixel_size = 0.0012
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		l.position = Vector3(-0.16, -(tier - 1) * sy, 0.3)
+		inhalt.add_child(l)
+	var links := -0.42
+	var rechts := 7 * sx + 0.15 + 0.15
+	var oben := 0.3
+	var unten := -5 * sy - 0.22
+	var fenster := get_viewport().get_visible_rect().size
+	kamera.size = maxf(oben - unten, (rechts - links) * fenster.y / fenster.x) * 1.02
+	kamera.position = Vector3((links + rechts) / 2, (oben + unten) / 2, 3)

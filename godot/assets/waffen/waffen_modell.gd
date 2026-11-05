@@ -76,7 +76,39 @@ const WAFFEN := {
 		"schaft": ["musketenschaft", "Schaft"],
 		"schloss": ["schloss", "Schloss"],
 	},
+	"feuerstab": {
+		"kopf": ["feuerkopf", "Flammenkopf"],
+		"schaft": ["stabschaft", "Schaft"],
+		"fokus": ["fokus", "Fokus"],
+		"ende": ["schaftende", "Schaftende", Vector3(0.85, 0.85, 0.85), 0.0, -0.75],
+	},
+	"eisstab": {
+		"kopf": ["eiskopf", "Eiskopf"],
+		"schaft": ["stabschaft", "Schaft"],
+		"fokus": ["fokus", "Fokus"],
+		"ende": ["schaftende", "Schaftende", Vector3(0.85, 0.85, 0.85), 0.0, -0.75],
+	},
+	"blitzstab": {
+		"kopf": ["blitzkopf", "Blitzkopf"],
+		"schaft": ["stabschaft", "Schaft"],
+		"fokus": ["fokus", "Fokus"],
+		"ende": ["schaftende", "Schaftende", Vector3(0.85, 0.85, 0.85), 0.0, -0.75],
+	},
+	"lebensstab": {
+		"kopf": ["lebenskopf", "Rankenkopf"],
+		"schaft": ["stabschaft", "Schaft"],
+		"fokus": ["fokus", "Fokus"],
+		"ende": ["schaftende", "Schaftende", Vector3(0.85, 0.85, 0.85), 0.0, -0.75],
+	},
+	"leerenkugel": {
+		"fassung": ["leerenfassung", "Fassung"],
+		# Die Kugel ist ein vergrößerter Fokus
+		"fokus": ["fokus", "Kugel", Vector3(2.0, 2.0, 2.0), 0.97, 0.22],
+	},
 }
+
+# Magiewaffen nach Element (weapons.json: model "staff"/"orb" + element)
+const AUS_ELEMENT := {"fire": "feuerstab", "ice": "eisstab", "lightning": "blitzstab", "life": "lebensstab", "void": "leerenkugel"}
 
 # Geschosse sind nicht modular: ein Modell je Tier (Spitze nach -Z, Mitte am Ursprung). Kugeln sind Hitscan.
 const GESCHOSSE := ["pfeil", "bolzen"]
