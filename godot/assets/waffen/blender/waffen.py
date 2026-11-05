@@ -11,7 +11,7 @@ from geo import *
 # gehören zu seinem Tier. Geteilte Modularten (Knauf, Parierstange, Einhandgriff …) werden einmal gebaut und in
 # Godot je Waffe verschoben/skaliert (waffen_modell.gd, WAFFEN). Die Liste aller Modularten mit den Zahlen je Tier
 # steht im Dokument "Waffenmodule – Liste zum Bearbeiten". Die Module sind nur Aussehen.
-import schwert
+import schwert, stangen
 from schwert import KL, GLATT, _je_tier
 
 
@@ -47,6 +47,8 @@ ARTEN = {
 	"einhandgriff": _je_tier(schwert.GRIFFE, 2),
 	"zweihandgriff": _je_tier([_zweihand(f) for f in schwert.GRIFFE], 2),
 	"korb": _je_tier(schwert.KOERBE, 2),
+	# Stangenwaffen
+	**stangen.ARTEN,
 }
 
 

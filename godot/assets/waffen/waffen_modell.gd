@@ -40,10 +40,26 @@ const WAFFEN := {
 		"griff": ["einhandgriff", "Griff", Vector3(0.92, 0.92, 0.8), 0.0, 0.0],
 		"knauf": ["knauf", "Knauf", Vector3(0.8, 0.8, 0.8), -0.076, -0.058],
 	},
+	"axt": {
+		"kopf": ["axtkopf", "Axtkopf"],
+		"stiel": ["stiel", "Stiel"],
+		"ende": ["schaftende", "Schaftende", Vector3(1, 1, 1), 0.0, -0.3],
+	},
+	"hammer": {
+		"kopf": ["hammerkopf", "Hammerkopf"],
+		"stiel": ["stiel", "Stiel"],
+		"ende": ["schaftende", "Schaftende", Vector3(1, 1, 1), 0.0, -0.3],
+	},
+	"speer": {
+		"spitze": ["speerspitze", "Speerspitze"],
+		"schaft": ["speerschaft", "Schaft"],
+		"ende": ["schaftende", "Schaftende", Vector3(0.85, 0.85, 0.85), 0.0, -0.7],
+	},
 }
 
 # Modellnamen aus weapons.json -> modulare Waffe
-const AUS_SPIEL := {"sword": "schwert", "greatsword": "grossschwert", "rapier": "degen", "dagger": "messer"}
+const AUS_SPIEL := {"sword": "schwert", "greatsword": "grossschwert", "rapier": "degen", "dagger": "messer",
+	"greataxe": "axt", "warhammer": "hammer", "spear": "speer"}
 
 # Je Tier: Klingenmetall und Beschläge [Farbe, metallic, Rauheit], Leder, Leuchtfarbe, Edelstein
 const TIERS := [

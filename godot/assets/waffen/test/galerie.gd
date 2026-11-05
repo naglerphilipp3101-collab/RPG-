@@ -12,6 +12,9 @@ var kamera: Camera3D
 var inhalt: Node3D
 var saat := 7
 var spalte_x := 1.25 # Abstand der Spalten, nach Waffenlänge
+var zeile_y := 0.38
+var links := -0.2
+var vorn := 1.0
 
 
 func _ready() -> void:
@@ -22,7 +25,13 @@ func _ready() -> void:
 			"--modus": modus = args[i + 1]
 			"--bild": bild = args[i + 1]
 			"--saat": saat = int(args[i + 1])
-	spalte_x = {"grossschwert": 1.8, "messer": 0.55, "degen": 1.35}.get(waffe, 1.25)
+	# Ausdehnung der Waffe entlang der Klinge: [hinten, vorn] in Metern
+	var ausdehnung: Array = {"schwert": [0.2, 0.9], "grossschwert": [0.25, 1.45], "degen": [0.2, 1.1], "messer": [0.15, 0.36],
+		"axt": [0.42, 0.95], "hammer": [0.42, 0.95], "speer": [0.82, 1.9]}.get(waffe, [0.2, 1.0])
+	links = -float(ausdehnung[0])
+	vorn = float(ausdehnung[1])
+	spalte_x = vorn - links + 0.15
+	zeile_y = {"axt": 0.5, "hammer": 0.42, "speer": 0.42}.get(waffe, 0.38)
 	_umgebung()
 	kamera = Camera3D.new()
 	kamera.projection = Camera3D.PROJECTION_ORTHOGONAL
@@ -69,7 +78,7 @@ func _aufbauen() -> void:
 		var halter := Node3D.new()
 		# Klinge (-Z) nach rechts, flache Seite zur Kamera
 		halter.basis = Basis(Vector3(0, 1, 0), Vector3(0, 0, -1), Vector3(-1, 0, 0))
-		halter.position = Vector3(p[0] * spalte_x, -p[1] * 0.38, 0)
+		halter.position = Vector3(p[0] * spalte_x, -p[1] * zeile_y, 0)
 		inhalt.add_child(halter)
 		WaffenModell.zusammenbauen(waffe, p[2], halter, p[3])
 		if p[4] != "":
@@ -77,16 +86,15 @@ func _aufbauen() -> void:
 			l.text = p[4]
 			l.font_size = 40
 			l.pixel_size = 0.0012
-			l.position = halter.position + Vector3(spalte_x * 0.36, -0.08, 0.05)
+			l.position = halter.position + Vector3(vorn * 0.4, -0.08 - (zeile_y - 0.38) * 0.4, 0.05)
 			l.modulate = Color(0.9, 0.9, 0.9)
 			inhalt.add_child(l)
 		spalten = maxi(spalten, int(p[0]) + 1)
 		zeilen = maxi(zeilen, int(p[1]) + 1)
 	# Inhalt reicht von x = -0,15 (Knauf) bis zur letzten Klingenspitze, y von +0,19 bis zur letzten Zeile
-	var links := -0.2
-	var rechts := (spalten - 1) * spalte_x + spalte_x - 0.25
+	var rechts := (spalten - 1) * spalte_x + vorn
 	var oben := 0.2
-	var unten := -(zeilen - 1) * 0.38 - 0.2
+	var unten := -(zeilen - 1) * zeile_y - 0.2
 	var fenster := get_viewport().get_visible_rect().size
 	kamera.size = maxf(oben - unten, (rechts - links) * fenster.y / fenster.x) * 1.04
 	kamera.position = Vector3((links + rechts) / 2, (oben + unten) / 2, 3)
