@@ -28,13 +28,14 @@ func _ready() -> void:
 			"--saat": saat = int(args[i + 1])
 	# Ausdehnung der Waffe entlang der Klinge: [hinten, vorn] in Metern
 	var ausdehnung: Array = {"schwert": [0.2, 0.9], "grossschwert": [0.25, 1.45], "degen": [0.2, 1.1], "messer": [0.15, 0.36],
-		"axt": [0.42, 0.95], "hammer": [0.42, 0.95], "speer": [0.82, 1.9], "schild": [0.45, 0.45]}.get(waffe, [0.2, 1.0])
+		"axt": [0.42, 0.95], "hammer": [0.42, 0.95], "speer": [0.82, 1.9], "schild": [0.45, 0.45],
+		"bogen": [0.75, 0.75], "armbrust": [0.45, 0.45], "muskete": [0.36, 1.06], "geschosse": [0.38, 0.4]}.get(waffe, [0.2, 1.0])
 	links = -float(ausdehnung[0])
 	vorn = float(ausdehnung[1])
 	spalte_x = vorn - links + 0.15
-	zeile_y = {"axt": 0.5, "hammer": 0.42, "speer": 0.42, "schild": 1.05}.get(waffe, 0.38)
-	if waffe == "schild":
-		oben_rand = 0.5
+	zeile_y = {"axt": 0.5, "hammer": 0.42, "speer": 0.42, "schild": 1.05, "bogen": 0.42, "armbrust": 0.8,
+		"muskete": 0.34, "geschosse": 0.16}.get(waffe, 0.38)
+	oben_rand = {"schild": 0.5, "bogen": 0.12, "armbrust": 0.5, "muskete": 0.12, "geschosse": 0.08}.get(waffe, 0.2)
 	_umgebung()
 	kamera = Camera3D.new()
 	kamera.projection = Camera3D.PROJECTION_ORTHOGONAL
@@ -54,8 +55,12 @@ func _aufbauen() -> void:
 	inhalt = Node3D.new()
 	add_child(inhalt)
 	var plaetze: Array = [] # [spalte, zeile, auswahl, standard_tier, beschriftung]
-	var teile: Array = WaffenModell.WAFFEN[waffe].keys()
-	match modus:
+	if waffe == "geschosse": # je Zeile ein Tier: Pfeil und Bolzen
+		for tier in range(1, 7):
+			for k in WaffenModell.GESCHOSSE.size():
+				plaetze.append([k, tier - 1, WaffenModell.GESCHOSSE[k], tier, "%s %s" % [WaffenModell.TIER_NAMEN[tier - 1], ["Pfeil", "Bolzen"][k]]])
+	var teile: Array = WaffenModell.WAFFEN[waffe].keys() if WaffenModell.WAFFEN.has(waffe) else []
+	match modus if teile.size() > 0 else "":
 		"module": # je Zeile ein Tier, nach rechts die Module dieses Tiers (Spalte k nimmt Modul k jedes Teils)
 			for tier in range(1, 7):
 				var n := 1
@@ -81,17 +86,34 @@ func _aufbauen() -> void:
 		var halter := Node3D.new()
 		# Klinge (-Z) nach rechts, flache Seite zur Kamera
 		halter.basis = Basis(Vector3(0, 1, 0), Vector3(0, 0, -1), Vector3(-1, 0, 0))
-		if waffe == "schild": # Vorderseite zur Kamera
-			halter.basis = Basis(Vector3.UP, PI)
+		match waffe:
+			"schild": # Vorderseite zur Kamera
+				halter.basis = Basis(Vector3.UP, PI)
+			"bogen": # liegend, Wurfarme nach links/rechts, Schussrichtung nach oben
+				halter.basis = Basis(Vector3(0, 0, -1), Vector3(1, 0, 0), Vector3(0, -1, 0))
+			"armbrust": # von oben und etwas schräg, Schussrichtung nach oben
+				halter.basis = Basis(Vector3.RIGHT, 0.4) * Basis(Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(0, -1, 0))
+			"muskete": # von der Seite, Schloss zur Kamera, Schussrichtung nach rechts
+				halter.basis = Basis(Vector3.UP, -PI / 2)
 		halter.position = Vector3(p[0] * spalte_x, -p[1] * zeile_y, 0)
 		inhalt.add_child(halter)
-		WaffenModell.zusammenbauen(waffe, p[2], halter, p[3])
+		if p[2] is String:
+			WaffenModell.geschoss(p[2], p[3], halter)
+		else:
+			WaffenModell.zusammenbauen(waffe, p[2], halter, p[3])
 		if p[4] != "":
 			var l := Label3D.new()
 			l.text = p[4]
 			l.font_size = 40
 			l.pixel_size = 0.0012
 			l.position = halter.position + (Vector3(0, -0.5, 0.2) if waffe == "schild" else Vector3(vorn * 0.4, -0.08 - (zeile_y - 0.38) * 0.4, 0.05))
+			if waffe == "bogen":
+				l.position = halter.position + Vector3(0, -0.21, 0.3)
+			elif waffe == "armbrust":
+				l.position = halter.position + Vector3(0.22, -0.12, 0.3)
+			elif waffe == "geschosse":
+				l.position = halter.position + Vector3(0, -0.045, 0.05)
+				l.pixel_size = 0.0006
 			l.modulate = Color(0.9, 0.9, 0.9)
 			inhalt.add_child(l)
 		spalten = maxi(spalten, int(p[0]) + 1)

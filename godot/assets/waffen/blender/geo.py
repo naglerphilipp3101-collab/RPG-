@@ -437,7 +437,7 @@ def scheibe(t, mitte, r, dicke, material="beschlag", n=24, strahlen=0, strahl_la
 
 
 def rohling(t, mitte, groesse, material="eis", saat=1, rauh=0.25, n=6, schritte=4, achse="x"):
-	"""Unregelmäßiger Brocken, wie aus dem Stein geschlagen (Länge entlang X, oder Z bei achse="z")."""
+	"""Unregelmäßiger Brocken, wie aus dem Stein geschlagen (Länge entlang X, oder Y/Z bei achse="y"/"z")."""
 	import random
 	rng = random.Random(saat)
 	sx, sy, sz = groesse
@@ -447,6 +447,8 @@ def rohling(t, mitte, groesse, material="eis", saat=1, rauh=0.25, n=6, schritte=
 		f = math.sin(math.pi * (0.15 + 0.7 * u)) ** 0.5
 		if achse == "z":
 			m = Matrix.Translation((mitte[0], mitte[1], mitte[2] - sx / 2 + sx * u)) @ Matrix.Rotation(math.radians(90), 4, "Z")
+		elif achse == "y":
+			m = Matrix.Translation((mitte[0], mitte[1] - sx / 2 + sx * u, mitte[2])) @ Matrix.Rotation(math.radians(90), 4, "X")
 		else:
 			m = Matrix.Translation((mitte[0] - sx / 2 + sx * u, mitte[1], mitte[2])) @ Matrix.Rotation(math.radians(90), 4, "Y")
 		pts = []

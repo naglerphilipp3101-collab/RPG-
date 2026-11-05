@@ -12,9 +12,10 @@ extends RefCounted
 const ORDNER := "res://assets/waffen/modelle/"
 const TIER_NAMEN := ["Iron", "Palladium", "Mithril", "Glacialore", "Sungold", "Darksteel"]
 
-# Waffe -> Platz -> [Modulart, Name des Platzes, Skalierung, Ankerhöhe im Modell, Zielhöhe in der Waffe].
-# Höhen in Metern entlang der Klinge (positiv = Richtung Spitze); Skalierung um den Anker, dann zum Ziel verschoben.
-# Der erste Platz ist das Hauptmodul.
+# Waffe -> Platz -> [Modulart, Name des Platzes, Skalierung, Anker im Modell, Ziel in der Waffe, Drehung].
+# Anker/Ziel als Zahl: Höhe in Metern entlang der Klinge (positiv = Richtung Spitze), sonst als Vector3 in Godot.
+# Skalierung um den Anker, dann (optional) Drehung in Grad (Euler XYZ), dann zum Ziel verschoben.
+# Der erste Platz ist das Hauptmodul. Fernkampfwaffen: oben +Y, Schussrichtung -Z, Hand am Ursprung.
 const WAFFEN := {
 	"schwert": {
 		"klinge": ["schwertklinge", "Klinge"],
@@ -59,11 +60,30 @@ const WAFFEN := {
 		"koerper": ["schildkoerper", "Schildkörper"],
 		"buckel": ["schildbuckel", "Schildbuckel"],
 	},
+	"bogen": {
+		"arme": ["wurfarme", "Wurfarme"],
+		"griff": ["bogengriff", "Griff"],
+		"sehne": ["sehne", "Sehne"],
+	},
+	"armbrust": {
+		"bogen": ["armbrustbogen", "Bogen"],
+		"schaft": ["armbrustschaft", "Schaft"],
+		# Bogensehne: liegt quer, ist kürzer (Enden bei ±0,4 statt ±0,68)
+		"sehne": ["sehne", "Sehne", Vector3(1, 0.59, 1), Vector3(0, 0, 0.16), Vector3(0, 0.03, -0.33), Vector3(0, 0, 90)],
+	},
+	"muskete": {
+		"lauf": ["musketenlauf", "Lauf"],
+		"schaft": ["musketenschaft", "Schaft"],
+		"schloss": ["schloss", "Schloss"],
+	},
 }
+
+# Geschosse sind nicht modular: ein Modell je Tier (Spitze nach -Z, Mitte am Ursprung). Kugeln sind Hitscan.
+const GESCHOSSE := ["pfeil", "bolzen"]
 
 # Modellnamen aus weapons.json -> modulare Waffe
 const AUS_SPIEL := {"sword": "schwert", "greatsword": "grossschwert", "rapier": "degen", "dagger": "messer",
-	"greataxe": "axt", "warhammer": "hammer", "spear": "speer"}
+	"greataxe": "axt", "warhammer": "hammer", "spear": "speer", "bow": "bogen", "crossbow": "armbrust", "musket": "muskete"}
 
 # Je Tier: Klingenmetall und Beschläge [Farbe, metallic, Rauheit], Leder, Leuchtfarbe, Edelstein
 const TIERS := [
@@ -107,14 +127,37 @@ static func zusammenbauen(waffe: String, auswahl: Dictionary, parent: Node3D, st
 		var modell := (load(pfad) as PackedScene).instantiate() as Node3D
 		modell.name = platz
 		if def.size() >= 5:
-			# Godot-Achse: Höhe h entlang der Klinge liegt bei z = -h
 			var s: Vector3 = def[2]
-			var anker := Vector3(0, 0, -float(def[3]))
-			var ziel := Vector3(0, 0, -float(def[4]))
-			modell.transform = Transform3D(Basis.from_scale(s), ziel - s * anker)
+			var anker := _punkt(def[3])
+			var ziel := _punkt(def[4])
+			var drehung := Basis.IDENTITY
+			if def.size() >= 6:
+				var g: Vector3 = def[5]
+				drehung = Basis.from_euler(Vector3(deg_to_rad(g.x), deg_to_rad(g.y), deg_to_rad(g.z)))
+			var b := drehung * Basis.from_scale(s)
+			modell.transform = Transform3D(b, ziel - b * anker)
 		wurzel.add_child(modell)
 		_materialien(modell, tier, element_farbe)
 	return true
+
+
+## Höhe entlang der Klinge (Zahl, liegt in Godot bei z = -h) oder Punkt (Vector3).
+static func _punkt(wert: Variant) -> Vector3:
+	if wert is Vector3:
+		return wert
+	return Vector3(0, 0, -float(wert))
+
+
+## Pfeil oder Bolzen eines Tiers als Kind von parent (für Geschosse, die stecken bleiben).
+static func geschoss(art: String, tier: int, parent: Node3D) -> Node3D:
+	tier = clampi(tier, 1, 6)
+	var pfad := "%s%s/t%d_1.glb" % [ORDNER, art, tier]
+	if not ResourceLoader.exists(pfad):
+		return null
+	var modell := (load(pfad) as PackedScene).instantiate() as Node3D
+	parent.add_child(modell)
+	_materialien(modell, tier, null)
+	return modell
 
 
 ## Ganze Waffe aus den ersten Modulen eines Tiers.
