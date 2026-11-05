@@ -1,13 +1,12 @@
 extends Node3D
 ## Vorschau der modularen Waffen. Die Waffen liegen waagerecht, Klinge nach rechts.
-## Start: Godot --path godot res://assets/waffen/test/galerie.tscn [-- --waffe schwert --modus teile|tiers|kombis --bild pfad.png]
-##   teile:  je Zeile ein Teil, nach rechts alle Formen dieses Teils (Rest Standardform)
-##   tiers:  Standardformen in allen 6 Tiers
-##   kombis: zufällige Kombinationen aus Formen und Tiers (auch gemischte Tiers)
+## Start: Godot --path godot res://assets/waffen/test/galerie.tscn [-- --waffe schwert --modus module|kombis --bild pfad.png]
+##   module: je Zeile ein Tier mit all seinen Modulen
+##   kombis: zufällige Kombinationen aus Modulen aller Tiers
 ## Ohne --bild bleibt das Fenster offen (Mausrad zoomt, Leertaste würfelt neue Kombinationen).
 
 var waffe := "schwert"
-var modus := "teile"
+var modus := "module"
 var bild := ""
 var kamera: Camera3D
 var inhalt: Node3D
@@ -43,23 +42,25 @@ func _aufbauen() -> void:
 	var plaetze: Array = [] # [spalte, zeile, auswahl, standard_tier, beschriftung]
 	var teile: Array = WaffenModell.TEILE[waffe].keys()
 	match modus:
-		"teile":
-			for z in teile.size():
-				for f in WaffenModell.formen(waffe, teile[z]):
-					plaetze.append([f, z, {teile[z]: {"form": f + 1}}, 2, "%s %d" % [WaffenModell.TEILE[waffe][teile[z]], f + 1]])
-		"tiers":
-			for t in 6:
-				plaetze.append([t % 3, t / 3, {}, t + 1, WaffenModell.TIER_NAMEN[t]])
-		"kombis":
+		"module": # je Zeile ein Tier, nach rechts die Module dieses Tiers (Spalte k nimmt Modul k jedes Teils)
+			for tier in range(1, 7):
+				var n := 1
+				for teil: String in teile:
+					n = maxi(n, WaffenModell.formen(waffe, teil, tier))
+				for k in n:
+					var auswahl := {}
+					for teil: String in teile:
+						auswahl[teil] = {"tier": tier, "form": mini(k + 1, WaffenModell.formen(waffe, teil, tier))}
+					plaetze.append([k, tier - 1, auswahl, tier, "%s %d" % [WaffenModell.TIER_NAMEN[tier - 1], k + 1]])
+		"kombis": # zufällige Module aus allen Tiers
 			var rng := RandomNumberGenerator.new()
 			rng.seed = saat
 			for i in 12:
 				var auswahl := {}
-				var haupt := rng.randi_range(1, 6)
 				for teil: String in teile:
-					var tier := haupt if rng.randf() < 0.7 else rng.randi_range(1, 6)
-					auswahl[teil] = {"form": rng.randi_range(1, WaffenModell.formen(waffe, teil)), "tier": tier}
-				plaetze.append([i % 3, i / 3, auswahl, haupt, ""])
+					var tier := rng.randi_range(1, 6)
+					auswahl[teil] = {"tier": tier, "form": rng.randi_range(1, WaffenModell.formen(waffe, teil, tier))}
+				plaetze.append([i % 3, i / 3, auswahl, 1, ""])
 	var spalten := 0
 	var zeilen := 0
 	for p: Array in plaetze:

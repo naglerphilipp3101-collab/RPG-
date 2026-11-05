@@ -10,8 +10,9 @@ from mathutils import Vector, Matrix
 class Teil:
 	"""Sammelt Flächen je Material in einem bmesh. Am Ende wird daraus ein Objekt mit Materialplätzen."""
 
-	def __init__(self, name):
+	def __init__(self, name, glatt=35.0):
 		self.name = name
+		self.glatt = glatt  # Kantenwinkel: darüber bleibt die Kante hart
 		self.bm = bmesh.new()
 		self.slots = []  # Materialnamen in Reihenfolge der Plätze
 
@@ -28,7 +29,8 @@ class Teil:
 	def vert(self, co):
 		return self.bm.verts.new(co)
 
-	def objekt(self, glatt_winkel=35.0):
+	def objekt(self, glatt_winkel=None):
+		glatt_winkel = self.glatt if glatt_winkel is None else glatt_winkel
 		bm = self.bm
 		bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
 		bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -176,9 +178,11 @@ def wicklung(t, z0, z1, r, material="leder", windungen=None, tiefe=None, n=14, r
 	loft(t, schnitte, material)
 
 
-def klingen_schnitt(w, d, hohlkehle=0.0, kehl_breite=0.35, schneide=0.18, n_halb=7):
-	"""Querschnitt einer Klinge: Breite w (halb), Dicke d (halb). Linsenform mit Schneidenfase und optionaler Hohlkehle.
-	Gibt eine geschlossene Punktliste zurück (2*n_halb Punkte)."""
+def klingen_schnitt(w, d, hohlkehle=0.0, kehl_breite=0.35, schneide=0.18, n_halb=7, kehlen=None):
+	"""Querschnitt einer Klinge: Breite w (halb), Dicke d (halb). Linsenform mit Schneidenfase und Hohlkehle(n).
+	kehlen: [(mitte, halbe_breite)] als Anteil von w; Standard ist eine Kehle in der Mitte.
+	Gibt eine geschlossene Punktliste zurück (2*n_halb - 2 Punkte)."""
+	kehlen = kehlen if kehlen is not None else [(0.0, kehl_breite)]
 	oben = []
 	for i in range(n_halb):
 		x = -w + 2 * w * i / (n_halb - 1)
@@ -187,35 +191,124 @@ def klingen_schnitt(w, d, hohlkehle=0.0, kehl_breite=0.35, schneide=0.18, n_halb
 			y = d * (1 - u) / schneide * 0.55
 		else:
 			y = d * (0.55 + 0.45 * (1 - (u / (1 - schneide)) ** 2))
-		if hohlkehle > 0 and u < kehl_breite:
-			y -= hohlkehle * d * (1 - (u / kehl_breite) ** 2)
+		if hohlkehle > 0:
+			for mitte, kb in kehlen:
+				a = abs(u - mitte) / kb
+				if a < 1:
+					y -= hohlkehle * d * (1 - a * a)
 		oben.append((x, max(y, d * 0.06) if 0 < u < 1 else (y if u < 1 else 0.0)))
 	unten = [(x, -y) for x, y in reversed(oben[1:-1])]
 	return oben + unten
 
 
+def sechskant(w, d, kante=0.5):
+	"""Sechseckiger Querschnitt (gerade Flächen, keine Rundung) – für Mithril."""
+	return [(w, 0), (w * kante, d), (-w * kante, d), (-w, 0), (-w * kante, -d), (w * kante, -d)]
+
+
 def klinge(t, z0, laenge, breite, dicke, material="klinge", hohlkehle=0.45, kehl_laenge=0.7, spitze=0.18,
-		   verjuengung=0.75, n_halb=9, schritte=20, breite_fn=None, krumm=0.0):
-	"""Gerade Klinge entlang +Z ab z0. breite = volle Breite am Heft. spitze = Anteil der Länge für die Spitze.
-	breite_fn(u) kann die Breite (0..1 entlang der Klinge) frei vorgeben."""
+		   verjuengung=0.75, n_halb=9, schritte=20, breite_fn=None, krumm=0.0, dicke_fn=None, schnitt=None,
+		   rauh=0.0, saat=1, spitze_x=0.0, kehlen=None, kehl_breite=0.35):
+	"""Klinge entlang +Z ab z0. breite = volle Breite am Heft. spitze = Anteil der Länge für die Spitze.
+	breite_fn(u) gibt die Breite (Anteil, 0..1 entlang der Klinge) vor, oder ein Paar (links, rechts) für
+	ungleiche Schneiden. dicke_fn(u) entsprechend die Dicke. schnitt(w, d) ersetzt den Querschnitt.
+	rauh > 0 verschiebt die Punkte zufällig (wie aus Stein geschlagen). spitze_x verschiebt die Spitze seitlich."""
+	import random
+	rng = random.Random(saat)
 	schnitte = []
 	for k in range(schritte + 1):
 		u = k / schritte
-		if breite_fn:
-			w = breite_fn(u) * breite / 2
-		else:
-			w = breite / 2 * (1 - (1 - verjuengung) * u)
-			if u > 1 - spitze:
-				s = (u - (1 - spitze)) / spitze
-				w *= math.cos(s * math.pi / 2) ** 0.8
 		if u >= 1.0:
 			break
-		d = dicke / 2 * (1 - 0.45 * u)
+		if breite_fn:
+			r = breite_fn(u)
+			wl, wr = (r if isinstance(r, tuple) else (r, r))
+			wl, wr = wl * breite / 2, wr * breite / 2
+		else:
+			wl = wr = breite / 2 * (1 - (1 - verjuengung) * u)
+			if u > 1 - spitze:
+				s = (u - (1 - spitze)) / spitze
+				wl = wr = wl * math.cos(s * math.pi / 2) ** 0.8
+		w = max((wl + wr) / 2, 0.002)
+		mitte = (wr - wl) / 2
+		d = dicke / 2 * (dicke_fn(u) if dicke_fn else (1 - 0.45 * u))
 		kehle = hohlkehle if u < kehl_laenge else hohlkehle * max(0.0, 1 - (u - kehl_laenge) / 0.08)
-		pts = klingen_schnitt(max(w, 0.002), d, kehle, n_halb=n_halb)
-		x_off = krumm * u * u
+		pts = schnitt(w, d) if schnitt else klingen_schnitt(w, d, kehle, n_halb=n_halb, kehlen=kehlen, kehl_breite=kehl_breite)
+		if rauh > 0:
+			pts = [(x * (1 + rng.uniform(-rauh, rauh)), y * (1 + rng.uniform(-rauh, rauh) * 2)) for x, y in pts]
+		x_off = krumm * u * u + mitte
 		schnitte.append((z0 + laenge * u, [(x + x_off, y) for x, y in pts]))
-	loft(t, schnitte, material, spitze_oben=Vector((krumm, 0, z0 + laenge)))
+	loft(t, schnitte, material, spitze_oben=Vector((krumm + spitze_x, 0, z0 + laenge)))
+
+
+def strang(t, punkte, breite, dicke, material, n=8, quer=Vector((0, 1, 0)), kappen=True, eckig=False):
+	"""Zieht einen Querschnitt entlang einer Punktliste (Schnörkel, Flügel, Stacheln, Hörner).
+	breite/dicke: Zahl oder Funktion u -> Wert (volle Maße). quer = Richtung der Dicke.
+	Breite 0 am Ende ergibt eine Spitze. eckig = Rauten- statt Ellipsenquerschnitt (bei n=4)."""
+	bw = breite if callable(breite) else (lambda u, b=breite: b)
+	dw = dicke if callable(dicke) else (lambda u, d=dicke: d)
+	punkte = [Vector(p) for p in punkte]
+	m = len(punkte)
+	ringe = []
+	spitze_oben = spitze_unten = None
+	for i, p in enumerate(punkte):
+		u = i / (m - 1)
+		tang = (punkte[min(i + 1, m - 1)] - punkte[max(i - 1, 0)]).normalized()
+		b = (quer - tang * quer.dot(tang))
+		if b.length < 1e-6:
+			b = Vector((1, 0, 0)) - tang * tang.x
+		b.normalize()
+		wv = b.cross(tang).normalized()
+		w, d = bw(u) / 2, dw(u) / 2
+		if w <= 1e-5:
+			if i == 0:
+				spitze_unten = p
+			else:
+				spitze_oben = p
+			continue
+		ring = []
+		for k in range(n):
+			a = 2 * math.pi * k / n + (math.pi / n if eckig and n == 4 else 0)
+			if eckig and n == 4:
+				a = math.pi / 2 * k
+			ring.append(t.vert(p + wv * (math.cos(a) * w) + b * (math.sin(a) * d)))
+		ringe.append(ring)
+	for ra, rb in zip(ringe, ringe[1:]):
+		for k in range(n):
+			j = (k + 1) % n
+			t.flaeche([ra[k], ra[j], rb[j], rb[k]], material)
+	if spitze_oben is not None:
+		s = t.vert(spitze_oben)
+		for k in range(n):
+			t.flaeche([ringe[-1][k], ringe[-1][(k + 1) % n], s], material)
+	elif kappen:
+		t.flaeche(list(ringe[-1]), material)
+	if spitze_unten is not None:
+		s = t.vert(spitze_unten)
+		for k in range(n):
+			t.flaeche([ringe[0][(k + 1) % n], ringe[0][k], s], material)
+	elif kappen:
+		t.flaeche(list(reversed(ringe[0])), material)
+
+
+def spirale(mitte, r0, r1, windungen, n=16, start=0.0, ebene="xz", richtung=1):
+	"""Punkte einer flachen Spirale (für Schnörkel/Voluten), von außen (r0) nach innen (r1)."""
+	pts = []
+	for i in range(n + 1):
+		u = i / n
+		a = start + richtung * u * windungen * 2 * math.pi
+		r = r0 + (r1 - r0) * u
+		if ebene == "xz":
+			pts.append(Vector((mitte[0] + math.cos(a) * r, mitte[1], mitte[2] + math.sin(a) * r)))
+		else:
+			pts.append(Vector((mitte[0] + math.cos(a) * r, mitte[1] + math.sin(a) * r, mitte[2])))
+	return pts
+
+
+def bogen(p0, p1, hoehe, n=10, richtung=Vector((0, 0, 1))):
+	"""Punkte auf einem Bogen von p0 nach p1, in der Mitte um 'hoehe' in 'richtung' ausgebaucht."""
+	p0, p1 = Vector(p0), Vector(p1)
+	return [p0.lerp(p1, i / n) + richtung * hoehe * math.sin(math.pi * i / n) for i in range(n + 1)]
 
 
 def rune_streifen(t, z0, z1, breite, dicke, material="leucht", n=8):
@@ -273,7 +366,10 @@ def knauf(t, z, r, material="beschlag", form="scheibe", n=16):
 
 def edelstein(t, mitte, r, material="stein", achse="y", n=8):
 	"""Geschliffener Stein (Doppelpyramide mit Tafel)."""
-	a = Vector((0, 1, 0)) if achse == "y" else (Vector((1, 0, 0)) if achse == "x" else Vector((0, 0, 1)))
+	if isinstance(achse, Vector):
+		a = achse.normalized()
+	else:
+		a = Vector((0, 1, 0)) if achse == "y" else (Vector((1, 0, 0)) if achse == "x" else Vector((0, 0, 1)))
 	rot = a.to_track_quat("Z", "Y").to_matrix().to_4x4()
 	m = Matrix.Translation(mitte) @ rot
 	schnitte = [(m @ Matrix.Translation((0, 0, -r * 0.35)), kreis(r, n)),
@@ -284,3 +380,77 @@ def edelstein(t, mitte, r, material="stein", achse="y", n=8):
 def ring(t, z, r, hoehe, material="beschlag", n=14, wulst=0.15):
 	profil = [(r, z - hoehe / 2), (r * (1 + wulst), z), (r, z + hoehe / 2)]
 	drehkoerper(t, profil, material, n=n)
+
+
+# ---------------------------------------------------------------- Zierteile
+
+
+def kristall(t, basis, richtung, laenge, r, material="eis", n=6, spitze_anteil=0.3, drehung=0.0):
+	"""Sechskantiger Kristall mit Spitze, wächst von basis in richtung."""
+	richtung = Vector(richtung).normalized()
+	basis = Vector(basis)
+	quer = Vector((0, 1, 0)) if abs(richtung.y) < 0.9 else Vector((1, 0, 0))
+	rot = Matrix.Rotation(drehung, 3, richtung)
+	quer = rot @ quer
+	pts = [basis, basis + richtung * laenge * (1 - spitze_anteil), basis + richtung * laenge]
+	strang(t, pts, lambda u: 2 * r if u < 0.99 else 0.0, lambda u: 2 * r * 0.87 if u < 0.99 else 0.0, material, n=n, quer=quer)
+
+
+def stachel(t, basis, spitze_pos, r, material="beschlag", n=4, kruemmung=None):
+	"""Spitzer, kantiger Dorn von basis nach spitze_pos; kruemmung (Vector) biegt ihn in der Mitte."""
+	basis, spitze_pos = Vector(basis), Vector(spitze_pos)
+	pts = [basis.lerp(spitze_pos, i / 6) for i in range(7)]
+	if kruemmung is not None:
+		pts = [p + Vector(kruemmung) * math.sin(math.pi * i / 6) for i, p in enumerate(pts)]
+	richtung = (spitze_pos - basis).normalized()
+	quer = Vector((0, 1, 0)) if abs(richtung.y) < 0.9 else Vector((1, 0, 0))
+	strang(t, pts, lambda u: 2 * r * (1 - u), lambda u: 2 * r * (1 - u), material, n=n, quer=quer, eckig=(n == 4))
+
+
+def feder(t, basis, ende, breite, dicke, material="beschlag", bauch=0.0, quer=Vector((0, 1, 0))):
+	"""Flache Feder (für Flügel): breit an der Wurzel, rundet zur Spitze hin ab."""
+	basis, ende = Vector(basis), Vector(ende)
+	richtung = (ende - basis).normalized()
+	seite = quer.cross(richtung).normalized()
+	pts = [basis.lerp(ende, i / 8) + seite * bauch * math.sin(math.pi * i / 8) for i in range(9)]
+	bf = lambda u: breite * (0.65 + 0.6 * math.sin(math.pi * min(u, 0.999) * 0.9)) * (1 - u ** 3) if u < 1 else 0.0
+	strang(t, pts, bf, lambda u: dicke * (1 - 0.6 * u) if u < 1 else 0.0, material, n=8, quer=quer)
+
+
+def scheibe(t, mitte, r, dicke, material="beschlag", n=24, strahlen=0, strahl_laenge=0.3, wulst=0.85):
+	"""Runde Scheibe, deren Fläche zur Seite (±Y) zeigt; mit Strahlen wie eine Sonne."""
+	m = Matrix.Translation(mitte) @ Matrix.Rotation(math.radians(90), 4, "X")
+	def umriss(f):
+		pts = []
+		for k in range(n):
+			a = 2 * math.pi * k / n
+			rr = r
+			if strahlen:
+				s = 0.5 + 0.5 * math.cos(a * strahlen)
+				rr = r * (1 + strahl_laenge * s ** 3)
+			pts.append((math.cos(a) * rr * f, math.sin(a) * rr * f))
+		return pts
+	schnitte = [(m @ Matrix.Translation((0, 0, -dicke / 2)), umriss(wulst)),
+				(m @ Matrix.Translation((0, 0, 0)), umriss(1.0)),
+				(m @ Matrix.Translation((0, 0, dicke / 2)), umriss(wulst))]
+	loft(t, schnitte, material)
+
+
+def rohling(t, mitte, groesse, material="eis", saat=1, rauh=0.25, n=6, schritte=4):
+	"""Unregelmäßiger Brocken, wie aus dem Stein geschlagen (Länge entlang X)."""
+	import random
+	rng = random.Random(saat)
+	sx, sy, sz = groesse
+	schnitte = []
+	for i in range(schritte + 1):
+		u = i / schritte
+		x = mitte[0] - sx / 2 + sx * u
+		f = math.sin(math.pi * (0.15 + 0.7 * u)) ** 0.5
+		m = Matrix.Translation((x, mitte[1], mitte[2])) @ Matrix.Rotation(math.radians(90), 4, "Y")
+		pts = []
+		for k in range(n):
+			a = 2 * math.pi * k / n + rng.uniform(-0.2, 0.2)
+			j = 1 + rng.uniform(-rauh, rauh)
+			pts.append((math.cos(a) * sz / 2 * f * j, math.sin(a) * sy / 2 * f * j))
+		schnitte.append((m, pts))
+	loft(t, schnitte, material)

@@ -1,10 +1,12 @@
 class_name WaffenModell
 extends RefCounted
-## Modulare Waffen: jede Waffe besteht aus Teilen (Schwert: Klinge, Parierstange, Griff, Knauf), von jedem Teil gibt es
-## mehrere Formen (modelle/<waffe>/<teil>_<form>.glb, erzeugt von blender/waffen.py). Alle Teile liegen im selben
-## Koordinatensystem, darum passt jede Form auf jede andere. Das Tier färbt jedes Teil einzeln (Material nach Namen:
-## klinge, beschlag, leder, holz, leucht, stein, kristall, sehne, stoff, dunkel). Die Klinge zeigt nach -Z, der Griff liegt am Ursprung.
-## Die Teile sind nur Aussehen; die Werte der Waffe kommen weiter aus Rezept und Zufallswerten.
+## Modulare Waffen: jede Waffe besteht aus Teilen (Schwert: Klinge, Parierstange, Griff, Knauf).
+## Jedes Tier bringt eigene Module in seinem Stil mit (modelle/<waffe>/<teil>_t<tier>_<form>.glb, erzeugt von
+## blender/waffen.py): Iron schlicht, Palladium verziert, Mithril gerade und kantig, Glacialore aus Eis geschlagen,
+## Sungold mit Flügeln und Gold, Darksteel zackig in Schwarz und Rot. Ein Modul trägt immer das Metall seines Tiers.
+## Alle Teile liegen im selben Koordinatensystem, darum passt jedes Modul auf jedes andere, auch über Tiers hinweg.
+## Die Klinge zeigt nach -Z, der Griff liegt am Ursprung. Die Teile sind nur Aussehen; die Werte der Waffe kommen
+## weiter aus Rezept und Zufallswerten.
 
 const ORDNER := "res://assets/waffen/modelle/"
 const TIER_NAMEN := ["Iron", "Palladium", "Mithril", "Glacialore", "Sungold", "Darksteel"]
@@ -14,27 +16,29 @@ const TEILE := {
 	"schwert": {"klinge": "Klinge", "parier": "Parierstange", "griff": "Griff", "knauf": "Knauf"},
 }
 
-# Je Tier: Klingenmetall, Beschläge, Leder, Leuchtfarbe, Edelstein
+# Je Tier: Klingenmetall und Beschläge [Farbe, metallic, Rauheit], Leder, Leuchtfarbe, Edelstein
 const TIERS := [
-	{"klinge": [Color(0.5, 0.5, 0.5), 1.0, 0.45], "beschlag": [Color(0.2, 0.19, 0.18), 0.9, 0.6],
+	{"klinge": [Color(0.5, 0.5, 0.5), 1.0, 0.45], "beschlag": [Color(0.22, 0.21, 0.2), 0.9, 0.6],
 		"leder": Color(0.26, 0.15, 0.08), "leucht": Color(1.0, 0.5, 0.2), "stein": Color(0.5, 0.1, 0.05)},
-	{"klinge": [Color(0.8, 0.8, 0.82), 1.0, 0.2], "beschlag": [Color(0.62, 0.42, 0.24), 1.0, 0.35],
-		"leder": Color(0.2, 0.11, 0.06), "leucht": Color(1.0, 0.85, 0.6), "stein": Color(0.2, 0.4, 0.8)},
-	{"klinge": [Color(0.7, 0.78, 0.9), 1.0, 0.16], "beschlag": [Color(0.32, 0.42, 0.62), 1.0, 0.3],
-		"leder": Color(0.1, 0.12, 0.2), "leucht": Color(0.35, 0.65, 1.0), "stein": Color(0.3, 0.6, 1.0)},
-	{"klinge": [Color(0.82, 0.9, 0.95), 1.0, 0.1], "beschlag": [Color(0.55, 0.66, 0.74), 1.0, 0.25],
-		"leder": Color(0.85, 0.85, 0.82), "leucht": Color(0.3, 0.85, 1.0), "stein": Color(0.55, 0.88, 1.0)},
-	{"klinge": [Color(0.86, 0.83, 0.76), 1.0, 0.18], "beschlag": [Color(1.0, 0.71, 0.29), 1.0, 0.22],
-		"leder": Color(0.38, 0.06, 0.04), "leucht": Color(1.0, 0.45, 0.08), "stein": Color(0.9, 0.08, 0.02)},
-	{"klinge": [Color(0.07, 0.07, 0.08), 0.85, 0.28], "beschlag": [Color(0.04, 0.04, 0.05), 0.8, 0.4],
-		"leder": Color(0.05, 0.04, 0.05), "leucht": Color(0.65, 0.1, 1.0), "stein": Color(0.5, 0.05, 0.9)},
+	{"klinge": [Color(0.82, 0.82, 0.84), 1.0, 0.18], "beschlag": [Color(0.72, 0.6, 0.38), 1.0, 0.28],
+		"leder": Color(0.16, 0.08, 0.05), "leucht": Color(1.0, 0.85, 0.6), "stein": Color(0.15, 0.3, 0.85)},
+	{"klinge": [Color(0.68, 0.75, 0.86), 1.0, 0.24], "beschlag": [Color(0.42, 0.48, 0.58), 1.0, 0.35],
+		"leder": Color(0.1, 0.12, 0.18), "leucht": Color(0.35, 0.65, 1.0), "stein": Color(0.3, 0.6, 1.0)},
+	{"klinge": [Color(0.75, 0.85, 0.9), 1.0, 0.12], "beschlag": [Color(0.55, 0.66, 0.74), 1.0, 0.25],
+		"leder": Color(0.45, 0.42, 0.38), "leucht": Color(0.3, 0.85, 1.0), "stein": Color(0.55, 0.88, 1.0),
+		"eis": Color(0.55, 0.85, 0.85)},
+	{"klinge": [Color(0.88, 0.86, 0.8), 1.0, 0.16], "beschlag": [Color(1.0, 0.72, 0.3), 1.0, 0.2],
+		"leder": Color(0.86, 0.82, 0.72), "leucht": Color(1.0, 0.8, 0.4), "stein": Color(0.95, 0.55, 0.1)},
+	{"klinge": [Color(0.05, 0.035, 0.035), 0.85, 0.3], "beschlag": [Color(0.22, 0.03, 0.03), 0.9, 0.35],
+		"leder": Color(0.04, 0.03, 0.03), "leucht": Color(1.0, 0.08, 0.02), "stein": Color(0.85, 0.03, 0.02)},
 ]
 
 static var _cache := {}
 
 
 ## Baut die Waffe aus Teilen als Kind von parent.
-## auswahl: {teil: {"form": int, "tier": int}}; fehlende Teile bekommen Form 1 und standard_tier.
+## auswahl: {teil: {"tier": int, "form": int}} wählt je Teil ein Modul; fehlende Teile bekommen das
+## erste Modul von standard_tier.
 ## element_farbe färbt Leuchten und Kristall der Magiewaffen. Gibt false zurück, wenn es die Waffe nicht gibt.
 static func zusammenbauen(waffe: String, auswahl: Dictionary, parent: Node3D, standard_tier := 1,
 		element_farbe: Variant = null) -> bool:
@@ -45,9 +49,9 @@ static func zusammenbauen(waffe: String, auswahl: Dictionary, parent: Node3D, st
 	parent.add_child(wurzel)
 	for teil: String in TEILE[waffe]:
 		var w: Dictionary = auswahl.get(teil, {})
-		var form: int = clampi(int(w.get("form", 1)), 1, formen(waffe, teil))
 		var tier: int = clampi(int(w.get("tier", standard_tier)), 1, 6)
-		var pfad := "%s%s/%s_%d.glb" % [ORDNER, waffe, teil, form]
+		var form: int = clampi(int(w.get("form", 1)), 1, formen(waffe, teil, tier))
+		var pfad := "%s%s/%s_t%d_%d.glb" % [ORDNER, waffe, teil, tier, form]
 		if not ResourceLoader.exists(pfad):
 			continue
 		var modell := (load(pfad) as PackedScene).instantiate() as Node3D
@@ -57,17 +61,17 @@ static func zusammenbauen(waffe: String, auswahl: Dictionary, parent: Node3D, st
 	return true
 
 
-## Ganze Waffe in einem Tier mit den Standardformen.
+## Ganze Waffe aus den ersten Modulen eines Tiers.
 static func erzeugen(waffe: String, tier: int, parent: Node3D, element_farbe: Variant = null) -> bool:
 	return zusammenbauen(waffe, {}, parent, tier, element_farbe)
 
 
-## Anzahl der Formen eines Teils (zählt die Dateien einmal und merkt sie sich).
-static func formen(waffe: String, teil: String) -> int:
-	var schluessel := "_n_%s_%s" % [waffe, teil]
+## Anzahl der Module eines Teils in einem Tier (zählt die Dateien einmal und merkt sie sich).
+static func formen(waffe: String, teil: String, tier: int) -> int:
+	var schluessel := "_n_%s_%s_%d" % [waffe, teil, tier]
 	if not _cache.has(schluessel):
 		var n := 0
-		while ResourceLoader.exists("%s%s/%s_%d.glb" % [ORDNER, waffe, teil, n + 1]):
+		while ResourceLoader.exists("%s%s/%s_t%d_%d.glb" % [ORDNER, waffe, teil, tier, n + 1]):
 			n += 1
 		_cache[schluessel] = maxi(n, 1)
 	return _cache[schluessel]
@@ -112,6 +116,19 @@ static func material(name: String, tier: int, element_farbe: Variant = null) -> 
 			m.albedo_texture = _rausch("holz")
 			m.uv1_triplanar = true
 			m.uv1_scale = Vector3(8, 8, 1.2)
+		"eis": # Glacialore: durchscheinend wie Eis, leicht leuchtend
+			var c: Color = t.get("eis", Color(0.55, 0.85, 0.85))
+			m.albedo_color = Color(c.r, c.g, c.b, 0.82)
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
+			m.roughness = 0.12
+			m.metallic_specular = 0.9
+			m.emission_enabled = true
+			m.emission = c * 0.5
+			m.emission_energy_multiplier = 0.5
+			m.rim_enabled = true
+			m.rim = 0.7
+			m.rim_tint = 0.6
+			m.normal_enabled = false
 		"sehne", "stoff":
 			m.albedo_color = Color(0.82, 0.78, 0.66) if name == "sehne" else Color(0.6, 0.55, 0.45)
 			m.roughness = 0.9
