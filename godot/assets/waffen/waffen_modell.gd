@@ -55,6 +55,10 @@ const WAFFEN := {
 		"schaft": ["speerschaft", "Schaft"],
 		"ende": ["schaftende", "Schaftende", Vector3(0.85, 0.85, 0.85), 0.0, -0.7],
 	},
+	"schild": {
+		"koerper": ["schildkoerper", "Schildkörper"],
+		"buckel": ["schildbuckel", "Schildbuckel"],
+	},
 }
 
 # Modellnamen aus weapons.json -> modulare Waffe
@@ -64,18 +68,18 @@ const AUS_SPIEL := {"sword": "schwert", "greatsword": "grossschwert", "rapier": 
 # Je Tier: Klingenmetall und Beschläge [Farbe, metallic, Rauheit], Leder, Leuchtfarbe, Edelstein
 const TIERS := [
 	{"klinge": [Color(0.5, 0.5, 0.5), 1.0, 0.45], "beschlag": [Color(0.22, 0.21, 0.2), 0.9, 0.6],
-		"leder": Color(0.26, 0.15, 0.08), "leucht": Color(1.0, 0.5, 0.2), "stein": Color(0.5, 0.1, 0.05)},
+		"leder": Color(0.26, 0.15, 0.08), "leucht": Color(1.0, 0.5, 0.2), "stein": Color(0.5, 0.1, 0.05), "wappen": Color(0.42, 0.3, 0.18)},
 	{"klinge": [Color(0.82, 0.82, 0.84), 1.0, 0.18], "beschlag": [Color(0.72, 0.6, 0.38), 1.0, 0.28],
-		"leder": Color(0.16, 0.08, 0.05), "leucht": Color(1.0, 0.85, 0.6), "stein": Color(0.15, 0.3, 0.85)},
+		"leder": Color(0.16, 0.08, 0.05), "leucht": Color(1.0, 0.85, 0.6), "stein": Color(0.15, 0.3, 0.85), "wappen": Color(0.1, 0.16, 0.42)},
 	{"klinge": [Color(0.68, 0.75, 0.86), 1.0, 0.24], "beschlag": [Color(0.42, 0.48, 0.58), 1.0, 0.35],
-		"leder": Color(0.1, 0.12, 0.18), "leucht": Color(0.35, 0.65, 1.0), "stein": Color(0.3, 0.6, 1.0)},
+		"leder": Color(0.1, 0.12, 0.18), "leucht": Color(0.35, 0.65, 1.0), "stein": Color(0.3, 0.6, 1.0), "wappen": Color(0.36, 0.42, 0.5)},
 	{"klinge": [Color(0.75, 0.85, 0.9), 1.0, 0.12], "beschlag": [Color(0.55, 0.66, 0.74), 1.0, 0.25],
 		"leder": Color(0.45, 0.42, 0.38), "leucht": Color(0.3, 0.85, 1.0), "stein": Color(0.55, 0.88, 1.0),
 		"eis": Color(0.55, 0.85, 0.85)},
 	{"klinge": [Color(0.88, 0.86, 0.8), 1.0, 0.16], "beschlag": [Color(1.0, 0.72, 0.3), 1.0, 0.2],
-		"leder": Color(0.86, 0.82, 0.72), "leucht": Color(1.0, 0.8, 0.4), "stein": Color(0.95, 0.55, 0.1)},
+		"leder": Color(0.86, 0.82, 0.72), "leucht": Color(1.0, 0.8, 0.4), "stein": Color(0.95, 0.55, 0.1), "wappen": Color(0.88, 0.86, 0.8)},
 	{"klinge": [Color(0.05, 0.035, 0.035), 0.85, 0.3], "beschlag": [Color(0.22, 0.03, 0.03), 0.9, 0.35],
-		"leder": Color(0.04, 0.03, 0.03), "leucht": Color(1.0, 0.08, 0.02), "stein": Color(0.85, 0.03, 0.02)},
+		"leder": Color(0.04, 0.03, 0.03), "leucht": Color(1.0, 0.08, 0.02), "stein": Color(0.85, 0.03, 0.02), "wappen": Color(0.25, 0.03, 0.03)},
 ]
 
 static var _cache := {}
@@ -186,6 +190,12 @@ static func material(name: String, tier: int, element_farbe: Variant = null) -> 
 			m.rim = 0.7
 			m.rim_tint = 0.6
 			m.normal_enabled = false
+		"wappen": # Vorderseite des Schilds; später kommt hier die Bemalung der Fraktion hin
+			m.albedo_color = t.get("wappen", Color(0.5, 0.5, 0.5))
+			m.roughness = 0.65
+			m.albedo_texture = _rausch("holz")
+			m.uv1_triplanar = true
+			m.uv1_scale = Vector3(3, 3, 3)
 		"sehne", "stoff":
 			m.albedo_color = Color(0.82, 0.78, 0.66) if name == "sehne" else Color(0.6, 0.55, 0.45)
 			m.roughness = 0.9
