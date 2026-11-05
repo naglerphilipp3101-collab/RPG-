@@ -1,20 +1,49 @@
 class_name WaffenModell
 extends RefCounted
-## Modulare Waffen: jede Waffe besteht aus Teilen (Schwert: Klinge, Parierstange, Griff, Knauf).
-## Jedes Tier bringt eigene Module in seinem Stil mit (modelle/<waffe>/<teil>_t<tier>_<form>.glb, erzeugt von
-## blender/waffen.py): Iron schlicht, Palladium verziert, Mithril gerade und kantig, Glacialore aus Eis geschlagen,
-## Sungold mit Flügeln und Gold, Darksteel zackig in Schwarz und Rot. Ein Modul trägt immer das Metall seines Tiers.
-## Alle Teile liegen im selben Koordinatensystem, darum passt jedes Modul auf jedes andere, auch über Tiers hinweg.
-## Die Klinge zeigt nach -Z, der Griff liegt am Ursprung. Die Teile sind nur Aussehen; die Werte der Waffe kommen
-## weiter aus Rezept und Zufallswerten.
+## Modulare Waffen: jede Waffe besteht aus Plätzen (Schwert: Klinge, Parierstange, Griff, Knauf), auf jeden Platz
+## kommt ein Modul einer Modulart. Jedes Tier bringt eigene Module in seinem Stil mit
+## (modelle/<modulart>/t<tier>_<form>.glb, erzeugt von blender/waffen.py): Iron schlicht, Palladium verziert,
+## Mithril gerade und kantig, Glacialore aus Eis geschlagen, Sungold mit Flügeln und Gold, Darksteel zackig in Schwarz
+## und Rot. Ein Modul trägt immer das Metall seines Tiers; Tiers dürfen gemischt werden.
+## Geteilte Modularten (Knauf, Parierstange, Einhandgriff …) sind einmal modelliert und werden je Waffe verschoben
+## und skaliert (WAFFEN). Die Klinge zeigt nach -Z, die Griffmitte liegt am Ursprung.
+## Die Module sind nur Aussehen. Tier, Schaden und Name der Waffe kommen vom Hauptmodul (erster Platz).
 
 const ORDNER := "res://assets/waffen/modelle/"
 const TIER_NAMEN := ["Iron", "Palladium", "Mithril", "Glacialore", "Sungold", "Darksteel"]
 
-# Waffe -> Teile in Bau-Reihenfolge, mit deutschem Namen für die Oberfläche
-const TEILE := {
-	"schwert": {"klinge": "Klinge", "parier": "Parierstange", "griff": "Griff", "knauf": "Knauf"},
+# Waffe -> Platz -> [Modulart, Name des Platzes, Skalierung, Ankerhöhe im Modell, Zielhöhe in der Waffe].
+# Höhen in Metern entlang der Klinge (positiv = Richtung Spitze); Skalierung um den Anker, dann zum Ziel verschoben.
+# Der erste Platz ist das Hauptmodul.
+const WAFFEN := {
+	"schwert": {
+		"klinge": ["schwertklinge", "Klinge"],
+		"parier": ["parierstange", "Parierstange"],
+		"griff": ["einhandgriff", "Griff"],
+		"knauf": ["knauf", "Knauf"],
+	},
+	"grossschwert": {
+		"klinge": ["grossschwertklinge", "Klinge"],
+		"parier": ["parierstange", "Parierstange", Vector3(1.3, 1.2, 1.2), 0.09, 0.175],
+		"griff": ["zweihandgriff", "Griff"],
+		"knauf": ["knauf", "Knauf", Vector3(1.2, 1.2, 1.2), -0.076, -0.126],
+	},
+	"degen": {
+		"klinge": ["degenklinge", "Klinge"],
+		"korb": ["korb", "Korb"],
+		"griff": ["einhandgriff", "Griff"],
+		"knauf": ["knauf", "Knauf"],
+	},
+	"messer": {
+		"klinge": ["messerklinge", "Klinge"],
+		"parier": ["parierstange", "Parierstange", Vector3(0.6, 0.7, 0.6), 0.09, 0.072],
+		"griff": ["einhandgriff", "Griff", Vector3(0.92, 0.92, 0.8), 0.0, 0.0],
+		"knauf": ["knauf", "Knauf", Vector3(0.8, 0.8, 0.8), -0.076, -0.058],
+	},
 }
+
+# Modellnamen aus weapons.json -> modulare Waffe
+const AUS_SPIEL := {"sword": "schwert", "greatsword": "grossschwert", "rapier": "degen", "dagger": "messer"}
 
 # Je Tier: Klingenmetall und Beschläge [Farbe, metallic, Rauheit], Leder, Leuchtfarbe, Edelstein
 const TIERS := [
@@ -36,26 +65,33 @@ const TIERS := [
 static var _cache := {}
 
 
-## Baut die Waffe aus Teilen als Kind von parent.
-## auswahl: {teil: {"tier": int, "form": int}} wählt je Teil ein Modul; fehlende Teile bekommen das
-## erste Modul von standard_tier.
+## Baut die Waffe aus Modulen als Kind von parent.
+## auswahl: {platz: {"tier": int, "form": int}}; fehlende Plätze bekommen das erste Modul von standard_tier.
 ## element_farbe färbt Leuchten und Kristall der Magiewaffen. Gibt false zurück, wenn es die Waffe nicht gibt.
 static func zusammenbauen(waffe: String, auswahl: Dictionary, parent: Node3D, standard_tier := 1,
 		element_farbe: Variant = null) -> bool:
-	if not TEILE.has(waffe):
+	if not WAFFEN.has(waffe):
 		return false
 	var wurzel := Node3D.new()
 	wurzel.name = waffe
 	parent.add_child(wurzel)
-	for teil: String in TEILE[waffe]:
-		var w: Dictionary = auswahl.get(teil, {})
+	for platz: String in WAFFEN[waffe]:
+		var def: Array = WAFFEN[waffe][platz]
+		var art: String = def[0]
+		var w: Dictionary = auswahl.get(platz, {})
 		var tier: int = clampi(int(w.get("tier", standard_tier)), 1, 6)
-		var form: int = clampi(int(w.get("form", 1)), 1, formen(waffe, teil, tier))
-		var pfad := "%s%s/%s_t%d_%d.glb" % [ORDNER, waffe, teil, tier, form]
+		var form: int = clampi(int(w.get("form", 1)), 1, formen(art, tier))
+		var pfad := "%s%s/t%d_%d.glb" % [ORDNER, art, tier, form]
 		if not ResourceLoader.exists(pfad):
 			continue
 		var modell := (load(pfad) as PackedScene).instantiate() as Node3D
-		modell.name = teil
+		modell.name = platz
+		if def.size() >= 5:
+			# Godot-Achse: Höhe h entlang der Klinge liegt bei z = -h
+			var s: Vector3 = def[2]
+			var anker := Vector3(0, 0, -float(def[3]))
+			var ziel := Vector3(0, 0, -float(def[4]))
+			modell.transform = Transform3D(Basis.from_scale(s), ziel - s * anker)
 		wurzel.add_child(modell)
 		_materialien(modell, tier, element_farbe)
 	return true
@@ -66,15 +102,20 @@ static func erzeugen(waffe: String, tier: int, parent: Node3D, element_farbe: Va
 	return zusammenbauen(waffe, {}, parent, tier, element_farbe)
 
 
-## Anzahl der Module eines Teils in einem Tier (zählt die Dateien einmal und merkt sie sich).
-static func formen(waffe: String, teil: String, tier: int) -> int:
-	var schluessel := "_n_%s_%s_%d" % [waffe, teil, tier]
+## Anzahl der Module einer Modulart in einem Tier (zählt die Dateien einmal und merkt sie sich).
+static func formen(art: String, tier: int) -> int:
+	var schluessel := "_n_%s_%d" % [art, tier]
 	if not _cache.has(schluessel):
 		var n := 0
-		while ResourceLoader.exists("%s%s/%s_t%d_%d.glb" % [ORDNER, waffe, teil, tier, n + 1]):
+		while ResourceLoader.exists("%s%s/t%d_%d.glb" % [ORDNER, art, tier, n + 1]):
 			n += 1
 		_cache[schluessel] = maxi(n, 1)
 	return _cache[schluessel]
+
+
+## Modulart eines Platzes.
+static func modulart(waffe: String, platz: String) -> String:
+	return WAFFEN[waffe][platz][0]
 
 
 static func _materialien(knoten: Node, tier: int, element_farbe: Variant) -> void:

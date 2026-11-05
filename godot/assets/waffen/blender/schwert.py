@@ -61,6 +61,12 @@ def klinge_t2(t, form):
 	elif form == 2:  # Flamberge: gewellte Schneiden
 		bf = lambda u: (1 - 0.25 * u) * (1 + (0.13 * math.sin(u * 2 * math.pi * 6.5) if 0.12 < u < 0.85 else 0)) * spitze(u, 0.15)
 		klinge(t, KL, 0.8, 0.05, 0.009, hohlkehle=0.4, kehl_laenge=0.75, breite_fn=bf, schritte=80)
+	elif form == 3:  # Prunkklinge: Schnörkelhaken an der Fehlschärfe
+		klinge(t, KL, 0.78, 0.05, 0.009, hohlkehle=0.45, kehl_laenge=0.7, kehlen=[(0.0, 0.2), (0.45, 0.08)],
+			   breite_fn=lambda u: (0.8 if u < 0.07 else (1 - 0.2 * u)) * spitze(u, 0.18), schritte=26)
+		for s in (1, -1):
+			strang(t, [Vector((s * 0.02, 0, KL + 0.008))] + spirale((s * 0.036, 0, KL + 0.03), 0.016, 0.004, 1.0, n=16,
+				   start=math.pi if s > 0 else 0.0, richtung=-s)[1:], lambda u: 0.007 * (1 - 0.5 * u), 0.008, "beschlag", n=6)
 
 
 def klinge_t3(t, form):
@@ -71,6 +77,9 @@ def klinge_t3(t, form):
 	elif form == 2:  # Dornklinge: Rautenquerschnitt, gerade verjüngt
 		klinge(t, KL, 0.82, 0.046, 0.013, schnitt=lambda w, d: [(w, 0), (0, d), (-w, 0), (0, -d)], schritte=4,
 			   breite_fn=lambda u: (1 - 0.45 * u) * linear_spitz(u, 0.8), dicke_fn=lambda u: 1 - 0.35 * u)
+	elif form == 3:  # Breitkeil: breit, parallel, gerade Spitze von beiden Seiten
+		klinge(t, KL, 0.72, 0.068, 0.013, schnitt=lambda w, d: sechskant(w, d, 0.35), schritte=6,
+			   breite_fn=lambda u: linear_spitz(u, 0.84), dicke_fn=lambda u: 1 - 0.25 * u)
 
 
 def klinge_t4(t, form):
@@ -80,6 +89,9 @@ def klinge_t4(t, form):
 	elif form == 2:  # Breiter Keil, schief abgeschlagen
 		klinge(t, KL - 0.004, 0.66, 0.078, 0.019, material="eis", hohlkehle=0, n_halb=4, schritte=7, rauh=0.18, saat=11,
 			   breite_fn=lambda u: (1.0 - 0.1 * u, (1 - 0.2 * u) * linear_spitz(u, 0.55) * 2 - 1.0 + 0.1 * u), spitze_x=-0.03)
+	elif form == 3:  # Eiszapfen: lang, dreieckig, roh
+		klinge(t, KL - 0.004, 0.8, 0.046, 0.02, material="eis", hohlkehle=0, n_halb=3, schritte=8, rauh=0.1, saat=17,
+			   breite_fn=lambda u: (1 - 0.7 * u) * linear_spitz(u, 0.9))
 
 
 def klinge_t5(t, form):
@@ -91,6 +103,14 @@ def klinge_t5(t, form):
 		bf = lambda u: (1.35 - 0.35 * min(u / 0.12, 1) ** 0.5 - 0.1 * u) * spitze(u, 0.2)
 		klinge(t, KL, 0.8, 0.05, 0.009, hohlkehle=0.4, kehl_laenge=0.7, breite_fn=bf, schritte=26)
 		rune_streifen(t, 0.13, 0.6, 0.008, 0.0031, material="beschlag")
+	elif form == 3:  # Federklinge: Federn umfassen den Klingenansatz
+		klinge(t, KL, 0.76, 0.054, 0.009, hohlkehle=0.4, kehl_laenge=0.7, schritte=24,
+			   breite_fn=lambda u: (1 - 0.15 * u) * spitze(u, 0.22))
+		rune_streifen(t, 0.15, 0.55, 0.008, 0.0031, material="beschlag")
+		for s in (1, -1):
+			for i in range(3):
+				b = Vector((s * (0.012 + 0.006 * i), 0, KL + 0.002))
+				feder(t, b, b + Vector((s * (0.02 + 0.006 * i), 0, 0.09 - 0.018 * i)), 0.012, 0.007, bauch=0.006 * s)
 
 
 def klinge_t6(t, form):
@@ -114,6 +134,16 @@ def klinge_t6(t, form):
 
 
 # ================================================================ Parierstangen
+	elif form == 3:  # Spalter: breite, eckige Hackspitze mit Rückhaken
+		def bf(u):
+			rechts = 1 + 0.9 * min(1.0, max(0.0, (u - 0.35) / 0.4))
+			if u > 0.8:
+				rechts *= max(0.0, 1 - (u - 0.8) / 0.2) * 1.2
+			links = (1 - 0.2 * u) * linear_spitz(u, 0.86) + (0.5 if 0.12 < u < 0.2 else 0.0) * (1 - abs(u - 0.16) / 0.04)
+			return (links, rechts)
+		klinge(t, KL, 0.7, 0.056, 0.012, hohlkehle=0, breite_fn=bf, schritte=60, n_halb=5, spitze_x=0.02,
+			   schnitt=lambda w, d: [(w, 0), (w * 0.4, d), (-w * 0.4, d), (-w, 0), (-w * 0.4, -d), (w * 0.4, -d)])
+		rune_streifen(t, 0.14, 0.6, 0.006, 0.0062, material="leucht")
 
 
 def parier_t1(t, form):
@@ -211,59 +241,89 @@ def parier_t6(t, form):
 
 
 # ================================================================ Griffe
+# Alle Griffe nehmen z0/z1, damit dieselbe Bauweise auch den Zweihandgriff ergibt.
 
 
-def griff_t1(t, form):
-	if form == 1:
-		wicklung(t, G0, G1, 0.0155)
+def _stellen(z0, z1, n):
+	"""n gleichmäßig verteilte Höhen zwischen z0 und z1 (ohne die Enden)."""
+	return [z0 + (z1 - z0) * (i + 1) / (n + 1) for i in range(n)]
+
+
+def griff_t1(t, form, z0=G0, z1=G1):
+	if form == 1:  # Lederwicklung
+		wicklung(t, z0, z1, 0.0155)
 	else:  # Holz mit Rillen
-		profil = [(0.0158 if k % 3 else 0.0143, G0 + (G1 - G0) * k / 12) for k in range(13)]
+		k_max = max(6, round((z1 - z0) / 0.012))
+		profil = [(0.0158 if k % 3 else 0.0143, z0 + (z1 - z0) * k / k_max) for k in range(k_max + 1)]
 		drehkoerper(t, profil, "holz", n=12)
-	ring(t, G0, 0.017, 0.012)
-	ring(t, G1, 0.017, 0.012)
+	ring(t, z0, 0.017, 0.012)
+	ring(t, z1, 0.017, 0.012)
 
 
-def griff_t2(t, form):
+def griff_t2(t, form, z0=G0, z1=G1):
 	if form == 1:  # Drahtwicklung
-		wicklung(t, G0, G1, 0.0148, material="beschlag", windungen=16, tiefe=0.0012, n=10)
-	else:  # Leder mit drei Zierringen
-		wicklung(t, G0, G1, 0.0155)
-		for z in (-0.025, 0.0025, 0.03):
+		wicklung(t, z0, z1, 0.0148, material="beschlag", windungen=max(16, round((z1 - z0) / 0.009)), tiefe=0.0012, n=10)
+	else:  # Leder mit Zierringen
+		wicklung(t, z0, z1, 0.0155)
+		for z in _stellen(z0, z1, 3 if z1 - z0 < 0.2 else 5):
 			ring(t, z, 0.0162, 0.006, wulst=0.25)
-	ring(t, G0, 0.0175, 0.014, wulst=0.25)
-	ring(t, G1, 0.0175, 0.014, wulst=0.25)
+	ring(t, z0, 0.0175, 0.014, wulst=0.25)
+	ring(t, z1, 0.0175, 0.014, wulst=0.25)
 
 
-def griff_t3(t, form):
-	# Achteckig, gerade, mit Metallbändern
-	drehkoerper(t, [(0.0158, G0), (0.0158, G1)], "leder", n=8, phase=math.pi / 8)
-	for z in (G0, -0.012, 0.035, G1):
-		drehkoerper(t, [(0.0172, z - 0.005), (0.0172, z + 0.005)], "beschlag", n=8, phase=math.pi / 8)
+def griff_t3(t, form, z0=G0, z1=G1):
+	n, phase = (8, math.pi / 8) if form == 1 else (4, math.pi / 4)  # achteckig oder vierkant
+	r = 0.0158 if form == 1 else 0.0185
+	drehkoerper(t, [(r, z0), (r, z1)], "leder", n=n, phase=phase)
+	for z in [z0] + _stellen(z0, z1, 2 if z1 - z0 < 0.2 else 4) + [z1]:
+		drehkoerper(t, [(r * 1.09, z - 0.005), (r * 1.09, z + 0.005)], "beschlag", n=n, phase=phase)
 
 
-def griff_t4(t, form):
-	# Fellwicklung mit Lederriemen
-	wicklung(t, G0, G1, 0.017, windungen=5, tiefe=0.003, n=9)
-	for z in (G0 + 0.006, 0.0, G1 - 0.006):
-		ring(t, z, 0.0185, 0.008, material="dunkel", n=9, wulst=0.05)
+def griff_t4(t, form, z0=G0, z1=G1):
+	if form == 1:  # Fellwicklung mit Lederriemen
+		wicklung(t, z0, z1, 0.017, windungen=max(5, round((z1 - z0) / 0.03)), tiefe=0.003, n=9)
+		for z in [z0 + 0.006] + _stellen(z0, z1, 1 if z1 - z0 < 0.2 else 3) + [z1 - 0.006]:
+			ring(t, z, 0.0185, 0.008, material="dunkel", n=9, wulst=0.05)
+	else:  # Aufeinandergesetzte Eisbrocken, mit Riemen gebunden
+		n = max(3, round((z1 - z0) / 0.048))
+		h = (z1 - z0) / n
+		for i in range(n):
+			m = z0 + h * (i + 0.5)
+			rohling(t, (0, 0, m), (h * 1.05, 0.032, 0.034), "eis", saat=40 + i, rauh=0.15, n=6, schritte=3, achse="z")
+		for i in range(n + 1):
+			ring(t, z0 + h * i, 0.0175, 0.007, material="dunkel", n=9, wulst=0.05)
 
 
-def griff_t5(t, form):
-	# Helles Leder mit goldenen Ringen
-	wicklung(t, G0, G1, 0.0155)
-	for z in (G0, -0.0, G1):
-		ring(t, z, 0.0172, 0.01, wulst=0.3)
+def griff_t5(t, form, z0=G0, z1=G1):
+	wicklung(t, z0, z1, 0.0155)
+	if form == 1:  # Helles Leder mit goldenen Ringen
+		for z in _stellen(z0, z1, 1 if z1 - z0 < 0.2 else 3):
+			ring(t, z, 0.0172, 0.01, wulst=0.3)
+	else:  # Goldene Spirale über dem Leder
+		windungen = (z1 - z0) / 0.045
+		pts = [Vector((math.cos(a) * 0.0162, math.sin(a) * 0.0162, z0 + (z1 - z0) * a / (windungen * 2 * math.pi)))
+			   for a in [windungen * 2 * math.pi * i / (int(windungen * 16)) for i in range(int(windungen * 16) + 1)]]
+		strang(t, pts, 0.004, 0.003, "beschlag", n=6)
+	ring(t, z0, 0.0172, 0.01, wulst=0.3)
+	ring(t, z1, 0.0172, 0.01, wulst=0.3)
 
 
-def griff_t6(t, form):
-	# Schwarz gewickelt, Ringe mit Dornen
-	wicklung(t, G0, G1, 0.0152, windungen=9, tiefe=0.002)
-	for z in (G0 + 0.004, 0.0, G1 - 0.004):
-		drehkoerper(t, [(0.0168, z - 0.005), (0.0175, z), (0.0168, z + 0.005)], "beschlag", n=6)
-		for k in range(3):
-			a = 2 * math.pi * k / 3 + (0.5 if z == 0 else 0)
-			r = Vector((math.cos(a), math.sin(a), 0))
-			stachel(t, Vector((0, 0, z)) + r * 0.016, Vector((0, 0, z - 0.008)) + r * 0.028, 0.0035)
+def griff_t6(t, form, z0=G0, z1=G1):
+	if form == 1:  # Schwarz gewickelt, Ringe mit Dornen
+		wicklung(t, z0, z1, 0.0152, windungen=max(9, round((z1 - z0) / 0.016)), tiefe=0.002)
+		for z in [z0 + 0.004] + _stellen(z0, z1, 1 if z1 - z0 < 0.2 else 3) + [z1 - 0.004]:
+			drehkoerper(t, [(0.0168, z - 0.005), (0.0175, z), (0.0168, z + 0.005)], "beschlag", n=6)
+			for k in range(3):
+				a = 2 * math.pi * k / 3 + z * 40
+				r = Vector((math.cos(a), math.sin(a), 0))
+				stachel(t, Vector((0, 0, z)) + r * 0.016, Vector((0, 0, z - 0.008)) + r * 0.028, 0.0035)
+	else:  # Gerippt wie Wirbelknochen
+		k_max = max(8, round((z1 - z0) / 0.012))
+		profil = []
+		for k in range(k_max + 1):
+			z = z0 + (z1 - z0) * k / k_max
+			profil.append((0.0175 if k % 2 == 0 else 0.0135, z))
+		drehkoerper(t, profil, "beschlag", n=6)
 
 
 # ================================================================ Knäufe
@@ -331,10 +391,125 @@ def knauf_t6(t, form):
 					kruemmung=r * 0.026)
 
 
-# Teil -> Tier -> (Anzahl Formen, Baufunktion)
-MODULE = {
-	"klinge": {1: (3, klinge_t1), 2: (2, klinge_t2), 3: (2, klinge_t3), 4: (2, klinge_t4), 5: (2, klinge_t5), 6: (2, klinge_t6)},
-	"parier": {1: (2, parier_t1), 2: (2, parier_t2), 3: (2, parier_t3), 4: (2, parier_t4), 5: (2, parier_t5), 6: (2, parier_t6)},
-	"griff": {1: (2, griff_t1), 2: (2, griff_t2), 3: (1, griff_t3), 4: (1, griff_t4), 5: (1, griff_t5), 6: (1, griff_t6)},
-	"knauf": {1: (2, knauf_t1), 2: (2, knauf_t2), 3: (2, knauf_t3), 4: (2, knauf_t4), 5: (2, knauf_t5), 6: (2, knauf_t6)},
-}
+# ================================================================ Körbe (Degen)
+# Der Korb sitzt wie die Parierstange bei PZ und schützt die Hand bis zum Knauf (KN).
+
+
+def _buegel(t, x=0.045, eckig=False, material="beschlag", dicke=0.007):
+	"""Griffbügel von der Parierstange außen herum zum Knauf."""
+	if eckig:
+		pts = [Vector((0.012, 0, PZ)), Vector((x, 0, PZ)), Vector((x, 0, KN + 0.004)), Vector((0.012, 0, KN + 0.004))]
+		pts = [pts[0].lerp(pts[1], i / 3) for i in range(3)] + [pts[1].lerp(pts[2], i / 6) for i in range(6)] + [pts[2].lerp(pts[3], i / 3) for i in range(4)]
+		strang(t, pts, dicke, dicke, material, n=4, eckig=True)
+	else:
+		pts = [Vector((0.01 + (x - 0.01) * math.sin(math.pi * u) ** 0.6, 0, PZ + (KN - PZ) * u)) for u in [i / 14 for i in range(15)]]
+		strang(t, pts, dicke, dicke, material, n=8)
+	return pts
+
+
+def _seitenring(t, r=0.026, material="beschlag", dicke=0.005):
+	"""Ringe auf beiden Seiten der Klinge, quer zur Parierstange."""
+	for s in (1, -1):
+		pts = [Vector((math.cos(a) * r * 0.9, s * (0.006 + r * (1 + math.sin(a)) * 0.9), PZ + 0.004)) for a in [2 * math.pi * i / 20 - math.pi / 2 for i in range(21)]]
+		strang(t, pts, dicke, dicke, material, n=6, quer=Vector((0, 0, 1)), kappen=False)
+
+
+def _schale(t, r, tiefe, material="beschlag", n=16, z=PZ - 0.004):
+	"""Glocke (Stichblatt) um den Klingenansatz, öffnet sich zur Klinge hin."""
+	drehkoerper(t, [(0.011, z), (r * 0.6, z + tiefe * 0.15), (r * 0.9, z + tiefe * 0.5), (r, z + tiefe), (r * 0.97, z + tiefe + 0.004), (0.011, z + 0.004)], material, n=n)
+
+
+def korb_t1(t, form):
+	huelse(t, 0.04)
+	if form == 1:  # Bügel und gerade Parierstange
+		parierstange(t, PZ, 0.16, 0.016, 0.02, form="gerade")
+		_buegel(t)
+	else:  # Einfache Glocke
+		_schale(t, 0.042, 0.03)
+		parierstange(t, PZ - 0.004, 0.14, 0.012, 0.016, form="gerade")
+
+
+def korb_t2(t, form):
+	huelse(t, 0.04)
+	if form == 1:  # Gewundener Korb: Bügel, Seitenringe, Schnörkelenden
+		parierstange(t, PZ, 0.13, 0.014, 0.018, form="gerade")
+		_buegel(t, 0.05)
+		_seitenring(t)
+		for s in (1, -1):
+			strang(t, spirale((s * 0.07, 0, PZ + 0.012), 0.012, 0.003, 1.1, n=14, start=-math.pi / 2, richtung=s),
+				   lambda u: 0.009 * (1 - 0.5 * u), 0.012, "beschlag", n=6)
+	else:  # Glocke mit Wulstrand und Stein
+		_schale(t, 0.048, 0.034)
+		ring(t, PZ + 0.03, 0.047, 0.006, wulst=0.25, n=20)
+		_buegel(t, 0.05, dicke=0.006)
+		for s in (1, -1):
+			edelstein(t, Vector((0, s * 0.03, PZ + 0.012)), 0.007, "stein", achse=Vector((0, s, 0.4)))
+
+
+def korb_t3(t, form):
+	huelse(t, 0.044)
+	if form == 1:  # Gerade Stäbe: Balken und eckiger Bügel
+		quader(t, (0, 0, PZ), (0.15, 0.022, 0.018), "beschlag", fase=0.004)
+		_buegel(t, 0.046, eckig=True, dicke=0.009)
+	else:  # Sechseckige Platte
+		drehkoerper(t, [(0.011, PZ - 0.004), (0.05, PZ - 0.002), (0.05, PZ + 0.006), (0.011, PZ + 0.008)], "beschlag", n=6)
+		_buegel(t, 0.046, eckig=True, dicke=0.008)
+
+
+def korb_t4(t, form):
+	if form == 1:  # Kristallkäfig: Splitter wachsen zum Knauf
+		rohling(t, (0, 0, PZ + 0.004), (0.06, 0.03, 0.028), "eis", saat=31)
+		for a, l in [(-100, 0.14), (-125, 0.11), (-75, 0.1), (160, 0.06), (20, 0.06)]:
+			w = math.radians(a)
+			kristall(t, (0.012 * math.copysign(1, math.cos(w)), 0, PZ), (math.cos(w), 0.1, math.sin(w)), l, 0.008, "eis")
+	else:  # Rohe Eisglocke
+		drehkoerper(t, [(0.012, PZ - 0.006), (0.032, PZ + 0.0), (0.046, PZ + 0.022), (0.04, PZ + 0.03), (0.012, PZ)], "eis", n=7)
+
+
+def korb_t5(t, form):
+	huelse(t, 0.04)
+	if form == 1:  # Flügel, die die Hand umschließen
+		for s in (1, -1):
+			for i in range(4):
+				w = math.radians(-20 - 28 * i)
+				b = Vector((s * 0.012, 0, PZ))
+				feder(t, b, b + Vector((s * math.cos(w) * 0.07, 0.01 * i * s, math.sin(w) * 0.09)), 0.016, 0.005, bauch=-0.008 * s)
+		edelstein(t, Vector((0, 0.014, PZ)), 0.008, "stein", achse=Vector((0, 1, 0)))
+		edelstein(t, Vector((0, -0.014, PZ)), 0.008, "stein", achse=Vector((0, -1, 0)))
+	else:  # Sonnenglocke mit Strahlen
+		_schale(t, 0.044, 0.026, n=24)
+		for k in range(12):
+			a = 2 * math.pi * k / 12
+			r = Vector((math.cos(a), math.sin(a), 0))
+			stachel(t, Vector((0, 0, PZ + 0.022)) + r * 0.04, Vector((0, 0, PZ + 0.03)) + r * 0.058, 0.004, n=6)
+		_buegel(t, 0.05, dicke=0.006)
+
+
+def korb_t6(t, form):
+	huelse(t, 0.046)
+	if form == 1:  # Bügel mit Dornen
+		quader(t, (0, 0, PZ), (0.1, 0.024, 0.02), "beschlag", fase=0.006)
+		pts = _buegel(t, 0.05, dicke=0.008)
+		for i in (3, 6, 9, 12):
+			p = pts[i]
+			stachel(t, p, p + Vector((0.022, 0, 0.006)), 0.005)
+		for s in (1, -1):
+			stachel(t, (s * 0.05, 0, PZ), (s * 0.085, 0, PZ + 0.04), 0.008)
+	else:  # Dornenkäfig: gebogene Dornen um die Hand
+		edelstein(t, Vector((0, 0, PZ)), 0.014, "stein", achse="z", n=6)
+		for k in range(5):
+			a = 2 * math.pi * k / 5
+			r = Vector((math.cos(a), math.sin(a), 0))
+			stachel(t, Vector((0, 0, PZ)) + r * 0.012, Vector((0, 0, PZ - 0.1)) + r * 0.03, 0.006, kruemmung=r * 0.03)
+
+
+def _je_tier(fns, n):
+	"""{tier: (anzahl, fn)} aus der Liste der Baufunktionen t1..t6."""
+	return {i + 1: (n[i] if isinstance(n, list) else n, f) for i, f in enumerate(fns)}
+
+
+KLINGEN = [klinge_t1, klinge_t2, klinge_t3, klinge_t4, klinge_t5, klinge_t6]
+PARIER = [parier_t1, parier_t2, parier_t3, parier_t4, parier_t5, parier_t6]
+GRIFFE = [griff_t1, griff_t2, griff_t3, griff_t4, griff_t5, griff_t6]
+KNAEUFE = [knauf_t1, knauf_t2, knauf_t3, knauf_t4, knauf_t5, knauf_t6]
+KOERBE = [korb_t1, korb_t2, korb_t3, korb_t4, korb_t5, korb_t6]
