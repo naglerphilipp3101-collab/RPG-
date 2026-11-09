@@ -56,6 +56,9 @@ ARTEN = {
 	# Magie
 	**magie.ARTEN,
 }
+# Jede Modulart bekommt 5 Formen je Tier (Formen über die handgebauten hinaus sind verformte Grundformen)
+import varianten
+ARTEN = varianten.auffuellen(ARTEN)
 
 
 # ---------------------------------------------------------------- Export
