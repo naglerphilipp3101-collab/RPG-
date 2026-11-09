@@ -508,7 +508,16 @@ def _je_tier(fns, n):
 	return {i + 1: (n[i] if isinstance(n, list) else n, f) for i, f in enumerate(fns)}
 
 
-KLINGEN = [klinge_t1, klinge_t2, klinge_t3, klinge_t4, klinge_t5, klinge_t6]
+def mit_angel(bauen, tier):
+	"""Jede Klinge bekommt eine kurze Angel bis in die Parierstange, damit dort nie eine Lücke bleibt."""
+	def f(t, form):
+		bauen(t, form)
+		mat = "eis" if tier == 4 else ("beschlag" if tier == 6 else "klinge")
+		quader(t, (0, 0, (PZ - 0.008 + KL + 0.006) / 2), (0.026, 0.007, KL + 0.006 - (PZ - 0.008)), mat, fase=0.002)
+	return f
+
+
+KLINGEN = [mit_angel(f, i + 1) for i, f in enumerate([klinge_t1, klinge_t2, klinge_t3, klinge_t4, klinge_t5, klinge_t6])]
 PARIER = [parier_t1, parier_t2, parier_t3, parier_t4, parier_t5, parier_t6]
 GRIFFE = [griff_t1, griff_t2, griff_t3, griff_t4, griff_t5, griff_t6]
 KNAEUFE = [knauf_t1, knauf_t2, knauf_t3, knauf_t4, knauf_t5, knauf_t6]
