@@ -103,8 +103,8 @@ const WAFFEN := {
 	"leerenhandschuh": {
 		# Panzerhandschuh: die Faust umschließt die Griffachse, Unterarm nach -X, Handrücken nach +Y (Godot)
 		"handschuh": ["handschuh", "Handschuh"],
-		# Klinge aus Magie, wächst per Fähigkeit vor den Knöcheln aus der Faust (+X), flache Seite nach oben (Handrücken)
-		"klinge": ["magieklinge", "Magieklinge", Vector3.ONE, Vector3.ZERO, Vector3(0.03, 0.015, 0.0), Basis(Vector3(0, 0, 1), Vector3(0, 1, 0), Vector3(-1, 0, 0))],
+		# Klinge aus Magie, wächst per Fähigkeit direkt unter dem Knöchelschutz aus der Faust (+X), flache Seite nach oben (Handrücken)
+		"klinge": ["magieklinge", "Magieklinge", Vector3.ONE, Vector3.ZERO, Vector3(0.032, 0.03, 0.0), Basis(Vector3(0, 0, 1), Vector3(0, 1, 0), Vector3(-1, 0, 0))],
 		# Fokus in der Fassung auf dem Handrücken, längs zum Unterarm
 		"fokus": ["fokus", "Fokus", Vector3(0.6, 0.6, 0.6), 0.97, Vector3(-0.022, 0.084, 0.0), Basis(Vector3(0, 1, 0), Vector3(0, 0, -1), Vector3(-1, 0, 0))],
 	},
