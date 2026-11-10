@@ -379,7 +379,7 @@ REZEPTE = {
 	"blitzkopf": koepfe(0.86, 0.86),
 	"lebenskopf": koepfe(0.86, 0.86),
 	"handschuh": handschuh(),
-	"handklinge": klingen(0.0),
+	"magieklinge": klingen(0.0),
 	"fokus": kugelig((0, 0, 0.97)),
 }
 

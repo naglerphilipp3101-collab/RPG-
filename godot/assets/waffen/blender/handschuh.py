@@ -2,8 +2,8 @@
 
 Module:
   handschuh   Hauptmodul: Stulpe, Hand mit Fingern und Daumen, Knöchelschutz, Fassung für den Fokus
-  handklinge  ausfahrbare Klinge mit Schiene, gebaut im Klingen-Rahmen (Länge +Z, Ansatz bei z = 0);
-              Godot legt sie an die Kleinfingerseite der Stulpe (waffen_modell.gd)
+  magieklinge Klinge aus Magie, die per Fähigkeit aus der Faust wächst (Elementfarbe, leuchtend), gebaut im
+              Klingen-Rahmen (Länge +Z, Ansatz bei z = 0); Godot setzt sie vor die Knöchel (waffen_modell.gd)
   fokus       geteilt mit den Stäben, sitzt verkleinert auf dem Handrücken
 
 Bauraum des Handschuhs (Blender, wie die Klingen): die Faust umschließt die Griffachse Z (Daumenseite +Z,
@@ -19,7 +19,6 @@ import schwert
 W = -0.072            # Handgelenk
 AY = -0.03            # Unterarmachse (y)
 FOKUS = Vector((-0.022, -0.06, 0.0))   # Fassung auf dem Handrücken (Unterkante)
-KLINGE_AN = Vector((-0.045, AY, -0.056))  # Ansatz der Handklinge an der Kleinfingerseite
 
 
 def quer_x(x, y=AY, z=0.0):
@@ -267,20 +266,18 @@ def handschuh(t, tier, form):
 	fassung(t, tier, form)
 
 
-def handklinge(t, tier, form):
-	"""Klinge des Tiers (verkleinert) mit Schiene; Ansatz bei z = 0, die Schiene liegt darunter (Unterarm)."""
+def magieklinge(t, tier, form):
+	"""Klinge aus reiner Magie (wie eine Leerenklinge), die per Fähigkeit aus der Faust wächst; ganz im Material "magie",
+	das in der Elementfarbe leuchtet. Form nach der Klinge des Tiers, breiter und länger; Ansatz bei z = 0 (vor den Knöcheln)."""
 	n0 = anzahl(t)
+	f0 = len(t.bm.faces)
 	schwert.KLINGEN[tier - 1](t, form)
 	for v in neue_verts(t, n0):
-		v.co = Vector((v.co.x * 0.62, v.co.y * 0.8, (v.co.z - schwert.KL) * 0.4))
-	# Schiene: flaches Gehäuse, in das die Klinge einfährt
-	quader(t, (0, 0, -0.07), (0.036, 0.012, 0.15), "beschlag", fase=0.003)
-	quader(t, (0, 0, -0.005), (0.042, 0.016, 0.014), "akzent" if tier in (2, 5, 6) else "beschlag", fase=0.003)
-	if tier == 6:
-		for z in (-0.12, -0.07):
-			stachel(t, Vector((0.016, 0, z)), Vector((0.03, 0, z - 0.02)), 0.004)
-	elif tier == 4:
-		rohling(t, (0, 0, -0.1), (0.05, 0.02, 0.048), "eis", saat=80 + form, rauh=0.25, n=6, achse="z")
+		v.co = Vector((v.co.x * 1.15, v.co.y * 0.7, (v.co.z - schwert.KL) * 0.62 - 0.03))
+	t.bm.faces.ensure_lookup_table()
+	magie = t.slot("magie")
+	for f in t.bm.faces[f0:]:
+		f.material_index = magie
 
 
 def _tiers(fn, n):
@@ -289,5 +286,5 @@ def _tiers(fn, n):
 
 ARTEN = {
 	"handschuh": _tiers(handschuh, 2),
-	"handklinge": _tiers(handklinge, 3),
+	"magieklinge": _tiers(magieklinge, 3),
 }

@@ -103,8 +103,8 @@ const WAFFEN := {
 	"leerenhandschuh": {
 		# Panzerhandschuh: die Faust umschließt die Griffachse, Unterarm nach -X, Handrücken nach +Y (Godot)
 		"handschuh": ["handschuh", "Handschuh"],
-		# ausfahrbare Klinge an der Kleinfingerseite, zeigt nach vorn (+X), flache Seite nach außen
-		"klinge": ["handklinge", "Handklinge", Vector3.ONE, Vector3.ZERO, Vector3(-0.045, 0.03, 0.056), Basis(Vector3(0, 1, 0), Vector3(0, 0, -1), Vector3(-1, 0, 0))],
+		# Klinge aus Magie, wächst per Fähigkeit vor den Knöcheln aus der Faust (+X), flache Seite nach oben (Handrücken)
+		"klinge": ["magieklinge", "Magieklinge", Vector3.ONE, Vector3.ZERO, Vector3(0.03, 0.015, 0.0), Basis(Vector3(0, 0, 1), Vector3(0, 1, 0), Vector3(-1, 0, 0))],
 		# Fokus in der Fassung auf dem Handrücken, längs zum Unterarm
 		"fokus": ["fokus", "Fokus", Vector3(0.6, 0.6, 0.6), 0.97, Vector3(-0.022, 0.084, 0.0), Basis(Vector3(0, 1, 0), Vector3(0, 0, -1), Vector3(-1, 0, 0))],
 	},
@@ -321,6 +321,15 @@ static func material(name: String, tier: int, element_farbe: Variant = null, far
 			m.emission_enabled = true
 			m.emission = c
 			m.emission_energy_multiplier = 0.6
+		"magie": # Klinge aus reiner Magie: durchscheinend, leuchtet stark in der Elementfarbe (sonst Akzentfarbe)
+			var c: Color = element_farbe if element_farbe != null else (akzent if akzent != null else t["leucht"])
+			m.albedo_color = Color(c.r, c.g, c.b, 0.7)
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.emission_enabled = true
+			m.emission = c
+			m.emission_energy_multiplier = 2.5
+			m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		"kristall":
 			var c: Color = element_farbe if element_farbe != null else t["stein"]
 			m.albedo_color = Color(c.r, c.g, c.b, 0.75)
