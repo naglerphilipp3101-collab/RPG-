@@ -322,6 +322,31 @@ def korb():
 	]
 
 
+def handschuh():
+	"""Stulpe länger/kürzer/weiter, Hand kräftiger. Hand, Fassung und Klingenschiene bleiben an ihrem Platz."""
+	W, AY = -0.072, -0.03
+	def stulpe(fn):
+		def f(p, r):
+			if p.x >= W:
+				return p
+			return fn(p, min(1.0, (W - p.x) / 0.16))
+		return f
+	def laenge(s):
+		return stulpe(lambda p, g: Vector((W + (p.x - W) * s, p.y, p.z)))
+	def weite(s):
+		return stulpe(lambda p, g: Vector((p.x, AY + (p.y - AY) * (1 + (s - 1) * g), p.z * (1 + (s - 1) * g))))
+	def kraeftig(p, r):
+		if p.x < W:
+			return p
+		return Vector((p.x * 1.04, AY + (p.y - AY) * 1.06, p.z * 1.05))
+	return [
+		lambda st: laenge(1.18),
+		lambda st: weite(1.16 if st != "gerade" else 1.1),
+		lambda st: laenge(0.84),
+		lambda st: nach(kraeftig, weite(1.06)),
+	]
+
+
 REZEPTE = {
 	"schwertklinge": klingen(0.112),
 	"grossschwertklinge": klingen(0.2),
@@ -353,7 +378,8 @@ REZEPTE = {
 	"eiskopf": koepfe(0.86, 0.86),
 	"blitzkopf": koepfe(0.86, 0.86),
 	"lebenskopf": koepfe(0.86, 0.86),
-	"leerenfassung": koepfe(0.12, 0.12),
+	"handschuh": handschuh(),
+	"handklinge": klingen(0.0),
 	"fokus": kugelig((0, 0, 0.97)),
 }
 

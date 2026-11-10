@@ -216,6 +216,7 @@ def klinge(t, z0, laenge, breite, dicke, material="klinge", hohlkehle=0.45, kehl
 	import random
 	rng = random.Random(saat)
 	schnitte = []
+	kehl_info = {}  # z -> (halbe Breite, Mitte, Kehltiefe) für die Akzentfarbe in der Hohlkehle
 	for k in range(schritte + 1):
 		u = k / schritte
 		if u >= 1.0:
@@ -238,7 +239,33 @@ def klinge(t, z0, laenge, breite, dicke, material="klinge", hohlkehle=0.45, kehl
 			pts = [(x * (1 + rng.uniform(-rauh, rauh)), y * (1 + rng.uniform(-rauh, rauh) * 2)) for x, y in pts]
 		x_off = krumm * u * u + mitte
 		schnitte.append((z0 + laenge * u, [(x + x_off, y) for x, y in pts]))
+		kehl_info[round(z0 + laenge * u, 6)] = (w, x_off, kehle if not schnitt and rauh == 0 else 0.0)
+	f0 = len(t.bm.faces)
 	loft(t, schnitte, material, spitze_oben=Vector((krumm + spitze_x, 0, z0 + laenge)))
+	if hohlkehle > 0 and material == "klinge":
+		_kehle_als_akzent(t, f0, kehl_info, kehlen if kehlen is not None else [(0.0, kehl_breite)])
+
+
+def _kehle_als_akzent(t, f0, kehl_info, kehlen):
+	"""Flächen in der Hohlkehle bekommen das Akzent-Material (Zierlinie, wie die roten Linien einer Dämonenklinge)."""
+	t.bm.faces.ensure_lookup_table()
+	akzent = None
+	for f in t.bm.faces[f0:]:
+		drin = True
+		for v in f.verts:
+			info = kehl_info.get(round(v.co.z, 6))
+			if info is None or info[2] <= 0:
+				drin = False
+				break
+			w, x_off, _ = info
+			ux = (v.co.x - x_off) / max(w, 1e-6)
+			if not any(abs(ux - m) < kb * 0.8 or abs(-ux - m) < kb * 0.8 for m, kb in kehlen):
+				drin = False
+				break
+		if drin:
+			if akzent is None:
+				akzent = t.slot("akzent")
+			f.material_index = akzent
 
 
 def strang(t, punkte, breite, dicke, material, n=8, quer=Vector((0, 1, 0)), kappen=True, eckig=False):

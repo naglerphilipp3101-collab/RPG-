@@ -100,15 +100,18 @@ const WAFFEN := {
 		"fokus": ["fokus", "Fokus"],
 		"ende": ["schaftende", "Schaftende", Vector3(0.85, 0.85, 0.85), 0.0, -0.75],
 	},
-	"leerenkugel": {
-		"fassung": ["leerenfassung", "Fassung"],
-		# Die Kugel ist ein vergrößerter Fokus
-		"fokus": ["fokus", "Kugel", Vector3(2.0, 2.0, 2.0), 0.97, 0.22],
+	"leerenhandschuh": {
+		# Panzerhandschuh: die Faust umschließt die Griffachse, Unterarm nach -X, Handrücken nach +Y (Godot)
+		"handschuh": ["handschuh", "Handschuh"],
+		# ausfahrbare Klinge an der Kleinfingerseite, zeigt nach vorn (+X), flache Seite nach außen
+		"klinge": ["handklinge", "Handklinge", Vector3.ONE, Vector3.ZERO, Vector3(-0.045, 0.03, 0.056), Basis(Vector3(0, 1, 0), Vector3(0, 0, -1), Vector3(-1, 0, 0))],
+		# Fokus in der Fassung auf dem Handrücken, längs zum Unterarm
+		"fokus": ["fokus", "Fokus", Vector3(0.6, 0.6, 0.6), 0.97, Vector3(-0.022, 0.084, 0.0), Basis(Vector3(0, 1, 0), Vector3(0, 0, -1), Vector3(-1, 0, 0))],
 	},
 }
 
 # Magiewaffen nach Element (weapons.json: model "staff"/"orb" + element)
-const AUS_ELEMENT := {"fire": "feuerstab", "ice": "eisstab", "lightning": "blitzstab", "life": "lebensstab", "void": "leerenkugel"}
+const AUS_ELEMENT := {"fire": "feuerstab", "ice": "eisstab", "lightning": "blitzstab", "life": "lebensstab", "void": "leerenhandschuh"}
 
 # Geschosse sind nicht modular: ein Modell je Tier (Spitze nach -Z, Mitte am Ursprung). Kugeln sind Hitscan.
 const GESCHOSSE := ["pfeil", "bolzen"]
@@ -117,20 +120,24 @@ const GESCHOSSE := ["pfeil", "bolzen"]
 const AUS_SPIEL := {"sword": "schwert", "greatsword": "grossschwert", "rapier": "degen", "dagger": "messer",
 	"greataxe": "axt", "warhammer": "hammer", "spear": "speer", "bow": "bogen", "crossbow": "armbrust", "musket": "muskete"}
 
-# Je Tier: Klingenmetall und Beschläge [Farbe, metallic, Rauheit], Leder, Leuchtfarbe, Edelstein
+# Je Material (Iron … Darksteel): Akzentfarbe, Klingenmetall und Beschläge [Farbe, metallic, Rauheit], Leder, Leuchtfarbe, Edelstein.
+# Die Form eines Moduls (Tier seines Stils) und sein Material sind getrennt: jedes Modul lässt sich in jedem Material herstellen.
+# Farbzonen (Philipp, 10.11.): "klinge" = Hauptfläche und "akzent" (Hohlkehlen, Zierlinien, Steine, Glimmen) lassen sich
+# einfärben; Glanz, Rauheit und Schliffspuren des Materials bleiben. "beschlag" (Griff, Knauf, Parierstange, Rücken),
+# Leder und Holz behalten immer die Grundfarbe des Materials.
 const TIERS := [
-	{"klinge": [Color(0.5, 0.5, 0.5), 1.0, 0.45], "beschlag": [Color(0.22, 0.21, 0.2), 0.9, 0.6],
+	{"akzent": Color(0.28, 0.28, 0.3), "klinge": [Color(0.5, 0.5, 0.5), 1.0, 0.45], "beschlag": [Color(0.22, 0.21, 0.2), 0.9, 0.6],
 		"leder": Color(0.26, 0.15, 0.08), "leucht": Color(1.0, 0.5, 0.2), "stein": Color(0.5, 0.1, 0.05), "wappen": Color(0.42, 0.3, 0.18)},
-	{"klinge": [Color(0.82, 0.82, 0.84), 1.0, 0.18], "beschlag": [Color(0.72, 0.6, 0.38), 1.0, 0.28],
+	{"akzent": Color(0.78, 0.62, 0.32), "klinge": [Color(0.82, 0.82, 0.84), 1.0, 0.18], "beschlag": [Color(0.72, 0.6, 0.38), 1.0, 0.28],
 		"leder": Color(0.16, 0.08, 0.05), "leucht": Color(1.0, 0.85, 0.6), "stein": Color(0.15, 0.3, 0.85), "wappen": Color(0.1, 0.16, 0.42)},
-	{"klinge": [Color(0.68, 0.75, 0.86), 1.0, 0.24], "beschlag": [Color(0.42, 0.48, 0.58), 1.0, 0.35],
+	{"akzent": Color(0.32, 0.48, 0.78), "klinge": [Color(0.68, 0.75, 0.86), 1.0, 0.24], "beschlag": [Color(0.42, 0.48, 0.58), 1.0, 0.35],
 		"leder": Color(0.1, 0.12, 0.18), "leucht": Color(0.35, 0.65, 1.0), "stein": Color(0.3, 0.6, 1.0), "wappen": Color(0.36, 0.42, 0.5)},
-	{"klinge": [Color(0.75, 0.85, 0.9), 1.0, 0.12], "beschlag": [Color(0.55, 0.66, 0.74), 1.0, 0.25],
+	{"akzent": Color(0.55, 0.88, 1.0), "klinge": [Color(0.75, 0.85, 0.9), 1.0, 0.12], "beschlag": [Color(0.72, 0.84, 0.92), 1.0, 0.22],
 		"leder": Color(0.45, 0.42, 0.38), "leucht": Color(0.3, 0.85, 1.0), "stein": Color(0.55, 0.88, 1.0),
 		"eis": Color(0.55, 0.85, 0.85)},
-	{"klinge": [Color(0.88, 0.86, 0.8), 1.0, 0.16], "beschlag": [Color(1.0, 0.72, 0.3), 1.0, 0.2],
+	{"akzent": Color(1.0, 0.7, 0.28), "klinge": [Color(0.88, 0.86, 0.8), 1.0, 0.16], "beschlag": [Color(1.0, 0.72, 0.3), 1.0, 0.2],
 		"leder": Color(0.86, 0.82, 0.72), "leucht": Color(1.0, 0.8, 0.4), "stein": Color(0.95, 0.55, 0.1), "wappen": Color(0.88, 0.86, 0.8)},
-	{"klinge": [Color(0.05, 0.035, 0.035), 0.85, 0.3], "beschlag": [Color(0.22, 0.03, 0.03), 0.9, 0.35],
+	{"akzent": Color(0.6, 0.02, 0.02), "klinge": [Color(0.05, 0.035, 0.035), 0.85, 0.3], "beschlag": [Color(0.075, 0.055, 0.055), 0.9, 0.35],
 		"leder": Color(0.04, 0.03, 0.03), "leucht": Color(1.0, 0.08, 0.02), "stein": Color(0.85, 0.03, 0.02), "wappen": Color(0.25, 0.03, 0.03)},
 ]
 
@@ -138,7 +145,9 @@ static var _cache := {}
 
 
 ## Baut die Waffe aus Modulen als Kind von parent.
-## auswahl: {platz: {"tier": int, "form": int}}; fehlende Plätze bekommen das erste Modul von standard_tier.
+## auswahl: {platz: {"tier": int, "form": int, "material": int, "farbe": Color, "akzent": Color}}; fehlende Plätze
+## bekommen das erste Modul von standard_tier. "tier" wählt die Form (Stil), "material" das Metall (Standard: wie die Form),
+## "farbe"/"akzent" färben Hauptfläche und Akzente (ohne Angabe: Farbe des Materials).
 ## element_farbe färbt Leuchten und Kristall der Magiewaffen. Gibt false zurück, wenn es die Waffe nicht gibt.
 static func zusammenbauen(waffe: String, auswahl: Dictionary, parent: Node3D, standard_tier := 1,
 		element_farbe: Variant = null) -> bool:
@@ -164,12 +173,16 @@ static func zusammenbauen(waffe: String, auswahl: Dictionary, parent: Node3D, st
 			var ziel := _punkt(def[4])
 			var drehung := Basis.IDENTITY
 			if def.size() >= 6:
-				var g: Vector3 = def[5]
-				drehung = Basis.from_euler(Vector3(deg_to_rad(g.x), deg_to_rad(g.y), deg_to_rad(g.z)))
+				if def[5] is Basis:
+					drehung = def[5]
+				else:
+					var g: Vector3 = def[5]
+					drehung = Basis.from_euler(Vector3(deg_to_rad(g.x), deg_to_rad(g.y), deg_to_rad(g.z)))
 			var b := drehung * Basis.from_scale(s)
 			modell.transform = Transform3D(b, ziel - b * anker)
 		wurzel.add_child(modell)
-		_materialien(modell, tier, element_farbe)
+		var mat: int = clampi(int(w.get("material", tier)), 1, 6)
+		_materialien(modell, mat, element_farbe, w.get("farbe"), w.get("akzent"))
 	return true
 
 
@@ -213,19 +226,26 @@ static func modulart(waffe: String, platz: String) -> String:
 	return WAFFEN[waffe][platz][0]
 
 
-static func _materialien(knoten: Node, tier: int, element_farbe: Variant) -> void:
+static func _materialien(knoten: Node, tier: int, element_farbe: Variant, farbe: Variant = null, akzent: Variant = null) -> void:
 	if knoten is MeshInstance3D:
 		var mi := knoten as MeshInstance3D
 		for i in mi.mesh.get_surface_count():
 			var m := mi.mesh.surface_get_material(i)
 			var name := m.resource_name if m else ""
-			mi.set_surface_override_material(i, material(name, tier, element_farbe))
+			mi.set_surface_override_material(i, material(name, tier, element_farbe, farbe, akzent))
 	for k in knoten.get_children():
-		_materialien(k, tier, element_farbe)
+		_materialien(k, tier, element_farbe, farbe, akzent)
 
 
-static func material(name: String, tier: int, element_farbe: Variant = null) -> Material:
-	var schluessel := "%s_%d_%s" % [name, tier, str(element_farbe)]
+## Material einer Fläche. tier = Material (1 Iron … 6 Darksteel); farbe/akzent = Spielerfarben (Color oder "#rrggbb").
+static func material(name: String, tier: int, element_farbe: Variant = null, farbe: Variant = null, akzent: Variant = null) -> Material:
+	if farbe is String:
+		farbe = Color.html(farbe)
+	if akzent is String:
+		akzent = Color.html(akzent)
+	if name == "eis" and tier != 4: # Eisbrocken der Glacialore-Formen sind in anderen Materialien aus Metall
+		name = "beschlag"
+	var schluessel := "%s_%d_%s_%s_%s" % [name, tier, str(element_farbe), str(farbe), str(akzent)]
 	if _cache.has(schluessel):
 		return _cache[schluessel]
 	var t: Dictionary = TIERS[tier - 1]
@@ -234,7 +254,7 @@ static func material(name: String, tier: int, element_farbe: Variant = null) -> 
 	match name:
 		"klinge", "beschlag":
 			var w: Array = t[name]
-			m.albedo_color = w[0]
+			m.albedo_color = farbe if name == "klinge" and farbe != null else w[0]
 			m.metallic = w[1]
 			m.roughness = w[2]
 			m.roughness_texture = _rausch("geschliffen")
@@ -278,14 +298,23 @@ static func material(name: String, tier: int, element_farbe: Variant = null) -> 
 			m.albedo_color = Color(0.1, 0.1, 0.11)
 			m.metallic = 0.6
 			m.roughness = 0.5
+		"akzent": # Einlage aus poliertem Metall in der Akzentfarbe
+			var c: Color = akzent if akzent != null else t["akzent"]
+			m.albedo_color = c
+			m.metallic = 0.85
+			m.roughness = 0.22
+			if tier == 6 or tier == 4: # Darksteel glimmt, Glacialore schimmert
+				m.emission_enabled = true
+				m.emission = c
+				m.emission_energy_multiplier = 0.8 if tier == 6 else 0.3
 		"leucht":
-			var c: Color = element_farbe if element_farbe != null else t["leucht"]
+			var c: Color = element_farbe if element_farbe != null else (akzent if akzent != null else t["leucht"])
 			m.albedo_color = c
 			m.emission_enabled = true
 			m.emission = c
 			m.emission_energy_multiplier = 3.0
 		"stein":
-			var c: Color = t["stein"]
+			var c: Color = akzent if akzent != null else t["stein"]
 			m.albedo_color = c
 			m.metallic = 0.2
 			m.roughness = 0.05

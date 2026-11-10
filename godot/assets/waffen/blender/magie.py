@@ -1,10 +1,9 @@
-"""Module der Magiewaffen in den 6 Tier-Stilen: 4 Stäbe (Feuer, Eis, Blitz, Leben) und die Leerenkugel.
+"""Module der Magiewaffen in den 6 Tier-Stilen: 4 Stäbe (Feuer, Eis, Blitz, Leben). Der Leerenhandschuh steht in handschuh.py.
 
 Stab (Klingen-Rahmen, z entlang des Schafts, Hand am Ursprung):
   Stabschaft von -0,75 bis 0,8, Kopf sitzt oben ab z = 0,78, Fokus (Kristall) mittig bei z = FZ
   Schaftende kommt wie beim Speer von unten dran (Godot)
-Leerenkugel: Griff von -0,07 bis 0,07, Fassung darüber, die Kugel ist ein vergrößerter Fokus bei z = 0,24 (Godot).
-Der Fokus ist eine geteilte Modulart (Stäbe und Leerenkugel) und leuchtet in der Farbe des Elements ("kristall").
+Der Fokus ist eine geteilte Modulart (Stäbe und Leerenhandschuh) und leuchtet in der Farbe des Elements ("kristall").
 Leuchtende Akzente der Köpfe ("leucht") bekommen ebenfalls die Elementfarbe.
 Jeder Kopf verbindet das Motiv des Elements (Flammen, Eissplitter, Zickzack, Ranken) mit dem Stil des Tiers.
 """
@@ -285,36 +284,6 @@ def fokus(t, tier, form):
 			drehkoerper(t, [(0, z - FR * 1.7), (FR * 0.75, z - FR * 0.2), (FR * 0.6, z + FR * 0.3), (0, z + FR * 1.9)], m, n=5)
 
 
-# ================================================================ Leerenkugel
-
-
-OZ, OR = 0.22, 0.084  # Kugel der Leerenkugel (Fokus ×2, Godot)
-
-
-def leerenfassung(t, tier, form):
-	"""Kurzer Griff mit Fassung, in der die Leerenkugel schwebt."""
-	schwert.GRIFFE[tier - 1](t, form, -0.075, 0.075)
-	# Knauf unten (Stil des Tiers, verkleinert)
-	n0 = anzahl(t)
-	schwert.KNAEUFE[tier - 1](t, 1)
-	for v in neue_verts(t, n0):
-		v.co = Vector((v.co.x * 0.8, v.co.y * 0.8, -0.076 + (v.co.z + 0.076) * 0.8))
-	kragen(t, tier, 0.075, 0.12, 0.03)
-	n = 3 if form == 1 else 4
-	for k in range(n):
-		a0 = 2 * math.pi * k / n + math.pi / 6
-		if form == 1:  # offene Klauen
-			f = lambda u, a0=a0: (a0, 0.03 + 0.1 * math.sin(math.pi * u * 0.62), 0.11 + 0.21 * u)
-			zinke(t, tier, bahn(f), breite=0.018, dicke=0.011, saat=k)
-		else:  # Bänder, die die Kugel umschließen und sich oben treffen
-			f = lambda u, a0=a0: (a0 + 0.4 * u, 0.03 + (OR + 0.012 - 0.03) * math.sin(math.pi * u) ** 0.7, 0.11 + 0.26 * u)
-			zinke(t, tier, bahn(f, 16), breite=0.012, dicke=0.008, spitz=False, saat=k)
-	if form == 2:
-		drehkoerper(t, [(0.0, 0.36), (0.014, 0.37), (0.0, 0.4)], METALL[tier], n=8)
-	# leuchtender Ring an der Fassung
-	ring(t, 0.112, 0.03, 0.005, material="leucht", n=12, wulst=0.25)
-
-
 def _tiers(fn, n):
 	return {tier: (n, (lambda tr: lambda t, form: fn(t, tr, form))(tier)) for tier in range(1, 7)}
 
@@ -326,5 +295,4 @@ ARTEN = {
 	"lebenskopf": _tiers(lebenskopf, 2),
 	"stabschaft": _tiers(stabschaft, 2),
 	"fokus": _tiers(fokus, 2),
-	"leerenfassung": _tiers(leerenfassung, 2),
 }

@@ -18,7 +18,7 @@ var vorn := 1.0
 var oben_rand := 0.2
 # Elementfarben der Magiewaffen (wie Game.ELEMENT_COLORS)
 const ELEMENT := {"feuerstab": Color(1.0, 0.45, 0.12), "eisstab": Color(0.55, 0.85, 1.0), "blitzstab": Color(0.7, 0.78, 1.0),
-	"lebensstab": Color(0.5, 1.0, 0.55), "leerenkugel": Color(0.65, 0.3, 0.95)}
+	"lebensstab": Color(0.5, 1.0, 0.55), "leerenhandschuh": Color(0.65, 0.3, 0.95)}
 
 
 func _ready() -> void:
@@ -33,13 +33,13 @@ func _ready() -> void:
 	var ausdehnung: Array = {"schwert": [0.2, 0.9], "grossschwert": [0.25, 1.45], "degen": [0.2, 1.1], "messer": [0.15, 0.36],
 		"axt": [0.42, 0.95], "hammer": [0.42, 0.95], "speer": [0.82, 1.9], "schild": [0.45, 0.45],
 		"bogen": [0.75, 0.75], "armbrust": [0.45, 0.45], "muskete": [0.36, 1.06], "geschosse": [0.38, 0.4],
-		"feuerstab": [0.95, 1.12], "eisstab": [0.95, 1.12], "blitzstab": [0.95, 1.12], "lebensstab": [0.95, 1.12], "leerenkugel": [0.15, 0.4]}.get(waffe, [0.2, 1.0])
+		"feuerstab": [0.95, 1.12], "eisstab": [0.95, 1.12], "blitzstab": [0.95, 1.12], "lebensstab": [0.95, 1.12], "leerenhandschuh": [0.27, 0.3]}.get(waffe, [0.2, 1.0])
 	links = -float(ausdehnung[0])
 	vorn = float(ausdehnung[1])
 	spalte_x = vorn - links + 0.15
 	zeile_y = {"axt": 0.5, "hammer": 0.42, "speer": 0.42, "schild": 1.05, "bogen": 0.42, "armbrust": 0.8,
 		"muskete": 0.34, "geschosse": 0.16,
-		"feuerstab": 0.3, "eisstab": 0.3, "blitzstab": 0.3, "lebensstab": 0.3, "leerenkugel": 0.36}.get(waffe, 0.38)
+		"feuerstab": 0.3, "eisstab": 0.3, "blitzstab": 0.3, "lebensstab": 0.3, "leerenhandschuh": 0.3}.get(waffe, 0.38)
 	oben_rand = {"schild": 0.5, "bogen": 0.12, "armbrust": 0.5, "muskete": 0.12, "geschosse": 0.08}.get(waffe, 0.2)
 	_umgebung()
 	kamera = Camera3D.new()
@@ -101,6 +101,8 @@ func _aufbauen() -> void:
 				halter.basis = Basis(Vector3(0, 0, -1), Vector3(1, 0, 0), Vector3(0, -1, 0))
 			"armbrust": # von oben und etwas schräg, Schussrichtung nach oben
 				halter.basis = Basis(Vector3.RIGHT, 0.4) * Basis(Vector3(1, 0, 0), Vector3(0, 0, 1), Vector3(0, -1, 0))
+			"leerenhandschuh": # Handrücken zur Kamera, Unterarm links, Daumen oben
+				halter.basis = Basis(Vector3(1, 0, 0), Vector3(0, 0.6, 0.8), Vector3(0, -0.8, 0.6))
 			"muskete": # von der Seite, Schloss zur Kamera, Schussrichtung nach rechts
 				halter.basis = Basis(Vector3.UP, -PI / 2)
 		halter.position = Vector3(p[0] * spalte_x, -p[1] * zeile_y, 0)
@@ -117,8 +119,8 @@ func _aufbauen() -> void:
 			l.position = halter.position + (Vector3(0, -0.5, 0.2) if waffe == "schild" else Vector3(vorn * 0.4, -0.08 - (zeile_y - 0.38) * 0.4, 0.05))
 			if waffe == "bogen":
 				l.position = halter.position + Vector3(0, -0.21, 0.3)
-			elif waffe == "leerenkugel":
-				l.position = halter.position + Vector3(0.05, -0.15, 0.3)
+			elif waffe == "leerenhandschuh":
+				l.position = halter.position + Vector3(0.0, -0.1, 0.3)
 			elif waffe == "armbrust":
 				l.position = halter.position + Vector3(0.22, -0.12, 0.3)
 			elif waffe == "geschosse":
