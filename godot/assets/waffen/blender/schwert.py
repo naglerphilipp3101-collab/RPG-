@@ -519,6 +519,21 @@ def mit_angel(bauen, tier):
 
 KLINGEN = [mit_angel(f, i + 1) for i, f in enumerate([klinge_t1, klinge_t2, klinge_t3, klinge_t4, klinge_t5, klinge_t6])]
 PARIER = [parier_t1, parier_t2, parier_t3, parier_t4, parier_t5, parier_t6]
-GRIFFE = [griff_t1, griff_t2, griff_t3, griff_t4, griff_t5, griff_t6]
+def bis_anschlag(bauen):
+	"""Griffe reichen an beiden Enden ein Stück in Knauf und Parierstange hinein, damit dort keine Luft bleibt.
+	Dazu wird der Griff auf z0 - 1,4 cm bis z1 + 1,3 cm gestreckt; innen läuft eine Angel durch das ganze Heft."""
+	def f(t, form, z0=G0, z1=G1):
+		n0 = anzahl(t)
+		bauen(t, form, z0, z1)
+		vs = list(neue_verts(t, n0))
+		a, b = min(v.co.z for v in vs), max(v.co.z for v in vs)
+		ziel_a, ziel_b = z0 - 0.014, z1 + 0.013
+		for v in vs:
+			v.co.z = ziel_a + (v.co.z - a) / (b - a) * (ziel_b - ziel_a)
+		drehkoerper(t, [(0.0065, z0 - 0.02), (0.0065, z1 + 0.02)], "beschlag", n=8)
+	return f
+
+
+GRIFFE = [bis_anschlag(f) for f in [griff_t1, griff_t2, griff_t3, griff_t4, griff_t5, griff_t6]]
 KNAEUFE = [knauf_t1, knauf_t2, knauf_t3, knauf_t4, knauf_t5, knauf_t6]
 KOERBE = [korb_t1, korb_t2, korb_t3, korb_t4, korb_t5, korb_t6]
