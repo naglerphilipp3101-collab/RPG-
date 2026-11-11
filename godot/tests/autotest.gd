@@ -161,6 +161,27 @@ func _ready() -> void:
 				if n.get_script() == load("res://scripts/projectile.gd") and not n.is_physics_processing():
 					steckt += 1
 			print("AUTOTEST Pfeile/Bolzen stecken: %d von 12" % steckt))
+	# Mit --karte [zoom]: Minimap und große Karte mit Werkstätten auf einer Ersatzkarte, Taste L (Tag/Nacht) prüfen
+	if OS.get_cmdline_user_args().has("--karte"):
+		var args_k := OS.get_cmdline_user_args()
+		var bild := Image.create(256, 256, false, Image.FORMAT_RGB8)
+		bild.fill(Color(0.35, 0.5, 0.3))
+		var hud_k = get_tree().current_scene.get_node("HUD")
+		hud_k.setup_minimap(get_tree().current_scene, ImageTexture.create_from_image(bild), 16384.0, [])
+		hud_k.minimap.visible = true
+		var vorher := Game.time_of_day
+		hud_k.tageszeit_wechseln()
+		var erst := Game.time_of_day
+		hud_k.tageszeit_wechseln()
+		print("AUTOTEST Werkstätten auf der Karte: %d, Tag/Nacht: %.1f -> %.1f -> %.1f" % [hud_k.minimap.werkstaetten.size(), vorher, erst, Game.time_of_day])
+		var zoom_i := args_k.find("--karte") + 1
+		if zoom_i < args_k.size() and args_k[zoom_i].is_valid_float():
+			hud_k.set_world_map_open(true)
+			hud_k.minimap.big_zoom = float(args_k[zoom_i])
+			hud_k.minimap.big_center = hud_k.minimap.werkstatt_mitte
+			var ziel_k: Vector2 = hud_k.minimap._big_to_screen(hud_k.minimap.werkstaetten[5]["pos"])
+			get_tree().create_timer(0.5).timeout.connect(func() -> void: get_viewport().warp_mouse(ziel_k))
+		phase = "character_ui"
 	# Mit --waffenbilder <ordner>: jede Waffe (modulare Modelle) in der Hand, von der Seite, je ein Bild (nur mit Fenster)
 	if OS.get_cmdline_user_args().has("--waffenbilder"):
 		phase = "waffenbilder"

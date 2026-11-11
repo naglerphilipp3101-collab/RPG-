@@ -24,7 +24,7 @@ F  Sammeln / Häuten / Angeln / Werkstatt
 Fernkampf: Rechte Maustaste zielen
 T / Mausrad  Waffe wechseln
 K  Skillbaum    P  Charakter
-M  Karte    N  Minimap-Zoom
+M  Karte    N  Minimap-Zoom    L  Tag/Nacht wechseln
 F3  Debug-Flug (Strg = ×30, Leertaste/C = hoch/runter)
 Tab oder I  Inventar
 B  Fehler melden (Ort, Bild, Kommentar)
@@ -420,6 +420,20 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("minimap_zoom") and not pause_menu.visible:
 		minimap.cycle_zoom()
+	elif event.is_action_pressed("tageszeit") and not pause_menu.visible:
+		tageszeit_wechseln()
+		get_viewport().set_input_as_handled()
+
+
+## Taste L: springt von der Nacht auf 10 Uhr morgens bzw. vom Tag auf 22 Uhr (der Zyklus läuft danach normal weiter).
+func tageszeit_wechseln() -> void:
+	var tz = get_parent().get_node_or_null("Tageszeit")
+	if tz == null:
+		return
+	var nacht: bool = tz.is_night()
+	Game.time_of_day = 10.0 if nacht else 22.0
+	tz.apply()
+	show_message("Tag (10:00 Uhr)" if nacht else "Nacht (22:00 Uhr)")
 
 
 func _fehler_oeffnen() -> void:
