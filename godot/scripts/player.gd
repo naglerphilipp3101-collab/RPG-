@@ -899,6 +899,17 @@ func _stealth_look(on: bool) -> void:
 # --- Herstellen ---------------------------------------------------------
 
 ## Prüft ein Rezept. Gibt eine Fehlermeldung zurück oder "" wenn es möglich ist.
+## Prüft die gewählten Module: jeder Stil muss mit dem Skill des Berufs freigeschaltet sein.
+func module_check(recipe_id: String, module: Dictionary) -> String:
+	var profession: String = Game.stations[Game.recipes[recipe_id]["station"]]["profession"]
+	for platz in module:
+		var t := int(module[platz].get("tier", 1))
+		if t > profession_tier(profession):
+			return "Stil %s benötigt %s Skill %d" % [WaffenModell.TIER_NAMEN[clampi(t, 1, 6) - 1],
+				Game.profession_name(profession), Game.required_skill(t)]
+	return ""
+
+
 func craft_check(recipe_id: String, amount := 1, modifiers: Array = []) -> String:
 	var recipe: Dictionary = Game.recipes.get(recipe_id, {})
 	if recipe.is_empty():
@@ -918,8 +929,11 @@ func craft_check(recipe_id: String, amount := 1, modifiers: Array = []) -> Strin
 	return ""
 
 
-func craft(recipe_id: String, amount := 1, modifiers: Array = []) -> String:
+## module: Aussehen einer Waffe {platz: {"tier": Stil, "form": 1–5}} (nur Aussehen; Stile bis zum Tier des Berufs).
+func craft(recipe_id: String, amount := 1, modifiers: Array = [], module: Dictionary = {}) -> String:
 	var error := craft_check(recipe_id, amount, modifiers)
+	if error == "" and not module.is_empty():
+		error = module_check(recipe_id, module)
 	if error != "":
 		return error
 	var recipe: Dictionary = Game.recipes[recipe_id]
@@ -936,6 +950,8 @@ func craft(recipe_id: String, amount := 1, modifiers: Array = []) -> String:
 	var made := ""
 	if gear:
 		var g := Game.roll_gear(output, modifiers)
+		if not module.is_empty():
+			g["module"] = module.duplicate(true)
 		if inventory.add_gear(g):
 			made = Game.item_name(output)
 	else:

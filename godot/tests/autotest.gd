@@ -700,6 +700,16 @@ func _craft_test() -> void:
 	for s in steps:
 		var result: String = player.craft(s[0], s[1], s[2])
 		log_lines.append("craft %s x%d %s -> %s" % [s[0], s[1], str(s[2]), "OK" if result == "" else result])
+	# Modulare Waffe: Aussehen beim Schmieden wählen, gesperrter Stil wird abgelehnt
+	player.receive_items({"copper_ingot": 8, "timber": 4, "coarse_leather": 2})
+	var gesperrt: String = player.craft("copper_sword", 1, [], {"klinge": {"tier": 6, "form": 2}})
+	log_lines.append("Modul im gesperrten Stil -> %s" % ("FEHLER: angenommen" if gesperrt == "" else "abgelehnt (" + gesperrt + ")"))
+	var vorher: int = player.inventory.gear.size()
+	var wahl := {"klinge": {"tier": 1, "form": 3}, "parier": {"tier": 1, "form": 2}, "griff": {"tier": 1, "form": 5}, "knauf": {"tier": 1, "form": 4}}
+	var ok: String = player.craft("copper_sword", 1, [], wahl)
+	var neu: Dictionary = player.inventory.gear[-1] if player.inventory.gear.size() > vorher else {}
+	log_lines.append("Schwert mit Modulen -> %s, gespeichert: %s" % ["OK" if ok == "" else ok,
+		"ja" if neu.get("module", {}).get("klinge", {}).get("form", 0) == 3 else "FEHLER"])
 	log_lines.append("Ausrüstung im Inventar: %d Stück" % player.inventory.gear.size())
 	var power_before: float = player.get_tool_power("woodcutting")
 	for g in player.inventory.gear.duplicate():
