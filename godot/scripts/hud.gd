@@ -4,6 +4,8 @@ extends CanvasLayer
 const InventoryUIScript := preload("res://scripts/inventory_ui.gd")
 const CraftingUIScript := preload("res://scripts/crafting_ui.gd")
 const PauseMenuScript := preload("res://scripts/pause_menu.gd")
+const CharakterErstellungScript := preload("res://scripts/charakter_erstellung.gd")
+const SaveGameScript := preload("res://scripts/save_game.gd")
 const FehlerMeldenScript := preload("res://scripts/fehler_melden.gd")
 const SkillTreeUIScript := preload("res://scripts/skill_tree_ui.gd")
 const MinimapScript := preload("res://scripts/minimap.gd")
@@ -38,6 +40,7 @@ var inventory_ui: Control
 var crafting_ui: Control
 var faerber_ui: Control
 var pause_menu: Control
+var charakter_erstellung: Control
 var fehler_melden: Control # B: Fehler mit Ort, Bild und Kommentar festhalten
 var skill_tree_ui: Control
 var charakter_ui: Control
@@ -244,6 +247,7 @@ func _ready() -> void:
 	root.add_child(charakter_ui)
 	pause_menu = PauseMenuScript.new()
 	pause_menu.resume_requested.connect(func() -> void: set_paused(false))
+	pause_menu.aussehen_requested.connect(charakter_erstellung_oeffnen.bind(false))
 	root.add_child(pause_menu)
 	fehler_melden = FehlerMeldenScript.new()
 	fehler_melden.geschlossen.connect(_fehler_geschlossen)
@@ -373,6 +377,33 @@ func _apply_ui_mode() -> void:
 	player.ui_open = open
 
 
+## Charaktererstellung als Vollbild über dem (pausierten) Spiel. neu = neues Spiel (kein Abbrechen).
+func charakter_erstellung_oeffnen(neu: bool) -> void:
+	if charakter_erstellung:
+		return
+	pause_menu.close()
+	get_tree().paused = true
+	charakter_erstellung = CharakterErstellungScript.new()
+	charakter_erstellung.aussehen = player.aussehen.duplicate(true)
+	charakter_erstellung.abbrechen_erlaubt = not neu
+	charakter_erstellung.fertig.connect(func(a: Dictionary) -> void:
+		player.aussehen_setzen(a)
+		if Game.saving_enabled:
+			SaveGameScript.save(get_tree(), Game.SAVE_PATH)
+		_charakter_erstellung_schliessen(), CONNECT_DEFERRED)
+	charakter_erstellung.abgebrochen.connect(_charakter_erstellung_schliessen, CONNECT_DEFERRED)
+	add_child(charakter_erstellung)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	player.ui_open = true
+
+
+func _charakter_erstellung_schliessen() -> void:
+	charakter_erstellung.queue_free()
+	charakter_erstellung = null
+	get_tree().paused = false
+	_apply_ui_mode()
+
+
 func set_paused(paused: bool) -> void:
 	if paused:
 		inventory_ui.close()
@@ -394,6 +425,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # In _input statt _unhandled_input, damit die Oberfläche Tab nicht für den Fokuswechsel schluckt
 func _input(event: InputEvent) -> void:
+	if charakter_erstellung:
+		return
 	if fehler_melden.visible:
 		return # Tasten gehören dem Kommentarfeld (sonst öffnet z. B. „i“ das Inventar)
 	if event.is_action_pressed("fehler_melden") and not pause_menu.visible:
