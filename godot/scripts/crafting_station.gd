@@ -163,13 +163,13 @@ func _build_model() -> void:
 				MeshUtil.part(self, MeshUtil.box(Vector3(0.1, 1.7, 0.1)), dark_wood, Vector3(x, 0.85, 0))
 			MeshUtil.part(self, MeshUtil.box(Vector3(1.8, 0.08, 0.1)), dark_wood, Vector3(0, 1.6, 0))
 			MeshUtil.part(self, MeshUtil.box(Vector3(1.8, 0.08, 0.1)), dark_wood, Vector3(0, 0.3, 0))
-			var models := ["sword", "axe", "spear", "mace", "greatsword"]
+			var models := ["schwert", "axt", "speer", "hammer", "grossschwert"]
 			for i in models.size():
 				var holder := Node3D.new()
 				holder.position = Vector3(-0.6 + i * 0.3, 0.15, 0.08)
 				holder.rotation_degrees = Vector3(90, 0, 0) # Klinge nach oben
 				add_child(holder)
-				WeaponModels.build(models[i], holder)
+				WaffenModell.erzeugen(models[i], 1, holder)
 		_:
 			_table(wood)
 

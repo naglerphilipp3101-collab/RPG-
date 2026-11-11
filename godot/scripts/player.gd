@@ -1207,13 +1207,17 @@ func _build_model() -> void:
 	shield_pivot.position = SHIELD_REST_POS
 	shield_pivot.rotation_degrees = SHIELD_REST_ROT
 	body_root.add_child(shield_pivot)
-	MeshUtil.part(shield_pivot, MeshUtil.box(Vector3(0.62, 0.74, 0.07)), wood)
-	MeshUtil.part(shield_pivot, MeshUtil.box(Vector3(0.66, 0.08, 0.08)), metal, Vector3(0, 0.33, 0))
-	MeshUtil.part(shield_pivot, MeshUtil.box(Vector3(0.66, 0.08, 0.08)), metal, Vector3(0, -0.33, 0))
+	# Platzhalter, falls es kein modulares Schild gibt (sonst baut _build_weapon_visual das Schild aus Modulen)
+	var platzhalter := Node3D.new()
+	platzhalter.name = "Platzhalter"
+	shield_pivot.add_child(platzhalter)
+	MeshUtil.part(platzhalter, MeshUtil.box(Vector3(0.62, 0.74, 0.07)), wood)
+	MeshUtil.part(platzhalter, MeshUtil.box(Vector3(0.66, 0.08, 0.08)), metal, Vector3(0, 0.33, 0))
+	MeshUtil.part(platzhalter, MeshUtil.box(Vector3(0.66, 0.08, 0.08)), metal, Vector3(0, -0.33, 0))
 	var boss := SphereMesh.new()
 	boss.radius = 0.09
 	boss.height = 0.12
-	MeshUtil.part(shield_pivot, boss, metal, Vector3(0, 0, -0.05))
+	MeshUtil.part(platzhalter, boss, metal, Vector3(0, 0, -0.05))
 
 	var aura_mesh := SphereMesh.new()
 	aura_mesh.radius = 1.0
@@ -1245,15 +1249,39 @@ func _build_weapon_visual() -> void:
 		child.queue_free()
 	for child in offhand_pivot.get_children():
 		child.queue_free()
-	WeaponModels.build(weapon_def.get("model", "sword"), weapon_pivot, Game.element_color(element()))
+	var gear: Dictionary = equipment.get("weapon", {})
+	var tier := int(Game.item(String(gear.get("id", ""))).get("tier", 1))
+	if not WeaponModels.build_gear(weapon_def, gear, tier, weapon_pivot, Game.element_color(element())):
+		WeaponModels.build(weapon_def.get("model", "sword"), weapon_pivot, Game.element_color(element()))
 	if weapon_def.get("dual", false):
-		WeaponModels.build(weapon_def.get("model", "dagger"), offhand_pivot)
+		if not WeaponModels.build_gear(weapon_def, gear, tier, offhand_pivot):
+			WeaponModels.build(weapon_def.get("model", "dagger"), offhand_pivot)
 	weapon_pivot.position = _weapon_rest_pos()
 	weapon_pivot.rotation_degrees = _weapon_rest_rot()
 	shield_pivot.visible = shield_active()
+	_build_shield_visual()
 	shield_raised = false
 	shield_pivot.position = SHIELD_REST_POS
 	shield_pivot.rotation_degrees = SHIELD_REST_ROT
+
+
+## Schild aus Modulen (Schildkörper und Buckel im Stil und Material seines Tiers).
+func _build_shield_visual() -> void:
+	var alt := shield_pivot.get_node_or_null("Modular")
+	if alt:
+		shield_pivot.remove_child(alt)
+		alt.queue_free()
+	var platzhalter := shield_pivot.get_node_or_null("Platzhalter")
+	if not shield_active():
+		return
+	var gear: Dictionary = equipment["shield"]
+	var tier := clampi(int(Game.item(String(gear.get("id", ""))).get("tier", 1)), 1, 6)
+	var halter := Node3D.new()
+	halter.name = "Modular"
+	shield_pivot.add_child(halter)
+	var ok := WaffenModell.zusammenbauen("schild", WeaponModels.auswahl("schild", gear, tier), halter, tier)
+	if platzhalter:
+		platzhalter.visible = not ok
 
 
 func _build_tools() -> void:

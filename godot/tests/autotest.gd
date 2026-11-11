@@ -122,11 +122,48 @@ func _ready() -> void:
 		phase = "character_ui" # beendet nach 1,5 s, auch während das Fenster das Spiel anhält
 		process_mode = Node.PROCESS_MODE_ALWAYS
 		_fehler_test()
+	# Mit --waffenbilder <ordner>: jede Waffe (modulare Modelle) in der Hand, von der Seite, je ein Bild (nur mit Fenster)
+	if OS.get_cmdline_user_args().has("--waffenbilder"):
+		phase = "waffenbilder"
+		_waffenbilder.call_deferred()
+		return
 	# Mit --weapons: alle Waffentypen mit Angriffen und allen Fähigkeiten durchprobieren
 	if OS.get_cmdline_user_args().has("--weapons"):
 		weapon_types = Game.weapons.keys()
 		phase = "weapons"
 		_next_weapon()
+
+
+# --- Waffenbilder -------------------------------------------------------
+
+func _waffenbilder() -> void:
+	var args := OS.get_cmdline_user_args()
+	var ordner: String = args[args.find("--waffenbilder") + 1]
+	var tier := int(args[args.find("--tier") + 1]) if args.has("--tier") else 1
+	get_tree().current_scene.get_node("HUD").visible = false
+	for e in get_tree().get_nodes_in_group("enemy") + get_tree().get_nodes_in_group("enemies"):
+		e.queue_free()
+	var cam := Camera3D.new()
+	cam.fov = 40
+	get_tree().current_scene.add_child(cam)
+	cam.current = true
+	player.equipment["shield"] = Game.roll_gear("iron_shield" if tier >= 2 else "wooden_shield", [])
+	for type: String in Game.weapons:
+		var w: Dictionary = Game.weapons[type]
+		var id := "training_" + type
+		for entry: Dictionary in w.get("items", []):
+			if int(entry.get("tier", 1)) == tier:
+				id = entry["id"]
+		player.equipment["weapon"] = Game.roll_gear(id, [])
+		player._recalc_stats()
+		var mitte: Vector3 = player.global_position + Vector3(0, 1.1, 0)
+		var seite: Vector3 = player.body_root.global_transform.basis.x
+		cam.look_at_from_position(mitte + seite * 2.0 + Vector3(0, 0.4, 0) - player.body_root.global_transform.basis.z * 1.0, mitte - player.body_root.global_transform.basis.z * 0.4)
+		for i in 6:
+			await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("%s/%s.png" % [ordner, type])
+	get_tree().quit()
 
 
 # --- Waffentest ---------------------------------------------------------
