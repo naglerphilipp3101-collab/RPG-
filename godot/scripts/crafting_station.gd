@@ -17,6 +17,7 @@ func setup(id: String) -> void:
 
 func _ready() -> void:
 	add_to_group("interactable")
+	add_to_group("werkstatt") # für die Karte
 	collision_layer = 1
 	collision_mask = 0
 	_build_model()

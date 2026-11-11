@@ -1,6 +1,6 @@
 extends Control
 ## Minimap (oben rechts) und große Karte (M) auf Basis der Übersichtskarte des Weltgenerators.
-## Zeigt Spieler mit Blickrichtung, Städte, Dörfer, Dungeons, POIs und Minen.
+## Zeigt Spieler mit Blickrichtung, Städte, Dörfer, Dungeons, POIs, Minen und Werkstätten.
 ## Im Debug-Flug: Klick auf die große Karte springt dorthin.
 
 const SIZE := 230.0
@@ -9,12 +9,15 @@ const MARKER_STYLE := {
 	"stadt": [Color(0.95, 0.72, 0.28), 6.0], "dorf": [Color(0.92, 0.86, 0.58), 4.0],
 	"dungeon": [Color(0.85, 0.3, 0.28), 5.0], "poi": [Color(0.45, 0.75, 0.95), 5.0], "mine": [Color(0.65, 0.68, 0.72), 3.5],
 }
+const WERKSTATT_FARBE := Color(1.0, 0.55, 0.2)
 
 var player = null
 var main = null # für Geländehöhe beim Teleport
 var texture: Texture2D
 var world_size := 8192.0
 var markers: Array[Dictionary] = [] # {pos: Vector2(x, z), typ, name}
+var werkstaetten: Array[Dictionary] = [] # {pos, name}: einzelne Werkstätten (Quadrate, Namen erst nah genug)
+var werkstatt_mitte := Vector2.ZERO
 var roads: Array[Dictionary] = [] # {pts: PackedVector2Array (x, z), strasse: bool}
 const ROAD_COLOR := Color(0.93, 0.82, 0.6)
 const PATH_COLOR := Color(0.85, 0.74, 0.55, 0.8)
@@ -22,7 +25,7 @@ var zoom_index := 1
 var big := false
 var font: Font
 # Große Karte: 1 = ganze Insel, bis 32-fach; Mittelpunkt des Ausschnitts in Weltkoordinaten (x, z)
-const BIG_ZOOM_MAX := 32.0
+const BIG_ZOOM_MAX := 128.0
 var big_zoom := 1.0
 var big_center := Vector2.ZERO
 var _drag_from := Vector2.ZERO
@@ -47,6 +50,14 @@ func setup(p, main_node, tex: Texture2D, size: float, marker_nodes: Array) -> vo
 		var typ: String = m.get_meta("typ", "")
 		if MARKER_STYLE.has(typ):
 			markers.append({"pos": Vector2(m.global_position.x, m.global_position.z), "typ": typ, "name": m.get_meta("name", "")})
+	# Werkstätten: einzeln als Quadrate, aus der Ferne als ein Marker „Werkstätten“ in ihrer Mitte
+	werkstaetten.clear()
+	werkstatt_mitte = Vector2.ZERO
+	for w in get_tree().get_nodes_in_group("werkstatt"):
+		werkstaetten.append({"pos": Vector2(w.global_position.x, w.global_position.z), "name": String(w.data.get("name", ""))})
+		werkstatt_mitte += werkstaetten[-1]["pos"]
+	if not werkstaetten.is_empty():
+		werkstatt_mitte /= werkstaetten.size()
 	# Straßen und Wege als Linienzüge (x/z), aus den Path3D-Knoten des Weltimports
 	roads.clear()
 	for pf in get_tree().get_nodes_in_group("welt_wege"):
@@ -120,6 +131,7 @@ func _draw_mini() -> void:
 		draw_arc(center + d, style[1], 0, TAU, 12, Color(0, 0, 0, 0.7), 1.0)
 		if m["typ"] == "stadt" and mpp <= 4.0:
 			_label(center + d + Vector2(8, 4), m["name"], 11, style[0])
+	_draw_werkstaetten(func(w: Vector2) -> Vector2: return center + (w - p) / mpp, 1.0 / mpp, rect.grow(-4.0))
 	_draw_player(center, 9.0)
 	# Himmelsrichtung, Zoom und Position
 	_label(Vector2(center.x - 4, rect.position.y + 13), "N", 13, Color.WHITE)
@@ -176,6 +188,7 @@ func _draw_big() -> void:
 		var zeigen: bool = m["typ"] == "stadt" or (m["typ"] != "mine" and big_zoom >= 2.0) or big_zoom >= 4.0
 		if zeigen:
 			_label(pos + Vector2(r + 4, 4), m["name"], 13 if m["typ"] == "stadt" else 11, style[0])
+	_draw_werkstaetten(_big_to_screen, _big_scale(), rect.grow(-4.0))
 	var p := _big_to_screen(Vector2(player.global_position.x, player.global_position.z))
 	if rect.has_point(p):
 		_draw_player(p, 11.0)
@@ -187,6 +200,35 @@ func _draw_big() -> void:
 		hint += "  ·  im Debug-Flug (F3): Klick = springen"
 	_label(Vector2(rect.position.x, rect.end.y + 22.0), hint, 14, Color(1.0, 0.9, 0.65))
 	_label(Vector2(rect.end.x - 60.0, rect.end.y + 22.0), "%s×" % String.num(big_zoom, 1), 14, Color(1.0, 0.9, 0.65))
+
+
+## Werkstätten: liegen sie auf dem Bildschirm dicht beieinander, ein Amboss-Marker „Werkstätten“,
+## sonst je ein Quadrat und (mit genug Platz) der Name. px_pro_m = Bildschirmpixel pro Weltmeter.
+func _draw_werkstaetten(to_screen: Callable, px_pro_m: float, rect: Rect2) -> void:
+	if werkstaetten.is_empty():
+		return
+	var abstand := TAU * 9.0 / werkstaetten.size() * px_pro_m # ungefährer Abstand zweier Werkstätten im Dorf
+	if abstand < 7.0:
+		var pos: Vector2 = to_screen.call(werkstatt_mitte)
+		if rect.has_point(pos):
+			_werkstatt_symbol(pos, 7.0)
+			_label(pos + Vector2(11, 5), "Werkstätten" + ("  (heranzoomen)" if big else ""), 12, WERKSTATT_FARBE)
+		return
+	var maus := get_local_mouse_position()
+	for w in werkstaetten:
+		var pos: Vector2 = to_screen.call(w["pos"])
+		if not rect.has_point(pos):
+			continue
+		var unter_maus := big and pos.distance_to(maus) < 9.0
+		_werkstatt_symbol(pos, 6.0 if unter_maus else 4.5)
+		if abstand >= 60.0 or unter_maus: # sonst Name nur, wenn die Maus darauf zeigt
+			_label(pos + Vector2(8, 4), w["name"], 13 if unter_maus else 11, WERKSTATT_FARBE.lightened(0.3) if unter_maus else WERKSTATT_FARBE)
+
+
+func _werkstatt_symbol(pos: Vector2, r: float) -> void:
+	var box := Rect2(pos - Vector2(r, r), Vector2(r, r) * 2.0)
+	draw_rect(box.grow(1.0), Color(0, 0, 0, 0.75))
+	draw_rect(box, WERKSTATT_FARBE)
 
 
 ## Straßen (breiter) und Wege; Abschnitte außerhalb des Kartenrechtecks werden ausgelassen

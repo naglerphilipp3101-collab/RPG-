@@ -463,6 +463,7 @@ func _setup_input() -> void:
 	_add_key("fly_down", KEY_C)
 	_add_key("world_map", KEY_M)
 	_add_key("minimap_zoom", KEY_N)
+	_add_key("tageszeit", KEY_L)
 	_add_key("inventory", KEY_TAB)
 	_add_key("inventory", KEY_I)
 	_add_key("toggle_help", KEY_F1)
