@@ -11,6 +11,8 @@ var gravity := 0.0
 var life := 3.0
 var kind := "arrow"
 var color := Color.WHITE # Farbe magischer Geschosse
+var tier := 1 # Pfeile und Bolzen: Modell des Tiers (WaffenModell.geschoss)
+const STECKEN_ZEIT := 8.0 # so lange bleiben Pfeile und Bolzen in Boden und Wänden stecken
 var hit_data: Dictionary = {} # mult, kb, stag, effects, pierce, explode
 var hit_list: Array = []
 var visual: Node3D
@@ -19,7 +21,11 @@ var visual: Node3D
 func _ready() -> void:
 	visual = Node3D.new()
 	add_child(visual)
-	WeaponModels.build_projectile(kind, visual, color)
+	var modell: Node3D = null
+	if kind == "arrow" or kind == "bolt":
+		modell = WaffenModell.geschoss("pfeil" if kind == "arrow" else "bolzen", tier, visual)
+	if modell == null:
+		WeaponModels.build_projectile(kind, visual, color)
 	_orient()
 
 
@@ -66,6 +72,8 @@ func _physics_process(delta: float) -> void:
 	if not world_hit.is_empty():
 		if float(hit_data.get("explode", 0.0)) > 0.0:
 			_explode(end)
+		elif kind == "arrow" or kind == "bolt":
+			_stecken(end)
 		else:
 			queue_free()
 		return
@@ -73,6 +81,15 @@ func _physics_process(delta: float) -> void:
 	_orient()
 	if kind == "axe":
 		visual.rotate_x(-delta * 18.0)
+
+
+## Pfeil/Bolzen bleibt mit der Spitze ein Stück im Boden oder in der Wand stecken und verschwindet später.
+func _stecken(pos: Vector3) -> void:
+	var halbe_laenge := 0.38 if kind == "arrow" else 0.24 # Abstand Ursprung–Spitze im Modell
+	global_position = pos - velocity.normalized() * (halbe_laenge - 0.06)
+	_orient()
+	set_physics_process(false)
+	get_tree().create_timer(STECKEN_ZEIT).timeout.connect(queue_free)
 
 
 func _orient() -> void:

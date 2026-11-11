@@ -130,6 +130,8 @@ var gather_hp := 0.0
 
 # Ausrüstung: Slot ("weapon", "weapon2", "shield", "head", "chest", "legs", "ring", "tool:<beruf>") -> Ausrüstungsstück
 var equipment: Dictionary = {}
+var farbpalette: Array = [] # gespeicherte Farben des Färbers ("#rrggbb", höchstens 20)
+var magieklinge_an := false # Leerenhandschuh: Magieklinge ausgefahren (per Fähigkeit)
 const BASE_MAX_HEALTH := 150.0 # dazu 10 je Punkt Vitalität (Start 5 → 200)
 const BASE_WEAPON_DAMAGE := 20.0 # Schaden ohne Waffe; Angriffe skalieren relativ zum Waffenschaden
 var damage_mult := 1.0 # nur für die Anzeige (ohne zeitliche Buffs)
@@ -899,6 +901,17 @@ func _stealth_look(on: bool) -> void:
 # --- Herstellen ---------------------------------------------------------
 
 ## Prüft ein Rezept. Gibt eine Fehlermeldung zurück oder "" wenn es möglich ist.
+## Prüft die gewählten Module: jeder Stil muss mit dem Skill des Berufs freigeschaltet sein.
+func module_check(recipe_id: String, module: Dictionary) -> String:
+	var profession: String = Game.stations[Game.recipes[recipe_id]["station"]]["profession"]
+	for platz in module:
+		var t := int(module[platz].get("tier", 1))
+		if t > profession_tier(profession):
+			return "Stil %s benötigt %s Skill %d" % [WaffenModell.TIER_NAMEN[clampi(t, 1, 6) - 1],
+				Game.profession_name(profession), Game.required_skill(t)]
+	return ""
+
+
 func craft_check(recipe_id: String, amount := 1, modifiers: Array = []) -> String:
 	var recipe: Dictionary = Game.recipes.get(recipe_id, {})
 	if recipe.is_empty():
@@ -918,8 +931,11 @@ func craft_check(recipe_id: String, amount := 1, modifiers: Array = []) -> Strin
 	return ""
 
 
-func craft(recipe_id: String, amount := 1, modifiers: Array = []) -> String:
+## module: Aussehen einer Waffe {platz: {"tier": Stil, "form": 1–5}} (nur Aussehen; Stile bis zum Tier des Berufs).
+func craft(recipe_id: String, amount := 1, modifiers: Array = [], module: Dictionary = {}) -> String:
 	var error := craft_check(recipe_id, amount, modifiers)
+	if error == "" and not module.is_empty():
+		error = module_check(recipe_id, module)
 	if error != "":
 		return error
 	var recipe: Dictionary = Game.recipes[recipe_id]
@@ -936,6 +952,8 @@ func craft(recipe_id: String, amount := 1, modifiers: Array = []) -> String:
 	var made := ""
 	if gear:
 		var g := Game.roll_gear(output, modifiers)
+		if not module.is_empty():
+			g["module"] = module.duplicate(true)
 		if inventory.add_gear(g):
 			made = Game.item_name(output)
 	else:
@@ -1026,6 +1044,7 @@ func to_save() -> Dictionary:
 		"weapon_slots": weapon_slots,
 		"quick_slots": quick_slots,
 		"ultimate_charge": ultimate_charge,
+		"farbpalette": farbpalette.duplicate(),
 	}
 
 
@@ -1058,6 +1077,7 @@ func from_save(data: Dictionary) -> void:
 	weapon_slots = clampi(int(data.get("weapon_slots", 2)), 2, WEAPON_SLOTS.size())
 	quick_slots = clampi(int(data.get("quick_slots", 2)), 2, Game.QUICK_SLOTS.size())
 	ultimate_charge = clampf(float(data.get("ultimate_charge", 0.0)), 0.0, Game.ULTIMATE_CHARGE)
+	farbpalette = Array(data.get("farbpalette", [])).slice(0, 20)
 	equipment.clear()
 	var saved_equipment: Dictionary = data.get("equipment", {})
 	for key in saved_equipment:
@@ -1207,13 +1227,17 @@ func _build_model() -> void:
 	shield_pivot.position = SHIELD_REST_POS
 	shield_pivot.rotation_degrees = SHIELD_REST_ROT
 	body_root.add_child(shield_pivot)
-	MeshUtil.part(shield_pivot, MeshUtil.box(Vector3(0.62, 0.74, 0.07)), wood)
-	MeshUtil.part(shield_pivot, MeshUtil.box(Vector3(0.66, 0.08, 0.08)), metal, Vector3(0, 0.33, 0))
-	MeshUtil.part(shield_pivot, MeshUtil.box(Vector3(0.66, 0.08, 0.08)), metal, Vector3(0, -0.33, 0))
+	# Platzhalter, falls es kein modulares Schild gibt (sonst baut _build_weapon_visual das Schild aus Modulen)
+	var platzhalter := Node3D.new()
+	platzhalter.name = "Platzhalter"
+	shield_pivot.add_child(platzhalter)
+	MeshUtil.part(platzhalter, MeshUtil.box(Vector3(0.62, 0.74, 0.07)), wood)
+	MeshUtil.part(platzhalter, MeshUtil.box(Vector3(0.66, 0.08, 0.08)), metal, Vector3(0, 0.33, 0))
+	MeshUtil.part(platzhalter, MeshUtil.box(Vector3(0.66, 0.08, 0.08)), metal, Vector3(0, -0.33, 0))
 	var boss := SphereMesh.new()
 	boss.radius = 0.09
 	boss.height = 0.12
-	MeshUtil.part(shield_pivot, boss, metal, Vector3(0, 0, -0.05))
+	MeshUtil.part(platzhalter, boss, metal, Vector3(0, 0, -0.05))
 
 	var aura_mesh := SphereMesh.new()
 	aura_mesh.radius = 1.0
@@ -1245,15 +1269,47 @@ func _build_weapon_visual() -> void:
 		child.queue_free()
 	for child in offhand_pivot.get_children():
 		child.queue_free()
-	WeaponModels.build(weapon_def.get("model", "sword"), weapon_pivot, Game.element_color(element()))
+	var gear: Dictionary = equipment.get("weapon", {})
+	var tier := int(Game.item(String(gear.get("id", ""))).get("tier", 1))
+	if not WeaponModels.build_gear(weapon_def, gear, tier, weapon_pivot, Game.element_color(element()), magieklinge_an):
+		WeaponModels.build(weapon_def.get("model", "sword"), weapon_pivot, Game.element_color(element()))
 	if weapon_def.get("dual", false):
-		WeaponModels.build(weapon_def.get("model", "dagger"), offhand_pivot)
+		if not WeaponModels.build_gear(weapon_def, gear, tier, offhand_pivot):
+			WeaponModels.build(weapon_def.get("model", "dagger"), offhand_pivot)
 	weapon_pivot.position = _weapon_rest_pos()
 	weapon_pivot.rotation_degrees = _weapon_rest_rot()
 	shield_pivot.visible = shield_active()
+	_build_shield_visual()
 	shield_raised = false
 	shield_pivot.position = SHIELD_REST_POS
 	shield_pivot.rotation_degrees = SHIELD_REST_ROT
+
+
+## Leerenhandschuh: Magieklinge ein- oder ausfahren (für die Fähigkeit, die Philipp noch festlegt).
+func set_magieklinge(an: bool) -> void:
+	magieklinge_an = an
+	var klinge := weapon_pivot.find_child("klinge", true, false)
+	if klinge and weapon_pivot.find_child("Modular", false, false):
+		klinge.visible = an
+
+
+## Schild aus Modulen (Schildkörper und Buckel im Stil und Material seines Tiers).
+func _build_shield_visual() -> void:
+	var alt := shield_pivot.get_node_or_null("Modular")
+	if alt:
+		shield_pivot.remove_child(alt)
+		alt.queue_free()
+	var platzhalter := shield_pivot.get_node_or_null("Platzhalter")
+	if not shield_active():
+		return
+	var gear: Dictionary = equipment["shield"]
+	var tier := clampi(int(Game.item(String(gear.get("id", ""))).get("tier", 1)), 1, 6)
+	var halter := Node3D.new()
+	halter.name = "Modular"
+	shield_pivot.add_child(halter)
+	var ok := WaffenModell.zusammenbauen("schild", WeaponModels.auswahl("schild", gear, tier), halter, tier)
+	if platzhalter:
+		platzhalter.visible = not ok
 
 
 func _build_tools() -> void:
@@ -1859,6 +1915,7 @@ func _spawn_projectiles(shot: Dictionary) -> void:
 		var p = ProjectileScript.new()
 		p.shooter = self
 		p.kind = shot.get("projectile", "arrow")
+		p.tier = int(Game.item(String(equipment.get("weapon", {}).get("id", ""))).get("tier", 1))
 		p.color = Game.element_color(element())
 		p.life = float(shot.get("life", 3.0))
 		p.velocity = dir.rotated(Vector3.UP, angle) * speed

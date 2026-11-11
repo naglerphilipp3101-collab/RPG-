@@ -10,5 +10,6 @@
 	"jeweler": {"name": "Juwelier", "profession": "jewelcrafting", "visual": "gem"},
 	"arcana": {"name": "Arkanes Sanktum", "profession": "arcana", "visual": "cauldron"},
 	"kitchen": {"name": "Küche", "profession": "cooking", "visual": "kitchen"},
-	"armory": {"name": "Übungswaffenständer", "profession": "weaponsmithing", "visual": "weapon_rack"}
+	"armory": {"name": "Übungswaffenständer", "profession": "weaponsmithing", "visual": "weapon_rack"},
+	"dyer": {"name": "Färber", "profession": "", "visual": "dye"}
 }

@@ -4,6 +4,84 @@ extends RefCounted
 const MeshUtil := preload("res://scripts/mesh_util.gd")
 
 
+## Modulare Waffe zum Spielmodell (weapons.json "model", bei Magie nach Element), "" wenn es keine gibt.
+static func modular_name(def: Dictionary) -> String:
+	var model := String(def.get("model", ""))
+	if model == "staff" or model == "orb":
+		return String(WaffenModell.AUS_ELEMENT.get(String(def.get("element", "")), ""))
+	return String(WaffenModell.AUS_SPIEL.get(model, ""))
+
+
+## Auswahl der Module für WaffenModell.zusammenbauen aus einem Gegenstand: gespeicherte Module (gear["module"]:
+## {platz: {tier, form, material, farbe, akzent}}) oder sonst Form 1 im Stil des Tiers. Das Material folgt dem Tier des
+## Gegenstands (Stufe 1 = Iron … 6 = Darksteel), solange das Modul nichts anderes sagt.
+static func auswahl(waffe: String, gear: Dictionary, tier: int) -> Dictionary:
+	var module: Dictionary = gear.get("module", {})
+	var aus := {}
+	for platz: String in WaffenModell.WAFFEN[waffe]:
+		var w: Dictionary = module.get(platz, {})
+		var a := {"tier": int(w.get("tier", tier)), "form": int(w.get("form", 1)), "material": int(w.get("material", tier))}
+		for k in ["farbe", "akzent"]:
+			if w.has(k):
+				a[k] = w[k]
+		aus[platz] = a
+	return aus
+
+
+## Baut die modulare Waffe eines Gegenstands. Gibt false zurück, wenn es für das Modell keine modulare Waffe gibt
+## (dann bleibt der Platzhalter). magie_klinge zeigt die Magieklinge des Leerenhandschuhs (per Fähigkeit).
+static func build_gear(def: Dictionary, gear: Dictionary, tier: int, parent: Node3D, element_color: Variant = null,
+		magie_klinge := false) -> bool:
+	var waffe := modular_name(def)
+	if waffe == "" or not WaffenModell.WAFFEN.has(waffe):
+		return false
+	tier = clampi(tier, 1, 6)
+	var halter := Node3D.new()
+	halter.name = "Modular"
+	parent.add_child(halter)
+	if waffe == "leerenhandschuh": # Knöchel nach vorn (-Z), Handrücken nach oben
+		halter.basis = Basis(Vector3.UP, PI / 2)
+	var farbe: Variant = element_color if bool(def.get("magic", false)) else null
+	if not WaffenModell.zusammenbauen(waffe, auswahl(waffe, gear, tier), halter, tier, farbe):
+		halter.queue_free()
+		return false
+	var klinge := halter.find_child("klinge", true, false)
+	if waffe == "leerenhandschuh" and klinge:
+		klinge.visible = magie_klinge
+	return true
+
+
+## Legt ein Waffenmodell für eine Vorschau mittig hin (längste Achse senkrecht, da die Vorschau um die Hochachse dreht)
+## und stellt die Kamera so, dass es das Bild füllt.
+static func vorschau_einpassen(teil: Node3D, cam: Camera3D) -> void:
+	var box := _lokale_box(teil)
+	var s := box.size
+	if s.z > s.y and s.z >= s.x:
+		teil.basis = Basis(Vector3.RIGHT, PI / 2) * teil.basis
+	elif s.x > s.y and s.x > s.z:
+		teil.basis = Basis(Vector3.BACK, PI / 2) * teil.basis
+	box = _lokale_box(teil, true)
+	teil.position = -box.get_center()
+	var halbe := maxf(box.size.y, maxf(box.size.x, box.size.z)) * 0.5
+	var abstand := maxf(halbe, 0.05) / tan(deg_to_rad(cam.fov * 0.5)) * 1.15 + maxf(box.size.x, box.size.z) * 0.5
+	cam.look_at_from_position(Vector3(0, halbe * 0.15, abstand), Vector3.ZERO)
+
+
+## Hülle aller Meshes, gemessen im Elternraum des Teils (mit dessen Drehung) oder in seinem eigenen Raum.
+static func _lokale_box(teil: Node3D, mit_drehung := false) -> AABB:
+	var box := AABB()
+	var erste := true
+	var bezug := teil.global_transform.affine_inverse()
+	for mi in teil.find_children("*", "MeshInstance3D", true, false):
+		var t: Transform3D = bezug * (mi as MeshInstance3D).global_transform
+		if mit_drehung:
+			t = Transform3D(teil.basis, Vector3.ZERO) * t
+		var b: AABB = t * (mi as MeshInstance3D).get_aabb()
+		box = b if erste else box.merge(b)
+		erste = false
+	return box
+
+
 static func build(model: String, parent: Node3D, glow := Color(1.0, 0.85, 0.5)) -> void:
 	var metal := MeshUtil.mat(Color(0.75, 0.77, 0.8), 0.8, 0.3)
 	var dark_metal := MeshUtil.mat(Color(0.4, 0.4, 0.43), 0.8, 0.4)

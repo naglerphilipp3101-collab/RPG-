@@ -122,11 +122,87 @@ func _ready() -> void:
 		phase = "character_ui" # beendet nach 1,5 s, auch während das Fenster das Spiel anhält
 		process_mode = Node.PROCESS_MODE_ALWAYS
 		_fehler_test()
+	# Mit --faerber: Färberfenster mit einem gefärbten Schwert (mit --write-movie Bild vom Fenster)
+	if OS.get_cmdline_user_args().has("--faerber"):
+		var schwert: Dictionary = Game.roll_gear("iron_sword", [])
+		schwert["module"] = {"klinge": {"tier": 2, "form": 2, "farbe": "#2f6fd8", "akzent": "#e0b030"}}
+		player.equipment["weapon"] = schwert
+		player.farbpalette = ["#2f6fd8", "#e0b030", "#a01818", "#1d1d22"]
+		player._recalc_stats()
+		player._build_weapon_visual()
+		phase = "character_ui"
+		get_tree().current_scene.get_node("HUD").open_station.call_deferred("dyer")
+	# Mit --pfeile: Pfeile und Bolzen aller Tiers schräg in den Boden schießen (mit --write-movie Bild)
+	if OS.get_cmdline_user_args().has("--pfeile"):
+		phase = "character_ui"
+		player.cam_yaw = 0.0
+		player.cam_pitch = -0.3
+		for i in 12:
+			var p = load("res://scripts/projectile.gd").new()
+			p.kind = "arrow" if i < 6 else "bolt"
+			p.tier = i % 6 + 1
+			p.shooter = player
+			p.velocity = Vector3(0.3, -1.0, -1.2).normalized() * 30.0
+			get_tree().current_scene.add_child(p)
+			p.global_position = player.global_position + Vector3(-2.2 + (i % 6) * 0.9, 1.2, -3.0 - (i / 6) * 1.6)
+		get_tree().current_scene.get_node("HUD").visible = false
+		for e in get_tree().get_nodes_in_group("enemy") + get_tree().get_nodes_in_group("enemies"):
+			e.queue_free()
+		var cam_p := Camera3D.new()
+		cam_p.fov = 40
+		get_tree().current_scene.add_child(cam_p)
+		cam_p.current = true
+		var mitte_p: Vector3 = player.global_position + Vector3(0, 0, -3.8)
+		mitte_p.y = 0.2
+		cam_p.look_at_from_position(mitte_p + Vector3(1.5, 1.6, 3.2), mitte_p)
+		get_tree().create_timer(1.0).timeout.connect(func() -> void:
+			var steckt := 0
+			for n in get_tree().current_scene.get_children():
+				if n.get_script() == load("res://scripts/projectile.gd") and not n.is_physics_processing():
+					steckt += 1
+			print("AUTOTEST Pfeile/Bolzen stecken: %d von 12" % steckt))
+	# Mit --waffenbilder <ordner>: jede Waffe (modulare Modelle) in der Hand, von der Seite, je ein Bild (nur mit Fenster)
+	if OS.get_cmdline_user_args().has("--waffenbilder"):
+		phase = "waffenbilder"
+		_waffenbilder.call_deferred()
+		return
 	# Mit --weapons: alle Waffentypen mit Angriffen und allen Fähigkeiten durchprobieren
 	if OS.get_cmdline_user_args().has("--weapons"):
 		weapon_types = Game.weapons.keys()
 		phase = "weapons"
 		_next_weapon()
+
+
+# --- Waffenbilder -------------------------------------------------------
+
+func _waffenbilder() -> void:
+	var args := OS.get_cmdline_user_args()
+	var ordner: String = args[args.find("--waffenbilder") + 1]
+	var tier := int(args[args.find("--tier") + 1]) if args.has("--tier") else 1
+	get_tree().current_scene.get_node("HUD").visible = false
+	for e in get_tree().get_nodes_in_group("enemy") + get_tree().get_nodes_in_group("enemies"):
+		e.queue_free()
+	var cam := Camera3D.new()
+	cam.fov = 40
+	get_tree().current_scene.add_child(cam)
+	cam.current = true
+	player.equipment["shield"] = Game.roll_gear("iron_shield" if tier >= 2 else "wooden_shield", [])
+	for type: String in Game.weapons:
+		var w: Dictionary = Game.weapons[type]
+		var id := "training_" + type
+		for entry: Dictionary in w.get("items", []):
+			if int(entry.get("tier", 1)) == tier:
+				id = entry["id"]
+		player.equipment["weapon"] = Game.roll_gear(id, [])
+		player._recalc_stats()
+		var mitte: Vector3 = player.global_position + Vector3(0, 1.1, 0)
+		var seite: Vector3 = player.body_root.global_transform.basis.x
+		cam.look_at_from_position(mitte + seite * 2.0 + Vector3(0, 0.4, 0) - player.body_root.global_transform.basis.z * 1.0, mitte - player.body_root.global_transform.basis.z * 0.4)
+		for i in 6:
+			await get_tree().process_frame
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("%s/%s.png" % [ordner, type])
+	get_tree().quit()
 
 
 # --- Waffentest ---------------------------------------------------------
@@ -663,6 +739,16 @@ func _craft_test() -> void:
 	for s in steps:
 		var result: String = player.craft(s[0], s[1], s[2])
 		log_lines.append("craft %s x%d %s -> %s" % [s[0], s[1], str(s[2]), "OK" if result == "" else result])
+	# Modulare Waffe: Aussehen beim Schmieden wählen, gesperrter Stil wird abgelehnt
+	player.receive_items({"copper_ingot": 8, "timber": 4, "coarse_leather": 2})
+	var gesperrt: String = player.craft("copper_sword", 1, [], {"klinge": {"tier": 6, "form": 2}})
+	log_lines.append("Modul im gesperrten Stil -> %s" % ("FEHLER: angenommen" if gesperrt == "" else "abgelehnt (" + gesperrt + ")"))
+	var vorher: int = player.inventory.gear.size()
+	var wahl := {"klinge": {"tier": 1, "form": 3}, "parier": {"tier": 1, "form": 2}, "griff": {"tier": 1, "form": 5}, "knauf": {"tier": 1, "form": 4}}
+	var ok: String = player.craft("copper_sword", 1, [], wahl)
+	var neu: Dictionary = player.inventory.gear[-1] if player.inventory.gear.size() > vorher else {}
+	log_lines.append("Schwert mit Modulen -> %s, gespeichert: %s" % ["OK" if ok == "" else ok,
+		"ja" if neu.get("module", {}).get("klinge", {}).get("form", 0) == 3 else "FEHLER"])
 	log_lines.append("Ausrüstung im Inventar: %d Stück" % player.inventory.gear.size())
 	var power_before: float = player.get_tool_power("woodcutting")
 	for g in player.inventory.gear.duplicate():
@@ -677,6 +763,17 @@ func _craft_test() -> void:
 	log_lines.append("Leben nach Trank: %.0f, Essen-Regeneration %.0f/s" % [player.health, player.food_regen])
 	log_lines.append("Berufe: smelting=%d weaponsmithing=%d" % [player.get_profession_level("smelting"),
 		player.get_profession_level("weaponsmithing")])
+	# Färber: Farbe für die Klinge der angelegten Waffe setzen und in der Palette speichern
+	var hud_f = get_tree().current_scene.get_node("HUD")
+	hud_f.open_station("dyer")
+	var faerber = hud_f.faerber_ui
+	var gefaerbt: Dictionary = faerber.auswahl
+	faerber._setzen("klinge", "farbe", Color(0.8, 0.1, 0.1))
+	faerber._farbe_speichern()
+	log_lines.append("Färber offen: %s, Waffe %s, Klinge %s, Palette %s" % [faerber.visible,
+		Game.item_name(String(gefaerbt.get("id", "?"))), gefaerbt.get("module", {}).get("klinge", {}).get("farbe", "FEHLER"),
+		str(player.farbpalette)])
+	hud_f.close_all_windows()
 	time = 34.0
 	get_tree().current_scene.get_node("HUD").open_station.call_deferred("weaponsmith")
 

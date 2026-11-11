@@ -1,5 +1,6 @@
 extends Control
 ## Herstellungsfenster einer Werkstatt: Rezeptliste links, Details, Zusatzmaterialien und Herstellen rechts.
+const WeaponModels := preload("res://scripts/weapon_models.gd")
 
 var player = null
 var station_id := ""
@@ -20,6 +21,14 @@ var amount_spin: SpinBox
 var craft_button: Button
 var result_label: Label
 var modifier_pickers: Array[OptionButton] = []
+# Aussehen modularer Waffen: Stil und Form je Platz, mit drehender 3D-Vorschau
+var look_box: VBoxContainer
+var look_rows: VBoxContainer
+var look_material: Label
+var look_view: SubViewport
+var look_holder: Node3D
+var look_waffe := ""
+var module := {} # {platz: {"tier": Stil, "form": 1–5}}
 
 
 func _ready() -> void:
@@ -37,8 +46,8 @@ func _ready() -> void:
 	panel.anchor_right = 0.5
 	panel.anchor_top = 0.5
 	panel.anchor_bottom = 0.5
-	panel.offset_left = -560
-	panel.offset_right = 560
+	panel.offset_left = -660
+	panel.offset_right = 660
 	panel.offset_top = -320
 	panel.offset_bottom = 320
 	var style := StyleBoxFlat.new()
@@ -134,6 +143,139 @@ func _ready() -> void:
 	details.add_child(craft_button)
 	result_label = _label("", 15, Color(1.0, 0.85, 0.5))
 	details.add_child(result_label)
+	_build_look(body)
+
+
+## Spalte "Aussehen": Vorschau und je Platz der Waffe Stil (Tier-Stil, freigeschaltet über den Skill) und Form.
+func _build_look(body: HBoxContainer) -> void:
+	look_box = VBoxContainer.new()
+	look_box.custom_minimum_size = Vector2(300, 0)
+	look_box.add_theme_constant_override("separation", 6)
+	body.add_child(look_box)
+	look_box.add_child(_label("Aussehen", 17, Color(1.0, 0.85, 0.5)))
+	var container := SubViewportContainer.new()
+	container.custom_minimum_size = Vector2(300, 220)
+	container.stretch = true
+	look_box.add_child(container)
+	look_view = SubViewport.new()
+	look_view.own_world_3d = true
+	look_view.transparent_bg = true
+	container.add_child(look_view)
+	var env := WorldEnvironment.new()
+	env.environment = Environment.new()
+	env.environment.background_mode = Environment.BG_COLOR
+	env.environment.background_color = Color(0.13, 0.13, 0.16)
+	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.environment.ambient_light_color = Color(0.6, 0.6, 0.65)
+	# Himmel nur für Spiegelungen, sonst wirkt Metall vor dem dunklen Hintergrund schwarz
+	var himmel := ProceduralSkyMaterial.new()
+	himmel.sky_top_color = Color(0.55, 0.6, 0.7)
+	himmel.sky_horizon_color = Color(0.8, 0.8, 0.82)
+	himmel.ground_bottom_color = Color(0.2, 0.18, 0.16)
+	himmel.ground_horizon_color = Color(0.5, 0.48, 0.45)
+	env.environment.sky = Sky.new()
+	env.environment.sky.sky_material = himmel
+	env.environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	look_view.add_child(env)
+	for r in [Vector3(-50, -30, 0), Vector3(-20, 150, 0)]:
+		var licht := DirectionalLight3D.new()
+		licht.rotation_degrees = r
+		look_view.add_child(licht)
+	var cam := Camera3D.new()
+	cam.name = "Kamera"
+	cam.fov = 35
+	look_view.add_child(cam)
+	look_holder = Node3D.new()
+	look_view.add_child(look_holder)
+	look_material = _label("", 13, Color(0.7, 0.7, 0.7))
+	look_material.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	look_box.add_child(look_material)
+	look_rows = VBoxContainer.new()
+	look_rows.add_theme_constant_override("separation", 4)
+	look_box.add_child(look_rows)
+
+
+func _process(delta: float) -> void:
+	if visible and look_holder and look_box.visible:
+		look_holder.rotate_y(delta * 0.5)
+
+
+## Modulare Waffe des Rezepts ("" wenn das Ergebnis keine ist). Schilde: "schild".
+func _look_waffe(output: String) -> String:
+	var def := Game.item(output)
+	if def.get("slot", "") == "shield":
+		return "schild"
+	var type := String(def.get("weapon_type", ""))
+	if type == "" or String(def.get("id", output)).begins_with("training_"):
+		return ""
+	return WeaponModels.modular_name(Game.weapon_def(type))
+
+
+func _show_look(output: String) -> void:
+	var waffe := _look_waffe(output)
+	look_box.visible = waffe != ""
+	if waffe == "":
+		module = {}
+		look_waffe = ""
+		return
+	var profession: String = Game.stations[station_id]["profession"]
+	var frei: int = player.profession_tier(profession)
+	var tier := clampi(int(Game.item(output).get("tier", 1)), 1, 6)
+	if waffe != look_waffe:
+		look_waffe = waffe
+		module = {}
+		for platz: String in WaffenModell.WAFFEN[waffe]:
+			module[platz] = {"tier": mini(tier, frei), "form": 1}
+	look_material.text = "Material: %s (aus dem Rezept). Stile bis %s freigeschaltet (%s Skill). Farben gibt es beim Färber." % [
+		WaffenModell.TIER_NAMEN[tier - 1], WaffenModell.TIER_NAMEN[frei - 1], Game.profession_name(profession)]
+	for child in look_rows.get_children():
+		look_rows.remove_child(child)
+		child.queue_free()
+	for platz: String in WaffenModell.WAFFEN[waffe]:
+		var def: Array = WaffenModell.WAFFEN[waffe][platz]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var titel := _label(String(def[1]), 14, Color.WHITE)
+		titel.custom_minimum_size = Vector2(96, 0)
+		row.add_child(titel)
+		var stil := OptionButton.new()
+		for t in range(1, 7):
+			stil.add_item(WaffenModell.TIER_NAMEN[t - 1] if t <= frei else "%s (Skill %d)" % [WaffenModell.TIER_NAMEN[t - 1], Game.required_skill(t)], t)
+			stil.set_item_disabled(t - 1, t > frei)
+		stil.select(int(module[platz]["tier"]) - 1)
+		stil.item_selected.connect(func(i: int) -> void:
+			module[platz]["tier"] = i + 1
+			module[platz]["form"] = mini(int(module[platz]["form"]), WaffenModell.formen(String(def[0]), i + 1))
+			_show_look.call_deferred(output))
+		row.add_child(stil)
+		var form := OptionButton.new()
+		for f in range(1, WaffenModell.formen(String(def[0]), int(module[platz]["tier"])) + 1):
+			form.add_item("Form %d" % f, f)
+		form.select(int(module[platz]["form"]) - 1)
+		form.item_selected.connect(func(i: int) -> void:
+			module[platz]["form"] = i + 1
+			_update_preview(output))
+		row.add_child(form)
+		look_rows.add_child(row)
+	_update_preview(output)
+
+
+func _update_preview(output: String) -> void:
+	for child in look_holder.get_children():
+		look_holder.remove_child(child)
+		child.queue_free()
+	if look_waffe == "":
+		return
+	var tier := clampi(int(Game.item(output).get("tier", 1)), 1, 6)
+	var aus := {}
+	for platz in module:
+		aus[platz] = {"tier": module[platz]["tier"], "form": module[platz]["form"], "material": tier}
+	var def := Game.weapon_def(String(Game.item(output).get("weapon_type", "")))
+	var farbe: Variant = Game.element_color(String(def.get("element", ""))) if bool(def.get("magic", false)) else null
+	var teil := Node3D.new()
+	look_holder.add_child(teil)
+	WaffenModell.zusammenbauen(look_waffe, aus, teil, tier, farbe)
+	WeaponModels.vorschau_einpassen(teil, look_view.get_node("Kamera") as Camera3D)
 
 
 func open(p, id: String) -> void:
@@ -222,6 +364,7 @@ func _show_details() -> void:
 		child.queue_free()
 	modifier_pickers.clear()
 	if selected == "":
+		look_box.visible = false
 		return
 	var recipe: Dictionary = Game.recipes[selected]
 	var output: String = recipe["output"]
@@ -245,6 +388,7 @@ func _show_details() -> void:
 
 	amount_row.visible = not gear
 	modifier_header.visible = gear
+	_show_look(output)
 	if gear:
 		var slots := Game.modifier_slots(output)
 		modifier_header.text = "Zusatzmaterialien  (%d %s)" % [slots, "Platz" if slots == 1 else "Plätze"]
@@ -320,7 +464,7 @@ func _on_max_pressed() -> void:
 
 
 func _on_craft_pressed() -> void:
-	var error: String = player.craft(selected, _amount(), _selected_modifiers())
+	var error: String = player.craft(selected, _amount(), _selected_modifiers(), module if look_box.visible else {})
 	if error == "":
 		result_label.text = "Hergestellt: %s" % Game.item_name(Game.recipes[selected]["output"])
 		result_label.add_theme_color_override("font_color", Color(0.6, 0.95, 0.6))

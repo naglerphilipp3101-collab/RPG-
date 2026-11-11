@@ -9,6 +9,7 @@ const SkillTreeUIScript := preload("res://scripts/skill_tree_ui.gd")
 const MinimapScript := preload("res://scripts/minimap.gd")
 const CharakterUIScript := preload("res://scripts/charakter_ui.gd")
 const KompassScript := preload("res://scripts/kompass.gd")
+const FaerberUIScript := preload("res://scripts/faerber_ui.gd")
 const NOTIFY_TIME := 3.5
 const MAX_NOTIFICATIONS := 7
 const HELP_TEXT := """Steuerung
@@ -35,6 +36,7 @@ var gather_bar: ProgressBar
 var notifications: VBoxContainer
 var inventory_ui: Control
 var crafting_ui: Control
+var faerber_ui: Control
 var pause_menu: Control
 var fehler_melden: Control # B: Fehler mit Ort, Bild und Kommentar festhalten
 var skill_tree_ui: Control
@@ -234,6 +236,8 @@ func _ready() -> void:
 	root.add_child(inventory_ui)
 	crafting_ui = CraftingUIScript.new()
 	root.add_child(crafting_ui)
+	faerber_ui = FaerberUIScript.new()
+	root.add_child(faerber_ui)
 	skill_tree_ui = SkillTreeUIScript.new()
 	root.add_child(skill_tree_ui)
 	charakter_ui = CharakterUIScript.new()
@@ -281,6 +285,7 @@ func set_inventory_open(open: bool) -> void:
 	if player == null:
 		return
 	crafting_ui.close()
+	faerber_ui.close()
 	skill_tree_ui.close()
 	charakter_ui.close()
 	if open:
@@ -294,6 +299,7 @@ func set_skill_tree_open(open: bool) -> void:
 	if player == null:
 		return
 	crafting_ui.close()
+	faerber_ui.close()
 	inventory_ui.close()
 	charakter_ui.close()
 	if open:
@@ -307,6 +313,7 @@ func set_character_open(open: bool) -> void:
 	if player == null:
 		return
 	crafting_ui.close()
+	faerber_ui.close()
 	inventory_ui.close()
 	skill_tree_ui.close()
 	if open:
@@ -320,13 +327,19 @@ func open_station(station_id: String) -> void:
 	inventory_ui.close()
 	skill_tree_ui.close()
 	charakter_ui.close()
-	crafting_ui.open(player, station_id)
+	if station_id == "dyer":
+		crafting_ui.close()
+		faerber_ui.open(player)
+	else:
+		faerber_ui.close()
+		crafting_ui.open(player, station_id)
 	_apply_ui_mode()
 
 
 func close_all_windows() -> void:
 	inventory_ui.close()
 	crafting_ui.close()
+	faerber_ui.close()
 	skill_tree_ui.close()
 	charakter_ui.close()
 	minimap.set_big(false)
@@ -334,7 +347,7 @@ func close_all_windows() -> void:
 
 
 func _any_window_open() -> bool:
-	return inventory_ui.visible or crafting_ui.visible or skill_tree_ui.visible or charakter_ui.visible or minimap.big
+	return inventory_ui.visible or crafting_ui.visible or faerber_ui.visible or skill_tree_ui.visible or charakter_ui.visible or minimap.big
 
 
 ## Wird von main.gd aufgerufen, wenn eine Welt mit Übersichtskarte geladen ist.
@@ -347,6 +360,7 @@ func set_world_map_open(open: bool) -> void:
 		return
 	inventory_ui.close()
 	crafting_ui.close()
+	faerber_ui.close()
 	skill_tree_ui.close()
 	charakter_ui.close()
 	minimap.set_big(open)
@@ -363,6 +377,7 @@ func set_paused(paused: bool) -> void:
 	if paused:
 		inventory_ui.close()
 		crafting_ui.close()
+		faerber_ui.close()
 		skill_tree_ui.close()
 		charakter_ui.close()
 		pause_menu.open()
