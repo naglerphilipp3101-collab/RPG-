@@ -25,9 +25,10 @@ static func standard(mann := true) -> Dictionary:
 	a["regler"] = {}
 	a["haut"] = daten()["hautfarben"][1]["farbe"]
 	a["augen"] = daten()["augenfarben"][1]["farbe"]
-	a["haar"] = "kurz" if mann else "lang"
+	a["haar"] = "short02" if mann else "long01"
 	a["haar_farbe"] = daten()["haarfarben"][2]["farbe"]
-	a["brauen"] = "normal"
+	a["brauen"] = "eyebrow001" if mann else "eyebrow002"
+	a["wimpern"] = "eyelashes01" if mann else "eyelashes02"
 	a["bart"] = "keiner"
 	return a
 
@@ -68,12 +69,18 @@ static func zufall(rng: RandomNumberGenerator, basis: Dictionary = {}, nur_gesic
 	a["regler"] = regler
 	a["haut"] = _wahl(rng, d["hautfarben"])
 	a["augen"] = _wahl(rng, d["augenfarben"])
-	a["haar_farbe"] = _wahl(rng, d["haarfarben"])
+	# Grau und Weiß (die letzten beiden) nur bei Älteren
+	var haarfarben: Array = (d["haarfarben"] as Array).slice(0, -2)
+	a["haar_farbe"] = _wahl(rng, haarfarben)
 	if float(a.get("alter", 0.0)) > 0.45 and rng.randf() < 0.6:
 		a["haar_farbe"] = d["haarfarben"][9 + rng.randi_range(0, 1)]["farbe"]
 	var frisuren := Mensch.frisuren(not ist_frau(a))
 	if not frisuren.is_empty():
 		a["haar"] = frisuren[rng.randi_range(0, frisuren.size() - 1)]
+	var brauen := Mensch.augenbrauen()
+	if not brauen.is_empty():
+		a["brauen"] = brauen[rng.randi_range(0, brauen.size() - 1)]
+	a["wimpern"] = "eyelashes02" if ist_frau(a) else "eyelashes01"
 	var baerte := Mensch.baerte()
 	a["bart"] = "keiner" if ist_frau(a) or baerte.is_empty() or rng.randf() < 0.45 else baerte[rng.randi_range(0, baerte.size() - 1)]
 	return a

@@ -33,11 +33,11 @@ func _ready() -> void:
 	env.background_color = Color(0.16, 0.17, 0.2)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.6, 0.62, 0.68)
-	env.ambient_light_energy = 0.35
+	env.ambient_light_energy = 0.25
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	umgebung.environment = env
 	add_child(umgebung)
-	for r in [[Vector3(-35, -30, 0), 1.0, true], [Vector3(-10, 150, 0), 0.45, false], [Vector3(20, 60, 0), 0.25, false]]:
+	for r in [[Vector3(-35, -30, 0), 0.75, true], [Vector3(-10, 150, 0), 0.3, false], [Vector3(20, 60, 0), 0.2, false]]:
 		var licht := DirectionalLight3D.new()
 		licht.rotation_degrees = r[0]
 		licht.light_energy = r[1]

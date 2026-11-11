@@ -1266,6 +1266,7 @@ func _mensch_bauen() -> void:
 	if aussehen.is_empty():
 		aussehen = CharakterAussehen.standard()
 	mensch = Mensch.new()
+	mensch.zwischenspeicher_nutzen = false
 	mensch.name = "Mensch"
 	mensch.aussehen = aussehen
 	mensch.position = Vector3(0, -body_root.position.y, 0)

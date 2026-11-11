@@ -11,6 +11,8 @@ static var _puffer: PackedByteArray
 static var grund_pos: PackedVector3Array        # Punkte des Grundnetzes in Metern
 static var knochen_index: PackedInt32Array      # je Punkt 4 Knochen
 static var knochen_gewicht: PackedFloat32Array  # je Punkt 4 Gewichte
+static var waesche: PackedByteArray              # je Punkt 2: Unterhose, Oberteil
+static var masken: PackedByteArray               # je Punkt RGBA: Vollbart, Schnurrbart, Kinnbart, Kopfstoppeln
 static var _formen := {}                        # Name -> [PackedInt32Array, PackedVector3Array]
 static var _teile := {}                         # Name -> Dictionary (mh_index, uv, dreiecke, dreiecke_mh)
 static var _anbau := {}
@@ -28,6 +30,8 @@ static func laden() -> void:
 	grund_pos = _vec3(_f32(g["positionen"]))
 	knochen_index = _i32(g["knochen_index"])
 	knochen_gewicht = _f32(g["knochen_gewicht"])
+	masken = _stueck(g["masken"])
+	waesche = _stueck(g["waesche"])
 
 
 static func _stueck(spec: Array) -> PackedByteArray:
@@ -110,6 +114,8 @@ static func anbau(name: String) -> Dictionary:
 	var spec: Dictionary = meta["anbau"][name]
 	var t := {
 		"bindung": _f32(spec["bindung"]),
+		"knochen_index": _i32(spec["knochen_index"]),
+		"knochen_gewicht": _f32(spec["knochen_gewicht"]),
 		"skalierung": spec["skalierung"],
 		"uv": _f32(spec["uv"]),
 		"dreiecke": _i32(spec["dreiecke"]),

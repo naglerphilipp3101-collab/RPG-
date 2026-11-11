@@ -11,7 +11,7 @@
 		"skin_drops": [{"item": "raw_hide", "min": 1, "max": 2}]
 	},
 	"bandit": {
-		"name": "Banditenplünderer", "level": 4, "xp": 45, "shape": "humanoid", "weapon": "axe",
+		"name": "Banditenplünderer", "level": 4, "xp": 45, "shape": "humanoid", "weapon": "axe", "mensch": "gegner",
 		"color": [0.55, 0.3, 0.2], "scale": 1.0, "radius": 0.4, "height": 1.85,
 		"health": 110, "speed": 4.6, "turn_rate": 7,
 		"aggro_range": 15, "attack_range": 2.0, "attack_arc": 110, "damage": 20,

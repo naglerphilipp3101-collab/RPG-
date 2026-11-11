@@ -191,16 +191,27 @@ func _build_model() -> void:
 		tail.rotation_degrees.x = 25.0
 		return
 
-	var torso := CapsuleMesh.new()
-	torso.radius = 0.3
-	torso.height = 1.25
-	MeshUtil.part(model, torso, body_material, Vector3(0, 0.85, 0))
-	var head := SphereMesh.new()
-	head.radius = 0.2
-	head.height = 0.4
-	MeshUtil.part(model, head, body_material, Vector3(0, 1.66, 0))
-	for x: float in [-0.07, 0.07]:
-		MeshUtil.part(model, MeshUtil.box(Vector3(0.05, 0.04, 0.02)), eyes, Vector3(x, 1.7, -0.19))
+	if data.has("mensch"):
+		# Menschlicher Gegner: gemeinsames Grundmodell aus data/charakter.json (gegner_aussehen)
+		var a := CharakterAussehen.standard()
+		a.merge(CharakterAussehen.daten()["gegner_aussehen"].get(data["mensch"], {}), true)
+		var m := Mensch.new()
+		m.name = "Mensch"
+		m.aussehen = a
+		m.rotation.y = PI
+		model.add_child(m)
+		m.ruhe_a_pose(true)
+	else:
+		var torso := CapsuleMesh.new()
+		torso.radius = 0.3
+		torso.height = 1.25
+		MeshUtil.part(model, torso, body_material, Vector3(0, 0.85, 0))
+		var head := SphereMesh.new()
+		head.radius = 0.2
+		head.height = 0.4
+		MeshUtil.part(model, head, body_material, Vector3(0, 1.66, 0))
+		for x: float in [-0.07, 0.07]:
+			MeshUtil.part(model, MeshUtil.box(Vector3(0.05, 0.04, 0.02)), eyes, Vector3(x, 1.7, -0.19))
 
 	weapon_pivot = Node3D.new()
 	weapon_pivot.position = Vector3(0.38, 1.0, -0.1)

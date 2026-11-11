@@ -3,7 +3,11 @@
 Aufruf (Python 3, ohne Blender):
     git clone --depth 1 https://github.com/makehumancommunity/mpfb2
     git clone --depth 1 https://github.com/makehumancommunity/makehuman
-    python3 mensch_daten.py <mpfb2-Ordner> <makehuman-Ordner> <godot-Ordner>
+    python3 mensch_daten.py <mpfb2-Ordner> <makehuman-Ordner> <godot-Ordner> [<systemassets-Ordner>]
+
+Systemassets: entpacktes makehuman_system_assets_cc0.zip (Haare, Brauen, Wimpern, Zähne,
+Zunge, Hauttexturen; CC0) von makehumancommunity.org. Die benötigten Texturen werden nach
+godot/assets/charakter/makehuman/ kopiert.
 
 Ergebnis in godot/assets/charakter/daten/:
     mensch.json  Aufbau: Teile, Knochen, Formen (Targets), Regler, Anbauteile
@@ -22,6 +26,7 @@ import sys
 import zstandard
 
 MPFB, MH, GODOT = sys.argv[1], sys.argv[2], sys.argv[3]
+SYS = sys.argv[4] if len(sys.argv) > 4 else ""
 DATA = os.path.join(MPFB, "src", "mpfb", "data")
 TARGETS = os.path.join(DATA, "targets")
 ZIEL = os.path.join(GODOT, "assets", "charakter", "daten")
@@ -350,7 +355,7 @@ def mhclo_lesen(pfad_mhclo, pfad_obj):
                             float(a[6]) * 0.1, float(a[7]) * 0.1, float(a[8]) * 0.1])
             elif in_verts and len(a) == 1 and a[0].isdigit():
                 ref.append([int(a[0]), int(a[0]), int(a[0]), 1.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-            elif in_verts and a[0].isalpha():
+            elif in_verts and a[0] in ("delete_verts", "weights", "offsets"):
                 in_verts = False
     ov, ouv, of = [], [], []
     with open(pfad_obj) as f:
@@ -375,10 +380,27 @@ def mhclo_lesen(pfad_mhclo, pfad_obj):
         for i in range(1, len(ids) - 1):
             dreiecke.extend([ids[0], ids[i + 1], ids[i]])
     bindung = []
+    a_idx, a_gew = [], []
     for v in quelle:
-        bindung.extend(ref[v])
+        r = ref[v]
+        bindung.extend(r)
+        # Knochengewichte aus den drei Bezugspunkten mischen (Godot-Index = Rig-Index + 1 wegen "Root")
+        summe = {}
+        for j in range(3):
+            for q in range(4):
+                g = k_gew[r[j] * 4 + q] * r[3 + j]
+                if g > 0:
+                    b = k_idx[r[j] * 4 + q] + 1
+                    summe[b] = summe.get(b, 0.0) + g
+        beste = sorted(summe.items(), key=lambda e: -e[1])[:4]
+        ges = sum(g for _, g in beste) or 1.0
+        beste += [(0, 0.0)] * (4 - len(beste))
+        a_idx.extend(b for b, _ in beste)
+        a_gew.extend(g / ges for _, g in beste)
     return {
         "punkte": len(quelle),
+        "knochen_index": ablegen(i32(a_idx)),
+        "knochen_gewicht": ablegen(f32(a_gew)),
         "bindung": ablegen(f32(bindung)),  # je Punkt 9 Zahlen: 3 Indizes, 3 Gewichte, Versatz
         "skalierung": skal,
         "uv": ablegen(f32(uv_l)),
@@ -388,9 +410,128 @@ def mhclo_lesen(pfad_mhclo, pfad_obj):
 
 anbau = {"augen": mhclo_lesen(os.path.join(MH, "makehuman", "data", "eyes", "high-poly", "high-poly.mhclo"),
                               os.path.join(MH, "makehuman", "data", "eyes", "high-poly", "high-poly.obj"))}
+anbau["augen"]["art"] = "augen"
+haut = []
+
+if SYS:
+    from PIL import Image
+
+    TEX = os.path.join(GODOT, "assets", "charakter", "makehuman")
+
+    def mhmat_lesen(pfad):
+        d = {}
+        with open(pfad) as f:
+            for z in f:
+                a = z.split(None, 1)
+                if len(a) == 2 and not a[0].startswith("#"):
+                    d[a[0]] = a[1].strip()
+        return d
+
+    def textur_kopieren(quelle, ziel_rel, jpg=False, max_seite=0):
+        ziel = os.path.join(TEX, ziel_rel)
+        os.makedirs(os.path.dirname(ziel), exist_ok=True)
+        im = Image.open(quelle)
+        if max_seite and max(im.size) > max_seite:
+            im = im.resize((max_seite, max_seite), Image.LANCZOS)
+        if jpg:
+            im.convert("RGB").save(ziel, quality=90)
+        else:
+            if im.mode == "P":
+                im = im.convert("RGBA")
+            im.save(ziel, optimize=True)
+        return "res://assets/charakter/makehuman/" + ziel_rel.replace(os.sep, "/")
+
+    for art, ordner, max_seite in (("haar", "hair", 0), ("brauen", "eyebrows", 0), ("wimpern", "eyelashes", 0),
+                                   ("zaehne", "teeth", 1024), ("zunge", "tongue", 512)):
+        for name in sorted(os.listdir(os.path.join(SYS, ordner))):
+            if art == "zaehne" and name != "teeth_base":
+                continue
+            d = os.path.join(SYS, ordner, name)
+            mhclo = [f for f in os.listdir(d) if f.endswith(".mhclo")][0]
+            obj = [f for f in os.listdir(d) if f.endswith(".obj")][0]
+            mat = mhmat_lesen(os.path.join(d, [f for f in os.listdir(d) if f.endswith(".mhmat")][0]))
+            eintrag = mhclo_lesen(os.path.join(d, mhclo), os.path.join(d, obj))
+            eintrag["art"] = art
+            for schl, feld in (("diffuseTexture", "textur"), ("normalmapTexture", "normal")):
+                if schl in mat and os.path.exists(os.path.join(d, mat[schl])):
+                    eintrag[feld] = textur_kopieren(os.path.join(d, mat[schl]),
+                                                    os.path.join(art, name + "_" + feld + ".png"), max_seite=max_seite)
+            if "textur" in eintrag:
+                # mittlere Helligkeit der sichtbaren Pixel (für das Umfärben im Shader)
+                im = Image.open(os.path.join(d, mat["diffuseTexture"])).convert("RGBA").resize((256, 256))
+                hs, n = 0.0, 0
+                for r, g, b, a in im.get_flattened_data() if hasattr(im, "get_flattened_data") else im.getdata():
+                    if a > 128:
+                        hs += (0.3 * r + 0.55 * g + 0.15 * b) / 255.0
+                        n += 1
+                eintrag["hell"] = round(hs / max(1, n), 4)
+            anbau[art + ":" + name] = eintrag
+            print("Anbau", art, name, eintrag["punkte"], "Punkte")
+
+    for name in sorted(os.listdir(os.path.join(SYS, "skins"))):
+        d = os.path.join(SYS, "skins", name)
+        mat = mhmat_lesen(os.path.join(d, name + ".mhmat"))
+        quelle = os.path.join(d, mat["diffuseTexture"])
+        im = Image.open(quelle).convert("RGB")
+        # Mittlere Hautfarbe auf Brust/Bauch (Ausschnitt der Textur); darauf beziehen sich die Hautfarben
+        w, h = im.size
+        ausschnitt = im.crop((int(0.2 * w), int(0.15 * h), int(0.45 * w), int(0.4 * h))).resize((64, 64))
+        px = list(ausschnitt.get_flattened_data() if hasattr(ausschnitt, "get_flattened_data") else ausschnitt.getdata())
+        summe_rgb = [sum(p[i] for p in px) for i in range(3)]
+        n = len(px)
+        mittel = "#%02x%02x%02x" % tuple(round(c / max(1, n)) for c in summe_rgb)
+        namensteile = name.split("_")
+        haut.append({"id": name, "alter": namensteile[0], "herkunft": namensteile[1], "geschlecht": namensteile[2],
+                     "textur": textur_kopieren(quelle, os.path.join("haut", name + ".jpg"), jpg=True),
+                     "mittel": mittel})
+        print("Haut", name, mittel)
+
+# ---------------------------------------------------------------- Bart- und Stoppelmasken je Punkt
+def glatt(a, b, x):
+    if a == b:
+        return 1.0 if x >= a else 0.0
+    t = max(0.0, min(1.0, (x - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+
+
+masken = bytearray()
+for (x, y, z) in verts:
+    # Koordinaten zurück in MakeHuman-Dezimeter
+    x, y, z, ax = x * 10, y * 10, z * 10, abs(x * 10)
+    lippen = ((x / 0.30) ** 2 + ((y - 6.56) / 0.13) ** 2 + 0.0)
+    ohne_lippen = glatt(1.0, 1.6, lippen) if z > 1.0 else 1.0
+    vorne = glatt(-0.2, 0.25, z)
+    # Vollbart: Wangen, Kiefer, Kinn, unter dem Kinn
+    oben = 6.7 + 0.26 * min(1.0, ax / 0.62)
+    unten = 6.1 if z > 0.6 else 6.1 + (0.6 - z) * 0.45
+    voll = glatt(oben + 0.06, oben - 0.08, y) * glatt(unten - 0.05, unten + 0.1, y) * vorne * ohne_lippen
+    # Schnurrbart zwischen Oberlippe und Nase
+    schnurr = glatt(0.36, 0.26, ax) * glatt(6.6, 6.66, y) * glatt(6.8, 6.74, y) * glatt(1.25, 1.4, z)
+    # Kinnbart
+    kinn = glatt(0.3, 0.2, ax) * glatt(5.95, 6.05, y) * glatt(6.5, 6.44, y) * glatt(0.9, 1.1, z) * ohne_lippen
+    # Kopfhaar-Ansatz (Stoppeln): vorne höher, hinten tiefer
+    ansatz = 7.82 if z > 1.0 else (7.32 + (z - 0.2) / 0.8 * 0.5 if z > 0.2 else 6.75 + (z + 0.6) / 0.8 * 0.57)
+    kopf = glatt(ansatz - 0.04, ansatz + 0.1, y) * (1.0 if y > 6.0 else 0.0)
+    if ax > 0.55 and 7.0 < y < 7.55 and 0.0 < z < 0.6:
+        kopf *= glatt(0.75, 0.62, ax)  # Ohren frei
+    masken.extend(round(255 * max(0.0, min(1.0, v))) for v in (voll, schnurr, kinn, kopf))
+
+# Unterwäsche (Leinen): Hose um die Hüfte, Oberteil um die Brust (nur bei Frauen sichtbar)
+waesche = bytearray()
+for (x, y, z) in verts:
+    x, y, z, ax = x * 10, y * 10, z * 10, abs(x * 10)
+    unten_y = -0.25 + min(1.0, ax / 1.6) * 1.05
+    # breite, lineare Übergänge: der Shader schneidet bei 0,5 -> gerade Kanten zwischen den Punkten
+    def rampe(a, b, v):
+        return max(0.0, min(1.0, (v - a) / (b - a)))
+    hose = min(rampe(unten_y - 0.15, unten_y + 0.15, y), rampe(1.45, 1.15, y), rampe(2.1, 1.8, ax))
+    oben = min(rampe(2.85, 3.15, y), rampe(4.3, 4.0, y), rampe(1.6, 1.3, ax))
+    waesche.extend(round(255 * max(0.0, min(1.0, v))) for v in (hose, oben))
 
 # ---------------------------------------------------------------- Schreiben
 grund = {
+    "masken": ablegen(bytes(masken)),
+    "waesche": ablegen(bytes(waesche)),
     "positionen": ablegen(f32([c for v in verts for c in v])),
     "knochen_index": ablegen(i32(k_idx)),
     "knochen_gewicht": ablegen(f32(k_gew)),
@@ -405,6 +546,7 @@ meta = {
     "formen": formen,
     "regler": regler_json,
     "anbau": anbau,
+    "haut": haut,
     "gruppen": {k: VGRUPPEN[k] for k in ("helper-hair", "helper-tights", "helper-l-eye", "helper-r-eye", "joint-ground")},
 }
 with open(os.path.join(ZIEL, "mensch.json"), "w", encoding="utf-8") as f:

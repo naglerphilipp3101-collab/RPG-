@@ -109,6 +109,7 @@ func _vorschau_bauen() -> void:
 	_drehpunkt = Node3D.new()
 	_vorschau.add_child(_drehpunkt)
 	mensch = Mensch.new()
+	mensch.zwischenspeicher_nutzen = false
 	mensch.aussehen = aussehen
 	_drehpunkt.add_child(mensch)
 	mensch.ruhe_a_pose(true)
@@ -311,8 +312,10 @@ func _farben_zeigen() -> void:
 	_farbfelder(d["haarfarben"], "haar_farbe")
 	var mann := not CharakterAussehen.ist_frau(aussehen)
 	_auswahl("Frisur", ["glatze"] + Mensch.frisuren(mann), "haar")
+	_auswahl("Augenbrauen", Mensch.augenbrauen(), "brauen")
 	if mann:
 		_auswahl("Bart", ["keiner"] + Mensch.baerte(), "bart")
+	_auswahl("Wimpern", Mensch.wimpern(), "wimpern")
 
 
 func _farbfelder(liste: Array, schluessel: String) -> void:
