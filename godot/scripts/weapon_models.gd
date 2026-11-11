@@ -51,6 +51,37 @@ static func build_gear(def: Dictionary, gear: Dictionary, tier: int, parent: Nod
 	return true
 
 
+## Legt ein Waffenmodell für eine Vorschau mittig hin (längste Achse senkrecht, da die Vorschau um die Hochachse dreht)
+## und stellt die Kamera so, dass es das Bild füllt.
+static func vorschau_einpassen(teil: Node3D, cam: Camera3D) -> void:
+	var box := _lokale_box(teil)
+	var s := box.size
+	if s.z > s.y and s.z >= s.x:
+		teil.basis = Basis(Vector3.RIGHT, PI / 2) * teil.basis
+	elif s.x > s.y and s.x > s.z:
+		teil.basis = Basis(Vector3.BACK, PI / 2) * teil.basis
+	box = _lokale_box(teil, true)
+	teil.position = -box.get_center()
+	var halbe := maxf(box.size.y, maxf(box.size.x, box.size.z)) * 0.5
+	var abstand := maxf(halbe, 0.05) / tan(deg_to_rad(cam.fov * 0.5)) * 1.15 + maxf(box.size.x, box.size.z) * 0.5
+	cam.look_at_from_position(Vector3(0, halbe * 0.15, abstand), Vector3.ZERO)
+
+
+## Hülle aller Meshes, gemessen im Elternraum des Teils (mit dessen Drehung) oder in seinem eigenen Raum.
+static func _lokale_box(teil: Node3D, mit_drehung := false) -> AABB:
+	var box := AABB()
+	var erste := true
+	var bezug := teil.global_transform.affine_inverse()
+	for mi in teil.find_children("*", "MeshInstance3D", true, false):
+		var t: Transform3D = bezug * (mi as MeshInstance3D).global_transform
+		if mit_drehung:
+			t = Transform3D(teil.basis, Vector3.ZERO) * t
+		var b: AABB = t * (mi as MeshInstance3D).get_aabb()
+		box = b if erste else box.merge(b)
+		erste = false
+	return box
+
+
 static func build(model: String, parent: Node3D, glow := Color(1.0, 0.85, 0.5)) -> void:
 	var metal := MeshUtil.mat(Color(0.75, 0.77, 0.8), 0.8, 0.3)
 	var dark_metal := MeshUtil.mat(Color(0.4, 0.4, 0.43), 0.8, 0.4)

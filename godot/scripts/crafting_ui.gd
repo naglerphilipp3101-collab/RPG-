@@ -167,6 +167,15 @@ func _build_look(body: HBoxContainer) -> void:
 	env.environment.background_color = Color(0.13, 0.13, 0.16)
 	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.environment.ambient_light_color = Color(0.6, 0.6, 0.65)
+	# Himmel nur für Spiegelungen, sonst wirkt Metall vor dem dunklen Hintergrund schwarz
+	var himmel := ProceduralSkyMaterial.new()
+	himmel.sky_top_color = Color(0.55, 0.6, 0.7)
+	himmel.sky_horizon_color = Color(0.8, 0.8, 0.82)
+	himmel.ground_bottom_color = Color(0.2, 0.18, 0.16)
+	himmel.ground_horizon_color = Color(0.5, 0.48, 0.45)
+	env.environment.sky = Sky.new()
+	env.environment.sky.sky_material = himmel
+	env.environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	look_view.add_child(env)
 	for r in [Vector3(-50, -30, 0), Vector3(-20, 150, 0)]:
 		var licht := DirectionalLight3D.new()
@@ -266,17 +275,7 @@ func _update_preview(output: String) -> void:
 	var teil := Node3D.new()
 	look_holder.add_child(teil)
 	WaffenModell.zusammenbauen(look_waffe, aus, teil, tier, farbe)
-	# Waffe mittig und passend groß in die Vorschau legen
-	var box := AABB()
-	var erste := true
-	for mi in teil.find_children("*", "MeshInstance3D", true, false):
-		var b: AABB = (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
-		box = b if erste else box.merge(b)
-		erste = false
-	teil.position = -box.get_center()
-	var r := maxf(box.size.length() * 0.5, 0.05)
-	var cam := look_view.get_node("Kamera") as Camera3D
-	cam.look_at_from_position(Vector3(0, r * 0.5, r / tan(deg_to_rad(cam.fov * 0.5)) * 1.05), Vector3.ZERO)
+	WeaponModels.vorschau_einpassen(teil, look_view.get_node("Kamera") as Camera3D)
 
 
 func open(p, id: String) -> void:

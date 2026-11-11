@@ -170,6 +170,26 @@ func _build_model() -> void:
 				holder.rotation_degrees = Vector3(90, 0, 0) # Klinge nach oben
 				add_child(holder)
 				WaffenModell.erzeugen(models[i], 1, holder)
+		"dye":
+			# Drei Bottiche mit Farbe und ein Trockengestell mit Tüchern
+			var farben := [Color(0.7, 0.12, 0.1), Color(0.15, 0.3, 0.75), Color(0.85, 0.65, 0.1)]
+			for i in 3:
+				var bottich := CylinderMesh.new()
+				bottich.top_radius = 0.32
+				bottich.bottom_radius = 0.28
+				bottich.height = 0.6
+				var x := -0.7 + i * 0.7
+				MeshUtil.part(self, bottich, dark_wood, Vector3(x, 0.3, 0.25))
+				var farbe := CylinderMesh.new()
+				farbe.top_radius = 0.28
+				farbe.bottom_radius = 0.28
+				farbe.height = 0.02
+				MeshUtil.part(self, farbe, MeshUtil.mat(farben[i], 0.0, 0.2), Vector3(x, 0.58, 0.25))
+			for x: float in [-0.85, 0.85]:
+				MeshUtil.part(self, MeshUtil.box(Vector3(0.08, 1.8, 0.08)), wood, Vector3(x, 0.9, -0.35))
+			MeshUtil.part(self, MeshUtil.box(Vector3(1.8, 0.06, 0.06)), wood, Vector3(0, 1.75, -0.35))
+			for i in 3:
+				MeshUtil.part(self, MeshUtil.box(Vector3(0.4, 0.8, 0.02)), MeshUtil.mat(farben[i]), Vector3(-0.55 + i * 0.55, 1.33, -0.35))
 		_:
 			_table(wood)
 

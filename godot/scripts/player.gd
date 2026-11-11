@@ -130,6 +130,8 @@ var gather_hp := 0.0
 
 # Ausrüstung: Slot ("weapon", "weapon2", "shield", "head", "chest", "legs", "ring", "tool:<beruf>") -> Ausrüstungsstück
 var equipment: Dictionary = {}
+var farbpalette: Array = [] # gespeicherte Farben des Färbers ("#rrggbb", höchstens 20)
+var magieklinge_an := false # Leerenhandschuh: Magieklinge ausgefahren (per Fähigkeit)
 const BASE_MAX_HEALTH := 150.0 # dazu 10 je Punkt Vitalität (Start 5 → 200)
 const BASE_WEAPON_DAMAGE := 20.0 # Schaden ohne Waffe; Angriffe skalieren relativ zum Waffenschaden
 var damage_mult := 1.0 # nur für die Anzeige (ohne zeitliche Buffs)
@@ -1042,6 +1044,7 @@ func to_save() -> Dictionary:
 		"weapon_slots": weapon_slots,
 		"quick_slots": quick_slots,
 		"ultimate_charge": ultimate_charge,
+		"farbpalette": farbpalette.duplicate(),
 	}
 
 
@@ -1074,6 +1077,7 @@ func from_save(data: Dictionary) -> void:
 	weapon_slots = clampi(int(data.get("weapon_slots", 2)), 2, WEAPON_SLOTS.size())
 	quick_slots = clampi(int(data.get("quick_slots", 2)), 2, Game.QUICK_SLOTS.size())
 	ultimate_charge = clampf(float(data.get("ultimate_charge", 0.0)), 0.0, Game.ULTIMATE_CHARGE)
+	farbpalette = Array(data.get("farbpalette", [])).slice(0, 20)
 	equipment.clear()
 	var saved_equipment: Dictionary = data.get("equipment", {})
 	for key in saved_equipment:
@@ -1267,7 +1271,7 @@ func _build_weapon_visual() -> void:
 		child.queue_free()
 	var gear: Dictionary = equipment.get("weapon", {})
 	var tier := int(Game.item(String(gear.get("id", ""))).get("tier", 1))
-	if not WeaponModels.build_gear(weapon_def, gear, tier, weapon_pivot, Game.element_color(element())):
+	if not WeaponModels.build_gear(weapon_def, gear, tier, weapon_pivot, Game.element_color(element()), magieklinge_an):
 		WeaponModels.build(weapon_def.get("model", "sword"), weapon_pivot, Game.element_color(element()))
 	if weapon_def.get("dual", false):
 		if not WeaponModels.build_gear(weapon_def, gear, tier, offhand_pivot):
@@ -1279,6 +1283,14 @@ func _build_weapon_visual() -> void:
 	shield_raised = false
 	shield_pivot.position = SHIELD_REST_POS
 	shield_pivot.rotation_degrees = SHIELD_REST_ROT
+
+
+## Leerenhandschuh: Magieklinge ein- oder ausfahren (für die Fähigkeit, die Philipp noch festlegt).
+func set_magieklinge(an: bool) -> void:
+	magieklinge_an = an
+	var klinge := weapon_pivot.find_child("klinge", true, false)
+	if klinge and weapon_pivot.find_child("Modular", false, false):
+		klinge.visible = an
 
 
 ## Schild aus Modulen (Schildkörper und Buckel im Stil und Material seines Tiers).
@@ -1903,6 +1915,7 @@ func _spawn_projectiles(shot: Dictionary) -> void:
 		var p = ProjectileScript.new()
 		p.shooter = self
 		p.kind = shot.get("projectile", "arrow")
+		p.tier = int(Game.item(String(equipment.get("weapon", {}).get("id", ""))).get("tier", 1))
 		p.color = Game.element_color(element())
 		p.life = float(shot.get("life", 3.0))
 		p.velocity = dir.rotated(Vector3.UP, angle) * speed
