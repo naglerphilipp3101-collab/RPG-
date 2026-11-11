@@ -30,11 +30,30 @@ func _ready() -> void:
 
 
 static func standard_aussehen() -> Dictionary:
-	return {
-		"geschlecht": 1.0, "alter": 0.1, "muskeln": 0.5, "gewicht": 0.5, "groesse": 0.5,
-		"herkunft": [0.0, 0.0, 1.0], "brust": 0.5, "brust_fest": 0.5,
-		"regler": {},
-	}
+	return CharakterAussehen.standard()
+
+
+## Verfügbare Frisuren (Ids) für Männer bzw. Frauen.
+static func frisuren(_mann: bool) -> Array:
+	return []
+
+
+const ANZEIGE := {"glatze": "Glatze", "keiner": "Kein Bart"}
+
+
+static func anzeige_name(id: String) -> String:
+	return ANZEIGE.get(id, id.capitalize())
+
+
+## Verfügbare Bärte (Ids, ohne "keiner").
+static func baerte() -> Array:
+	return []
+
+
+## Neues Aussehen übernehmen und den Menschen neu aufbauen.
+func aussehen_setzen(a: Dictionary) -> void:
+	aussehen = a
+	aufbauen()
 
 
 func wert(schluessel: String, standard: float = 0.5) -> float:
@@ -348,10 +367,12 @@ func _skal(spec: Array, achse: int) -> float:
 
 # ------------------------------------------------------------------ Materialien (vorläufig)
 func _haut_material() -> Material:
-	if materialien.has("haut"):
-		return materialien["haut"]
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.82, 0.62, 0.5)
+	var m: StandardMaterial3D = materialien.get("haut")
+	if m:
+		m.albedo_color = Color.html(aussehen.get("haut", "#e8bfa0"))
+		return m
+	m = StandardMaterial3D.new()
+	m.albedo_color = Color.html(aussehen.get("haut", "#e8bfa0"))
 	m.roughness = 0.6
 	m.subsurf_scatter_enabled = true
 	m.subsurf_scatter_strength = 0.4
@@ -364,15 +385,22 @@ func _wimpern_material() -> Material:
 
 
 func _augen_material() -> Material:
-	var m := StandardMaterial3D.new()
-	m.albedo_texture = load("res://assets/charakter/texturen/auge.png")
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_DEPTH_PRE_PASS
-	m.roughness = 0.08
+	var m: ShaderMaterial = materialien.get("augen")
+	if m == null:
+		m = ShaderMaterial.new()
+		m.shader = preload("res://assets/charakter/auge.gdshader")
+		m.set_shader_parameter("textur", preload("res://assets/charakter/texturen/auge.png"))
+		materialien["augen"] = m
+	m.set_shader_parameter("iris_farbe", Color.html(aussehen.get("augen", "#6b3f1f")))
 	return m
 
 
 func _einfach_material(c: Color, r: float) -> Material:
+	var schluessel := "einfach_" + c.to_html()
+	if materialien.has(schluessel):
+		return materialien[schluessel]
 	var m := StandardMaterial3D.new()
+	materialien[schluessel] = m
 	m.albedo_color = c
 	m.roughness = r
 	return m

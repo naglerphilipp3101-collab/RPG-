@@ -1,0 +1,59 @@
+{
+	"_info": "Charaktererstellung: Grundregler (Körper) und Zufallsgrenzen. Einzelregler kommen aus assets/charakter/daten/mensch.json (Werte -1…1). 'zufall' = [min, max] für den Zufallsknopf.",
+	"grundregler": [
+		{"id": "geschlecht", "name": "Geschlecht", "gruppe": "Körper", "min": 0.0, "max": 1.0, "standard": 1.0, "zufall": "geschlecht"},
+		{"id": "alter", "name": "Alter", "gruppe": "Körper", "min": 0.0, "max": 1.0, "standard": 0.1, "zufall": [0.0, 0.55], "anzeige": "jahre"},
+		{"id": "groesse", "name": "Körpergröße", "gruppe": "Körper", "min": 0.0, "max": 1.0, "standard": 0.5, "zufall": [0.25, 0.8], "anzeige": "zentimeter"},
+		{"id": "muskeln", "name": "Muskeln", "gruppe": "Körper", "min": 0.0, "max": 1.0, "standard": 0.5, "zufall": [0.3, 0.8]},
+		{"id": "gewicht", "name": "Gewicht", "gruppe": "Körper", "min": 0.0, "max": 1.0, "standard": 0.5, "zufall": [0.3, 0.7]},
+		{"id": "brust", "name": "Brustgröße", "gruppe": "Körper", "min": 0.0, "max": 1.0, "standard": 0.5, "zufall": [0.3, 0.75], "nur": "frau"},
+		{"id": "brust_fest", "name": "Brustform", "gruppe": "Körper", "min": 0.0, "max": 1.0, "standard": 0.5, "zufall": [0.35, 0.8], "nur": "frau"}
+	],
+	"herkunft": {
+		"_info": "Gesichtszüge als Mischung der drei MakeHuman-Grundtypen",
+		"namen": ["Typ Süd", "Typ Ost", "Typ Nord"],
+		"standard": [0.0, 0.0, 1.0]
+	},
+	"einzelregler_zufall": {
+		"_info": "Streuung der Einzelregler beim Zufall (Glockenkurve, auf ±grenze begrenzt). Gruppen ohne Eintrag nutzen 'standard'.",
+		"standard": 0.3,
+		"grenze": 0.7,
+		"Körper": 0.25,
+		"Ohren": 0.25,
+		"ohne": ["kinn_gruebchen", "ohr_form", "bauch", "kopf_dreieckig"]
+	},
+	"hautfarben": [
+		{"name": "Sehr hell", "farbe": "#f2d3c0"},
+		{"name": "Hell", "farbe": "#e8bfa0"},
+		{"name": "Hell warm", "farbe": "#deb08a"},
+		{"name": "Mittel", "farbe": "#c99470"},
+		{"name": "Oliv", "farbe": "#b98a63"},
+		{"name": "Gebräunt", "farbe": "#a6714d"},
+		{"name": "Braun", "farbe": "#8a5a3c"},
+		{"name": "Dunkel", "farbe": "#6b432c"},
+		{"name": "Sehr dunkel", "farbe": "#4a2e1f"}
+	],
+	"haarfarben": [
+		{"name": "Schwarz", "farbe": "#16120f"},
+		{"name": "Dunkelbraun", "farbe": "#2e1f16"},
+		{"name": "Braun", "farbe": "#4a3122"},
+		{"name": "Hellbraun", "farbe": "#6e4c32"},
+		{"name": "Rotbraun", "farbe": "#6a2f1b"},
+		{"name": "Rot", "farbe": "#8e3a1c"},
+		{"name": "Dunkelblond", "farbe": "#8a6a45"},
+		{"name": "Blond", "farbe": "#b89462"},
+		{"name": "Hellblond", "farbe": "#d2b88a"},
+		{"name": "Grau", "farbe": "#8a8580"},
+		{"name": "Weiß", "farbe": "#d8d4cc"}
+	],
+	"augenfarben": [
+		{"name": "Dunkelbraun", "farbe": "#3a2214"},
+		{"name": "Braun", "farbe": "#6b3f1f"},
+		{"name": "Haselnuss", "farbe": "#7d6230"},
+		{"name": "Grün", "farbe": "#4f6b35"},
+		{"name": "Graugrün", "farbe": "#5f7365"},
+		{"name": "Blau", "farbe": "#3f6a9a"},
+		{"name": "Hellblau", "farbe": "#7aa2c8"},
+		{"name": "Grau", "farbe": "#76808a"}
+	]
+}
