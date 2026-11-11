@@ -102,6 +102,10 @@ var spring_arm: SpringArm3D
 var camera: Camera3D
 
 var model: Node3D
+var mensch: Mensch                # sichtbarer Körper (assets/charakter), Aussehen aus der Charaktererstellung
+var aussehen: Dictionary = {}
+var aussehen_gespeichert := false # false = neues Spiel ohne erstellten Charakter
+var _platzhalter_koerper: Array[Node3D] = []
 var body_root: Node3D
 var weapon_pivot: Node3D
 var offhand_pivot: Node3D
@@ -1045,6 +1049,7 @@ func to_save() -> Dictionary:
 		"quick_slots": quick_slots,
 		"ultimate_charge": ultimate_charge,
 		"farbpalette": farbpalette.duplicate(),
+		"aussehen": aussehen.duplicate(true) if aussehen_gespeichert else {},
 	}
 
 
@@ -1055,6 +1060,9 @@ func from_save(data: Dictionary) -> void:
 		global_position = Vector3(float(p[0]), float(p[1]) + 0.1, float(p[2])) # etwas höher, damit man nicht im Boden steckt
 		cam_yaw = float(data.get("cam_yaw", 0.0))
 	velocity = Vector3.ZERO
+	var gespeichertes_aussehen: Dictionary = data.get("aussehen", {})
+	if not gespeichertes_aussehen.is_empty():
+		aussehen_setzen(gespeichertes_aussehen)
 	camera_pivot.global_position = global_position + Vector3(0, 1.55, 0)
 	food_regen = float(data.get("food_regen", 0.0))
 	food_time = float(data.get("food_time", 0.0))
@@ -1203,18 +1211,19 @@ func _build_model() -> void:
 	var torso := CapsuleMesh.new()
 	torso.radius = 0.32
 	torso.height = 1.3
-	MeshUtil.part(body_root, torso, cloth, Vector3(0, -0.05, 0))
+	_platzhalter_koerper.append(MeshUtil.part(body_root, torso, cloth, Vector3(0, -0.05, 0)))
 	var belt := CylinderMesh.new()
 	belt.top_radius = 0.335
 	belt.bottom_radius = 0.335
 	belt.height = 0.1
-	MeshUtil.part(body_root, belt, leather, Vector3(0, -0.15, 0))
+	_platzhalter_koerper.append(MeshUtil.part(body_root, belt, leather, Vector3(0, -0.15, 0)))
 	var head := SphereMesh.new()
 	head.radius = 0.2
 	head.height = 0.4
-	MeshUtil.part(body_root, head, skin, Vector3(0, 0.78, 0))
+	_platzhalter_koerper.append(MeshUtil.part(body_root, head, skin, Vector3(0, 0.78, 0)))
 	# Stirnband zeigt, wohin die Figur schaut
-	MeshUtil.part(body_root, MeshUtil.box(Vector3(0.26, 0.06, 0.06)), leather, Vector3(0, 0.8, -0.18))
+	_platzhalter_koerper.append(MeshUtil.part(body_root, MeshUtil.box(Vector3(0.26, 0.06, 0.06)), leather, Vector3(0, 0.8, -0.18)))
+	_mensch_bauen()
 
 	weapon_pivot = Node3D.new()
 	body_root.add_child(weapon_pivot)
@@ -1249,6 +1258,30 @@ func _build_model() -> void:
 	aura_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	aura = MeshUtil.part(body_root, aura_mesh, aura_mat)
 	aura.visible = false
+
+
+## Menschlicher Körper aus der Charaktererstellung. Bis es Animationen gibt, steht er in der
+## Modellpose (A-Pose) und bewegt sich mit body_root mit. Blick des Modells: +Z, Spieler: -Z.
+func _mensch_bauen() -> void:
+	if aussehen.is_empty():
+		aussehen = CharakterAussehen.standard()
+	mensch = Mensch.new()
+	mensch.zwischenspeicher_nutzen = false
+	mensch.name = "Mensch"
+	mensch.aussehen = aussehen
+	mensch.position = Vector3(0, -body_root.position.y, 0)
+	mensch.rotation.y = PI
+	body_root.add_child(mensch)
+	mensch.ruhe_a_pose(true)
+	for p in _platzhalter_koerper:
+		p.visible = false
+
+
+func aussehen_setzen(a: Dictionary) -> void:
+	aussehen = a.duplicate(true)
+	aussehen_gespeichert = true
+	if mensch:
+		mensch.aussehen_setzen(aussehen)
 
 
 func _weapon_rest_pos() -> Vector3:

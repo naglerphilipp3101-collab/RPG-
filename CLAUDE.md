@@ -26,6 +26,11 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
 - `welt/`: Import der Weltgenerator-Exporte in Terrain3D (`welt_import.gd`), Marker, Ressourcen-Streamer (`welt_ressourcen.gd`).
   Terrain3D-Textur-IDs: 0 Sand, 1 Wiese, 2 Laubboden, 3 Nadelboden, 4 Sumpf, 5 Steppe, 6 Fels, 7 Schnee, 8 Kies (Flussbett).
   Der Import ordnet die Böden nach den Biom-Regeln neu zu, ersetzt alte Weg-Pixel (ID 8 in alten Exporten) und legt Kies unter die Flüsse.
+- `charakter/`: Menschen auf MakeHuman-Basis (CC0, `LIZENZ_MAKEHUMAN.txt`). Daten `daten/mensch.json|bin` erzeugt `tools/charakter/mensch_daten.py <mpfb2> <makehuman> <godot> [<systemassets>]`
+  (Quellen: MPFB2, MakeHuman-Repo, System-Asset-Pack; Auswahl liegt als `makehuman_auswahl.zip` in den Projektdateien). `mensch.gd` (Mensch: Formen, Skelett mit
+  Godot-Humanoid-Namen in T-Pose für Mixamo-Retargeting, Haare/Brauen/Wimpern/Zähne, Hauttexturen, gemalte Bärte, Unterwäsche), `charakter_aussehen.gd` (Standard, Zufall,
+  NPC-Liste `data/npc_aussehen.json`), Regler/Farben/Zufallsgrenzen in `data/charakter.json`. Erstellung: `scripts/charakter_erstellung.gd` (neues Spiel, Esc → „Aussehen ändern“).
+  Gegner mit `"mensch"` in `enemies.json` nutzen ein gemeinsames Modell (`gegner_aussehen`). Test: `assets/charakter/test/erstellung.tscn -- --bild x.png [--zufall 7] [--gruppe Nase]`.
 - `natur/`: Bodenobjekte und tote Bäume (Blender `natur/blender/natur_modelle.py` → `natur/modelle/`: totbaum, baumstamm, stock, treibholz, alge), nur Deko.
 - Terrain3D ist ein Plugin aus der AssetLib und liegt **nicht** im Repository (muss unter `godot/addons/` installiert werden).
 - **6 Erz-Tiers:** Iron, Palladium, Mithril, Glacialore, Sungold, Darksteel. Das Repository ist der neuere Stand und hat bei Abweichungen Vorrang (Nutzerentscheidung).

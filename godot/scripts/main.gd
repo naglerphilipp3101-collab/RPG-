@@ -138,6 +138,9 @@ func _ready() -> void:
 		add_child(load("res://tests/autotest.gd").new())
 	elif SaveGame.load_into(get_tree(), Game.SAVE_PATH):
 		hud.show_message("Spielstand geladen")
+	# Neues Spiel (oder Spielstand von vor der Charaktererstellung): erst den Charakter erstellen
+	if not autotest and not player.aussehen_gespeichert and not args.has("--ohne-erstellung"):
+		hud.charakter_erstellung_oeffnen.call_deferred(true)
 	if args.has("--fehler"):
 		# Zur Stelle einer Fehlermeldung springen (Taste B, scripts/fehler_melden.gd)
 		var i := args.find("--fehler")

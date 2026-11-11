@@ -1,0 +1,6 @@
+Grundnetz, Formen (Targets), Mixamo-Skelett mit Gewichten und Augen stammen aus
+MakeHuman / MPFB2 (https://github.com/makehumancommunity) und stehen unter
+Creative Commons CC0 1.0 (gemeinfrei, auch kommerziell frei nutzbar).
+
+Copyright-Inhaber zum Zeitpunkt der Freigabe: Data Collection AB, Joel Palmius, Jonas Hauquier.
+Aufbereitet mit godot/tools/charakter/mensch_daten.py.

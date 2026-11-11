@@ -4,6 +4,7 @@ extends Control
 const SaveGame := preload("res://scripts/save_game.gd")
 
 signal resume_requested
+signal aussehen_requested
 
 var status_label: Label
 var new_game_button: Button
@@ -28,8 +29,8 @@ func _ready() -> void:
 	panel.anchor_bottom = 0.5
 	panel.offset_left = -190
 	panel.offset_right = 190
-	panel.offset_top = -210
-	panel.offset_bottom = 210
+	panel.offset_top = -240
+	panel.offset_bottom = 240
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.08, 0.08, 0.1, 0.96)
 	style.border_color = Color(0.75, 0.62, 0.35)
@@ -51,6 +52,7 @@ func _ready() -> void:
 
 	box.add_child(_button("Fortsetzen", func() -> void: resume_requested.emit()))
 	box.add_child(_button("Speichern", _on_save))
+	box.add_child(_button("Aussehen ändern", func() -> void: aussehen_requested.emit()))
 	new_game_button = _button("Neues Spiel", _on_new_game)
 	box.add_child(new_game_button)
 	box.add_child(_button("Speichern & Beenden", _on_quit))
