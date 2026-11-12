@@ -1,0 +1,9 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_verkohlt_normal.jpg" id="1_8tyvt"]
+
+[resource]
+resource_name = "asche"
+albedo_color = Color(0.24, 0.23, 0.22, 1)
+normal_enabled = true
+normal_texture = ExtResource("1_8tyvt")

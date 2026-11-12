@@ -1,0 +1,16 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://assets/props/materialien/balken.gdshader" id="1_lpg73"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_verkohlt_farbe.jpg" id="2_dl8rv"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_verkohlt_normal.jpg" id="3_8xenp"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_verkohlt_rauheit.jpg" id="4_30ijv"]
+
+[resource]
+resource_name = "holz_verkohlt_strebe"
+render_priority = 0
+shader = ExtResource("1_lpg73")
+shader_parameter/farbe = ExtResource("2_dl8rv")
+shader_parameter/normal_karte = ExtResource("3_8xenp")
+shader_parameter/rauheit = ExtResource("4_30ijv")
+shader_parameter/achse = Vector3(0.70710677, 0.70710677, 0)
+shader_parameter/schritt = null

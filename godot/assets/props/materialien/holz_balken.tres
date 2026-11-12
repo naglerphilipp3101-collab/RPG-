@@ -1,0 +1,16 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://assets/props/materialien/balken.gdshader" id="1_ggcy4"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_farbe.jpg" id="2_7je5a"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_normal.jpg" id="3_1kj7s"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_rauheit.jpg" id="4_v1r1b"]
+
+[resource]
+resource_name = "holz_balken"
+render_priority = 0
+shader = ExtResource("1_ggcy4")
+shader_parameter/farbe = ExtResource("2_7je5a")
+shader_parameter/normal_karte = ExtResource("3_1kj7s")
+shader_parameter/rauheit = ExtResource("4_v1r1b")
+shader_parameter/achse = Vector3(1, 0, 0)
+shader_parameter/schritt = null

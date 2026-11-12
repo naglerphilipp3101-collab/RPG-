@@ -1,0 +1,13 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/props/texturen/putz_farbe.jpg" id="1_ud1ug"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/putz_normal.jpg" id="2_2fxop"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/putz_rauheit.jpg" id="3_0qoua"]
+
+[resource]
+resource_name = "putz"
+albedo_texture = ExtResource("1_ud1ug")
+roughness_texture = ExtResource("3_0qoua")
+normal_enabled = true
+normal_texture = ExtResource("2_2fxop")
+texture_filter = 5
