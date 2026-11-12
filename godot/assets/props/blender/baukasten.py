@@ -43,7 +43,7 @@ def mitte_y(bm):
 
 def wand_flaeche(m, kaputt, breite, hoehe):
     """Massive Wand breite x hoehe (x 0..breite, z 0..hoehe). Kaputt: ausgebrochenes Loch,
-    abgebröckelte Oberkante, Schutt am Boden. Alle Außenkanten, die stehen bleiben, liegen im Raster."""
+    abgebröckelte Oberkante (Schutt kommt später als eigene Module). Alle Außenkanten, die stehen bleiben, liegen im Raster."""
     m.G = Matrix.Translation((breite / 2, 0, 0))         # gebaut um die Mitte, Ursprung aber am Anfangspunkt
     if not kaputt:
         m.teil(quader(breite, WAND_D, hoehe, int(breite * 2), 1, int(hoehe * 2)), "putz", M((0, 0, hoehe / 2)),
@@ -71,11 +71,6 @@ def wand_flaeche(m, kaputt, breite, hoehe):
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])   # Außenflächen zeigen nach außen (sonst sieht man die Rückseite)
     bm.normal_update()
     m.teil(bm, "putz", None)
-    for k in range(int(4 + 5 * breite * hoehe / 4)):
-        g = m.rnd.uniform(0.05, 0.13)
-        m.teil(basis.brocken(m.rnd, g * 1.5, g, g * 0.6), "putz",
-               M((m.rnd.uniform(-0.4, 0.45) * breite, m.rnd.choice((-1, 1)) * m.rnd.uniform(0.12, 0.6), g * 0.3),
-                 (0, 0, m.rnd.uniform(0, 180))))
     m.G = None
 
 
@@ -187,12 +182,6 @@ def wand_loecher(m, breite, hoehe, oeffnungen, kaputt):
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])   # Außenflächen zeigen nach außen (sonst sieht man die Rückseite)
     bm.normal_update()
     m.teil(bm, "putz", None, versatz=(0, 0))
-    if kaputt:
-        for k in range(int(4 + 4 * breite * hoehe / 4)):
-            g = m.rnd.uniform(0.05, 0.12)
-            m.teil(basis.brocken(m.rnd, g * 1.5, g, g * 0.6), "putz",
-                   M((m.rnd.uniform(0.1, 0.9) * breite, m.rnd.choice((-1, 1)) * m.rnd.uniform(0.12, 0.6), g * 0.3),
-                     (0, 0, m.rnd.uniform(0, 180))))
 
 
 EINBETTEN = 0.01   # Rahmen stecken 1 cm in der Wand: keine Fläche liegt genau auf der Laibung (sonst flackert es)
@@ -312,11 +301,6 @@ def dreieck(m, kaputt, b):
         bm.faces.new((vorne[i], hinten[i], hinten[(i + 1) % len(umriss)], vorne[(i + 1) % len(umriss)]))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     m.teil(bm, "putz", None, versatz=(0, 0))
-    if kaputt:
-        for k in range(4):
-            g = m.rnd.uniform(0.05, 0.11)
-            m.teil(basis.brocken(m.rnd, g * 1.5, g, g * 0.6), "putz",
-                   M((m.rnd.uniform(0.4, 0.95) * b, m.rnd.choice((-1, 1)) * m.rnd.uniform(0.12, 0.5), g * 0.3)))
 
 
 def wand_dreieck(m, kaputt):
@@ -745,8 +729,6 @@ def treppe_holz(m, kaputt):
                 biegen=0.0)
         if not (kaputt and i == 2):
             m.brett(0.94, h - 0.04, 0.02, M((0.5, y - t / 2 + 0.012, z - h / 2 - 0.02), (90, 0, 0)), "holz", biegen=0.0)
-    if kaputt:
-        m.brett(0.7, t - 0.02, 0.04, M((0.6, -0.4, 0.04), (0, 0, 30)), "holz", bruch=-1)
 
 
 def treppe_stein(m, kaputt):
@@ -754,8 +736,7 @@ def treppe_stein(m, kaputt):
     h = 0.2; t = 0.4
     for i in range(STUFEN):
         z1 = BODEN_OBEN + (i + 1) * h; y0 = i * t
-        if kaputt and i == 4:
-            m.teil(klotz(m.rnd, 0.95, t, h, 0.02, 0.008, 1.0), "stein", M((1.3, 0.6, h / 2), (m.rnd.uniform(-6, 6), 0, 25)))
+        if kaputt and i == 4:   # oberste Stufe fehlt (Schutt kommt später als eigene Module)
             continue
         hoch = z1 if i == 0 else h
         m.teil(klotz(m.rnd, 1.0, t if i < STUFEN - 1 else t, hoch, 0.012, 0.003, 0.5 if kaputt else 0.0), "stein",
