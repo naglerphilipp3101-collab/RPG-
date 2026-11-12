@@ -451,12 +451,13 @@ def dach_traufe(m, kaputt):
 
 
 def windbrett(m, x, y_von, y_bis, kaputt):
-    """Windbrett an der Außenkante des Ortgangs: hochkant unter der Dachkante, folgt der Schräge."""
+    """Windbrett an der Außenkante des Ortgangs: hochkant, folgt der Schräge. Sitzt AUSSEN vor der Dachkante,
+    damit keine seiner Flächen auf der Stirnseite des Dachs liegt (sonst flackert es zwischen Holz und Schindeln)."""
     c = (DACH_ABSTAND + DACH_DICKE / 2) * math.sqrt(2) - 0.07
     if kaputt:
         y_bis = y_von + (y_bis - y_von) * 0.55
     m.kantholz((x, y_von, y_von + c), (x, y_bis, y_bis + c), 0.025, 0.24, "holz_alt" if not kaputt else "holz_verkohlt",
-               oben=(0, -1, 1), biegen=0.0, bruch=1 if kaputt else 0)
+               oben=(0, -1, 1), fase=0.0, biegen=0.0, bruch=1 if kaputt else 0)
 
 
 ORTGANG = 0.5          # seitlicher Dachüberstand
@@ -468,7 +469,7 @@ def ortgang(m, kaputt, lauf, seite):
     x0 = -ORTGANG if seite < 0 else 0.0
     bis = lauf if not kaputt else lauf * 0.6
     dach_platte(m, False, ORTGANG, bis, x_von=x0)
-    windbrett(m, seite * ORTGANG - seite * 0.0125, 0.0, lauf, kaputt)
+    windbrett(m, seite * (ORTGANG + 0.0125), 0.0, lauf, kaputt)
 
 
 def dach_ortgang_l(m, kaputt):
@@ -492,7 +493,7 @@ def dach_ecke(m, kaputt, seite):
     x0 = -ORTGANG if seite < 0 else 0.0
     if not kaputt:
         dach_platte(m, False, ORTGANG, 0.0, y_von=-0.5, x_von=x0)
-    windbrett(m, seite * ORTGANG - seite * 0.0125, -0.5, 0.0, kaputt)
+    windbrett(m, seite * (ORTGANG + 0.0125), -0.5, 0.0, kaputt)
 
 
 def dach_ecke_l(m, kaputt):
