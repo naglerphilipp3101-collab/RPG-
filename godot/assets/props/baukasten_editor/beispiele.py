@@ -4,7 +4,7 @@ Aufruf: python3 beispiele.py   (überschreibt die hier erzeugten Dateien, eigene
 Rechteckhaus: Breite W entlang x (Vielfaches von 2), Tiefe 4 m nach -z, Stockwerke je 2 m, Satteldach oder Walmdach.
 Wandreihen je Stockwerk als Buchstaben, eine je 2-m-Feld, im Uhrzeigersinn: vorne (z 0, nach +x), rechts (x W, nach -z),
 hinten (z -4, nach -x), links (x 0, nach +z). T = Tür, F = Fenster, W = Wand, S = Wand mit Strebe."""
-import json, os, random
+import json, math, os, random
 
 ZIEL = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "data", "gebaeude")
 D = 4
@@ -20,7 +20,40 @@ class Haus:
         self.teile.append({"modell": modell, "kaputt": bool(kaputt), "pos": [round(v, 3) for v in pos],
                            "dreh": list(dreh)})
 
+    def abhaengige_entfernen(self):
+        """Teile, die an einem anderen hängen, fliegen raus, wenn ihr Träger fehlt (z. B. in Ruinen):
+        Traufe und Ortgang brauchen die Dachfläche, die Ortgang-Ecke braucht den Ortgang, alle an gleicher Stelle."""
+        da = {(t["modell"], tuple(t["pos"]), tuple(t["dreh"])) for t in self.teile}
+        def hat(modelle, t, zurueck=0):
+            # zurueck: Träger beginnt so viele Meter vor dem Teil (rechte Ortgänge sitzen am Ende der Dachfläche)
+            r = math.radians(t["dreh"][1]); x, y, z = t["pos"]
+            pos = (round(x - zurueck * math.cos(r), 3), y, round(z + zurueck * math.sin(r), 3))
+            pos = tuple(int(v) if float(v).is_integer() else v for v in pos)
+            return any((mo, pos, tuple(t["dreh"])) in da for mo in modelle)
+        flaechen = ("dach_2x2", "dach_grat_2x2")
+        def ende(t):
+            r = math.radians(t["dreh"][1])
+            return (t["pos"][0] + 2 * math.cos(r), t["pos"][1], t["pos"][2] - 2 * math.sin(r))
+        behalten = []
+        for t in self.teile:
+            mo = t["modell"]
+            rechts = 2 if mo.startswith(("dach_ortgang_r", "dach_ecke_r")) else 0
+            if mo in ("dach_traufe", "dach_grat_traufe") or mo.startswith("dach_ortgang"):
+                # an einer Walmseite trägt der Grat der nächsten Ecke (andere Drehung) die Traufe
+                grat_da = any(g["modell"] == "dach_grat_2x2" and g["pos"][1] == t["pos"][1] and
+                              any(abs(g["pos"][0] - p[0]) < 1e-6 and abs(g["pos"][2] - p[2]) < 1e-6
+                                  for p in (t["pos"], ende(t))) for g in self.teile)
+                if not hat(flaechen, t, rechts) and not (mo == "dach_traufe" and grat_da):
+                    continue
+            if mo.startswith("dach_ecke"):
+                seite = mo[-1]
+                if not hat(("dach_ortgang_" + seite,), t) or not hat(flaechen, t, rechts):
+                    continue
+            behalten.append(t)
+        self.teile = behalten
+
     def speichern(self, datei):
+        self.abhaengige_entfernen()
         with open(os.path.join(ZIEL, datei), "w", encoding="utf-8") as f:
             json.dump({"format": "rpg_gebaeude", "version": 1, "name": self.name, "raster": 1.0, "teile": self.teile},
                       f, ensure_ascii=False, indent=1)

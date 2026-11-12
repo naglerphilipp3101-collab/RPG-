@@ -635,8 +635,7 @@ def dach_ortgang_1m_r(m, kaputt):
 def dach_ecke(m, kaputt, seite):
     """Ecke zwischen Traufe und Ortgang (0,5 x 0,5 m, außen vor dem Traufpunkt)."""
     x0 = -ORTGANG if seite < 0 else 0.0
-    if not kaputt:
-        dach_platte(m, False, ORTGANG, 0.0, y_von=-0.5, x_von=x0)
+    dach_platte(m, False, ORTGANG, 0.0, y_von=-0.5, x_von=x0)   # auch kaputt: sonst schwebt das Brett allein
     windbrett(m, seite * (ORTGANG + 0.0125), -0.5, 0.0, kaputt)
 
 
