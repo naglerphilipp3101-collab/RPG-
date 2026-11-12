@@ -450,6 +450,113 @@ def dach_traufe(m, kaputt):
 
 
 
+# ---------------------------------------------------------------- Eckdächer: Kehle (Innenecke) und Grat (Außenecke)
+# Beide liegen auf einer Rasterzelle b x b. Die Dachhaut folgt einer Höhenfunktion: Kehle z = max(x, y), Grat
+# z = min(x, y). Ursprung ist die Traufecke (z 0); bei (b | b) liegt der Punkt, an dem sich die Firste treffen.
+# Spiegeln ist nicht nötig: max und min sind in x und y gleich, eine Drehung um 90° reicht.
+
+def dach_form(m, kaputt, f, x0, x1, y0, y1):
+    """Dachhaut über einer Höhenfunktion f(x, y), gleiche Dicke und gleicher Abstand wie dach_platte (senkrecht
+    gemessen), damit sie an normale Dachteile genau anschließt. Jede Zelle ist entlang der Diagonale geteilt,
+    die Kehl-/Gratlinie liegt damit genau auf Kanten."""
+    s2 = math.sqrt(2)
+    unten = DACH_ABSTAND * s2
+    oben = (DACH_ABSTAND + DACH_DICKE) * s2
+    nx, ny = max(2, round((x1 - x0) * 4)), max(2, round((y1 - y0) * 4))
+    loch = None
+    if kaputt and x1 - x0 >= 1.0 and y1 - y0 >= 1.0:
+        loch = lambda i, j: ((i / ny - 0.5) * 4) ** 2 + ((j / nx - 0.42) * 3.4) ** 2 < 1.1 + \
+            0.6 * noise.noise(Vector((i * 0.6, j * 0.6, 0.7)))
+    bm = bmesh.new()
+    go, gu = [], []
+    for i in range(ny + 1):
+        zo, zu = [], []
+        for j in range(nx + 1):
+            x = x0 + (x1 - x0) * j / nx; y = y0 + (y1 - y0) * i / ny; z = f(x, y)
+            zo.append(bm.verts.new((x, y, z + oben))); zu.append(bm.verts.new((x, y, z + unten)))
+        go.append(zo); gu.append(zu)
+    unter = {go[i][j]: gu[i][j] for i in range(ny + 1) for j in range(nx + 1)}
+    for i in range(ny):
+        for j in range(nx):
+            if loch and loch(i, j):
+                continue
+            for g, umgekehrt in ((go, False), (gu, True)):
+                a, b_, c, d = g[i][j], g[i][j + 1], g[i + 1][j + 1], g[i + 1][j]
+                for tri in ((a, b_, c), (a, c, d)):
+                    bm.faces.new(tri[::-1] if umgekehrt else tri)
+    for e in [e for e in bm.edges if e.verts[0] in unter and e.is_boundary]:
+        v1, v2 = e.verts
+        bm.faces.new((v1, v2, unter[v2], unter[v1]))
+    for v in [v for v in bm.verts if not v.link_faces]:
+        bm.verts.remove(v)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    # Schindeln: v immer die Schräge hinauf, u entlang der Traufe (am Raster verankert wie bei dach_platte)
+    ku, kv = basis.kachel("schindeln")
+    uv = bm.loops.layers.uv.verify()
+    for fl in bm.faces:
+        entlang_x = abs(fl.normal.y) >= abs(fl.normal.x)
+        for l in fl.loops:
+            p = l.vert.co
+            l[uv].uv = (p.x / ku, p.y) if entlang_x else (-p.y / ku, p.x)
+    m.teil(bm, "schindeln", None, uv=None)
+
+
+def gratbrett(m, kaputt, t0, t1):
+    """Zwei Bretter über der Gratlinie (x = y = z) von t0 bis t1, wie die Firstabdeckung: jedes liegt auf einer
+    Dachseite und reicht 1 cm über den Grat."""
+    oben = (DACH_ABSTAND + DACH_DICKE) * math.sqrt(2)
+    d = Vector((1, 1, 1)).normalized()
+    laenge = (t1 - t0) * math.sqrt(3)
+    mitte = Vector(((t0 + t1) / 2,) * 3) + Vector((0, 0, oben))
+    for k, (n, seite) in enumerate(((Vector((-1, 0, 1)), Vector((-1, 1, 0))), (Vector((0, -1, 1)), Vector((1, -1, 0))))):
+        n = n.normalized()
+        w = n.cross(d)
+        quer = w if w.dot(seite) > 0 else -w
+        c = mitte + n * (0.015 + 0.003) + quer * (0.12 - 0.01)
+        rot = Matrix.Translation(c) @ Matrix((d, w, n)).transposed().to_4x4()
+        if kaputt and k == 1:
+            m.brett(laenge * 0.5, 0.24, 0.03, rot @ M((-laenge * 0.25, 0, 0)), "holz_verkohlt", bruch=1, biegen=0.0)
+            continue
+        m.brett(laenge, 0.24, 0.03, rot, "holz_alt", fase=0.0, biegen=0.0)
+
+
+def kehle(m, kaputt, b):
+    """Kehle (Innenecke eines L-Hauses): Ursprung an der inneren Traufecke, die Fläche steigt nach +x und +y zu den
+    beiden Firsten. Die Kehllinie läuft von (0|0|0) nach (b|b|b)."""
+    dach_form(m, kaputt, lambda x, y: max(x, y), 0.0, b, 0.0, b)
+
+
+def dach_kehle_2x2(m, kaputt):
+    kehle(m, kaputt, 2.0)
+
+
+def dach_kehle_1x1(m, kaputt):
+    kehle(m, kaputt, 1.0)
+
+
+def grat(m, kaputt, b):
+    """Grat (Außenecke, Walmdach): Ursprung an der äußeren Traufecke, die Fläche steigt nach +x und +y."""
+    dach_form(m, kaputt, lambda x, y: min(x, y), 0.0, b, 0.0, b)
+    gratbrett(m, kaputt, 0.0, b)
+
+
+def dach_grat_2x2(m, kaputt):
+    grat(m, kaputt, 2.0)
+
+
+def dach_grat_1x1(m, kaputt):
+    grat(m, kaputt, 1.0)
+
+
+def dach_grat_traufe(m, kaputt):
+    """Überstand an der Gratecke (0,5 x 0,5 m vor der Traufecke) mit Gratbrett. Gleicher Ursprung wie dach_grat_*,
+    die beiden dach_traufe-Teile daneben schließen genau an. An der Kehle braucht es nichts: die zwei
+    Traufüberstände kreuzen sich dort von selbst zur Kehle."""
+    dach_form(m, False, lambda x, y: min(x, y), -0.5, 0.0, -0.5, 0.0)
+    gratbrett(m, kaputt, -0.5, 0.0)
+
+
+
 BRETT_D = 0.025        # Dicke von Windbrett und Giebelzier
 BRETT_H = 0.24         # Höhe (quer zur Schräge)
 
@@ -649,7 +756,9 @@ MODELLE = {"wand": wand, "wand_2x1": wand_2x1, "wand_1x1": wand_1x1, "balken_2m"
            "dach_2x2": dach_2x2, "dach_2x1": dach_2x1, "dach_1x2": dach_1x2, "dach_1x1": dach_1x1,
            "dach_traufe": dach_traufe, "dach_first": dach_first, "dach_ortgang_l": dach_ortgang_l,
            "dach_ortgang_r": dach_ortgang_r, "dach_ortgang_1m_l": dach_ortgang_1m_l, "dach_ortgang_1m_r": dach_ortgang_1m_r,
-           "dach_ecke_l": dach_ecke_l, "dach_ecke_r": dach_ecke_r, "dach_zier_l": dach_zier_l, "dach_zier_r": dach_zier_r, "treppe_holz": treppe_holz, "treppe_stein": treppe_stein}
+           "dach_ecke_l": dach_ecke_l, "dach_ecke_r": dach_ecke_r, "dach_zier_l": dach_zier_l, "dach_zier_r": dach_zier_r,
+           "dach_kehle_2x2": dach_kehle_2x2, "dach_kehle_1x1": dach_kehle_1x1, "dach_grat_2x2": dach_grat_2x2,
+           "dach_grat_1x1": dach_grat_1x1, "dach_grat_traufe": dach_grat_traufe, "treppe_holz": treppe_holz, "treppe_stein": treppe_stein}
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 extends Node3D
 ## Zeigt ein gespeichertes Gebäude aus dem Baukasten. F6 im Editor (Beispielhaus) oder:
 ## Godot --path godot res://assets/props/test/gebaeude_test.tscn -- [--datei res://data/gebaeude/x.json] [--kaputt]
-##   [--screenshot] [--winkel=grad] [--hoehe=grad] [--abstand=m]   (Bild: user://gebaeude.png)
+##   [--screenshot] [--winkel=grad] [--hoehe=grad] [--abstand=m] [--ziel=x,y,z]   (Bild: user://gebaeude.png)
 ## Pfeiltasten drehen, Mausrad Zoom.
 
 var _kamera: Camera3D
@@ -52,6 +52,10 @@ func _ready() -> void:
 	g.datei = pfad
 	var box := g.grenzen()
 	_ziel = box.get_center()
+	for a in args:
+		if a.begins_with("--ziel="):
+			var w := a.split("=")[1].split(",")
+			_ziel = Vector3(float(w[0]), float(w[1]), float(w[2]))
 	_kamera = Camera3D.new()
 	add_child(_kamera)
 	_kamera_setzen()
