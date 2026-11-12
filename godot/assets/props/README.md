@@ -43,9 +43,12 @@ Anfangspunkt auf einem Rasterpunkt, von dort läuft es 1 oder 2 m entlang x; ged
 | `dach_zier_l/_r` | Giebelzier am First über dem Ortgang: zwei gekreuzte Zierbretter mit Kopf und Firstkappe für den Überstand. Ursprung am First-Rasterpunkt wie `dach_first`. Die Windbretter enden am First senkrecht, die Zier deckt den Stoß ab |
 | `dach_kehle_2x2`, `dach_kehle_1x1` | Kehle für die Innenecke eines L-Hauses: Ursprung an der inneren Traufecke, die Fläche steigt nach +x und -z zu den beiden Firsten (Höhe = max der beiden Richtungen). Andere Ecken durch Drehen um 90°, Spiegeln ist nie nötig. Die Traufüberstände der beiden Flügel kreuzen sich vor der Kehle von selbst |
 | `dach_grat_2x2`, `dach_grat_1x1`, `dach_grat_traufe` | Grat für Außenecken und Walmdächer: Ursprung an der äußeren Traufecke, steigt nach +x und -z (Höhe = min), mit Gratbrett. `dach_grat_traufe` ist der 0,5 × 0,5-Überstand vor der Gratecke (gleicher Ursprung), daneben je ein `dach_traufe`. Beispiel: `data/gebaeude/eckhaus.json` (L-Haus mit Kehle innen, Grat außen) |
+
 | `treppe_holz`, `treppe_stein` | 1 m breit, 2 m Lauf nach -z, 1 m hoch (5 Stufen à 20 × 40 cm), von Boden zu Boden; stapelbar |
 
 Tiefe läuft bei Boden, Dach und Treppe immer nach **-z** (von der Vorderseite einer ungedrehten Wand weg).
+
+Weitere Vorlagen (Bauernhaus, Stadthaus mit Treppe, Walmdachhaus, Gasthaus, Ruine) erzeugt `baukasten_editor/beispiele.py` nach `data/gebaeude/`; danach `bauen.py` laufen lassen, damit sie im Baukasten auftauchen.
 
 Durch den Überstand reicht ein Balken an jedem Rasterpunkt genau so weit wie ein querliegender: Ecken sind ohne Stufe geschlossen.
 
