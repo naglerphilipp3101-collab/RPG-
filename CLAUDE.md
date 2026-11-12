@@ -31,6 +31,11 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
   Godot-Humanoid-Namen in T-Pose für Mixamo-Retargeting, Haare/Brauen/Wimpern/Zähne, Hauttexturen, gemalte Bärte, Unterwäsche), `charakter_aussehen.gd` (Standard, Zufall,
   NPC-Liste `data/npc_aussehen.json`), Regler/Farben/Zufallsgrenzen in `data/charakter.json`. Erstellung: `scripts/charakter_erstellung.gd` (neues Spiel, Esc → „Aussehen ändern“).
   Gegner mit `"mensch"` in `enemies.json` nutzen ein gemeinsames Modell (`gegner_aussehen`). Test: `assets/charakter/test/erstellung.tscn -- --bild x.png [--zufall 7] [--gruppe Nase]`.
+- `ruestung/`: Rüstungsmodelle (ab 12.11.), je Tier 3 Sätze leicht/mittel/schwer, 5 Slots kopf/brust/haende/beine/fuesse, nicht modular.
+  Blender-Python (`blender/rgeo.py` Bausteine, `blender/iron.py` Iron-Sätze, `blender/alle.py <ausgabe> [klassen]` baut, rendert und exportiert GLB).
+  Geformt um den Körper aus `tools/ruestung/mensch_lesen.py` (liest `charakter/daten` wie das Spiel): Röhren um Rumpf/Arm/Bein-Achsen und Kugelfelder (Helm, Schulter),
+  abgetastet per Strahl, konvex geglättet, nie unter der Haut. Materialnamen: platte, rand, niete, kette, leder, leder_dunkel, stoff, stoff_akzent, futter.
+  Noch nicht im Spiel (offen: Bindung an Körperformen und Skelett, verdeckte Haut ausblenden).
 - `natur/`: Bodenobjekte und tote Bäume (Blender `natur/blender/natur_modelle.py` → `natur/modelle/`: totbaum, baumstamm, stock, treibholz, alge), nur Deko.
 - Terrain3D ist ein Plugin aus der AssetLib und liegt **nicht** im Repository (muss unter `godot/addons/` installiert werden).
 - **6 Erz-Tiers:** Iron, Palladium, Mithril, Glacialore, Sungold, Darksteel. Das Repository ist der neuere Stand und hat bei Abweichungen Vorrang (Nutzerentscheidung).
