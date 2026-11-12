@@ -193,10 +193,15 @@ def wand_loecher(m, breite, hoehe, oeffnungen, kaputt):
                      (0, 0, m.rnd.uniform(0, 180))))
 
 
+EINBETTEN = 0.01   # Rahmen stecken 1 cm in der Wand: keine Fläche liegt genau auf der Laibung (sonst flackert es)
+
+
 def rahmen(m, o, b, tiefe, mat="holz", unten=True, bruch=()):
     """Rahmen aus Kanthölzern innen an der Öffnung o = (x0, x1, z0, z1): Breite b in der Wandebene, Tiefe quer.
+    Der Rahmen ist rundum EINBETTEN größer als die Öffnung, damit seine Außenflächen in der Wand verschwinden.
     bruch: Seiten ('l', 'r', 'o', 'u'), die abgebrochen sind."""
-    x0, x1, z0, z1 = o
+    e = EINBETTEN
+    x0, x1, z0, z1 = o[0] - e, o[1] + e, o[2] - (e if unten else 0.0), o[3] + e
     seiten = {"l": ((x0 + b / 2, 0, z0), (x0 + b / 2, 0, z1), (1, 0, 0)),
               "r": ((x1 - b / 2, 0, z0), (x1 - b / 2, 0, z1), (1, 0, 0)),
               "o": ((x0 + b, 0, z1 - b / 2), (x1 - b, 0, z1 - b / 2), (0, 0, 1))}
@@ -215,7 +220,7 @@ def wand_tuer(m, kaputt):
            bruch=("r",) if kaputt else ())
     # Schwelle aus Stein, bündig mit dem Balken darunter (Oberkante 0,1 m wie der Boden)
     x0, x1 = TUER[0], TUER[1]
-    m.teil(klotz(m.rnd, x1 - x0, WAND_D + 0.1, 0.1, 0.01, 0.003, 0.6 if kaputt else 0.0), "stein",
+    m.teil(klotz(m.rnd, x1 - x0 + 2 * EINBETTEN, WAND_D + 0.1, 0.1, 0.01, 0.003, 0.6 if kaputt else 0.0), "stein",
            M(((x0 + x1) / 2, 0, 0.05)))
 
 
@@ -360,7 +365,7 @@ DACH_ABSTAND = BALKEN / 2 * math.sqrt(2)   # Unterseite der Dachhaut liegt senkr
 DACH_DICKE = 0.08                          # Schalung + Schindeln
 
 
-def dach_platte(m, kaputt, b, lauf, y_von=None):
+def dach_platte(m, kaputt, b, lauf, y_von=None, x_von=0.0):
     """Dachfläche 45°: Traufe am Rasterpunkt (y 0 | z 0), steigt bis (y lauf | z lauf), b breit entlang x.
     Die Haut liegt auf den Balken (Unterseite 0,1 m senkrecht über der Diagonale), Enden senkrecht im Raster
     abgeschnitten: zwei Seiten treffen sich am First genau, die Traufe endet über der Wandmitte."""
@@ -370,10 +375,10 @@ def dach_platte(m, kaputt, b, lauf, y_von=None):
     oben = (DACH_ABSTAND + DACH_DICKE) * s2
     nx, ny = max(2, int(b * 4)), max(2, int((lauf - y0) * 4))
     def gitter(dz):
-        return [[(b * j / nx, y0 + (lauf - y0) * i / ny, y0 + (lauf - y0) * i / ny + dz) for j in range(nx + 1)]
+        return [[(x_von + b * j / nx, y0 + (lauf - y0) * i / ny, y0 + (lauf - y0) * i / ny + dz) for j in range(nx + 1)]
                 for i in range(ny + 1)]
     loch = None
-    if kaputt:
+    if kaputt and b >= 1.0 and lauf - y0 >= 1.0:
         loch = lambda i, j: ((i - ny * 0.45) / ny * 4) ** 2 + ((j - nx * 0.4) / nx * 3.2) ** 2 < 1.2 + \
             0.6 * noise.noise(Vector((i * 0.6, j * 0.6, 0.3)))
     # Ober- und Unterseite einzeln, Ränder als senkrechte bzw. seitliche Stirnflächen
@@ -414,7 +419,7 @@ def dach_platte(m, kaputt, b, lauf, y_von=None):
             p = l.vert.co
             l[uv].uv = (p.x / ku, p.y * s2 / kv)
     m.teil(bm, "schindeln", None, uv=None)
-    if kaputt:   # verkohlte Sparren im Loch
+    if loch:   # verkohlte Sparren im Loch
         for x in (b * 0.3, b * 0.65):
             a = Vector((x, y0 + 0.05, y0 + 0.05 + unten - 0.06)); e = Vector((x, lauf - 0.05, lauf - 0.05 + unten - 0.06))
             m.kantholz(a, a + (e - a) * m.rnd.uniform(0.55, 0.8), 0.08, 0.1, "holz_verkohlt", oben=(0, -1, 1), bruch=1)
@@ -439,8 +444,61 @@ def dach_1x1(m, kaputt):
 def dach_traufe(m, kaputt):
     """Dachüberstand 2 m breit: setzt die Dachfläche an der Traufe 0,5 m nach außen (y -0,5..0) fort.
     Gleicher Ursprung wie dach_*: am Traufpunkt einfach dazusetzen."""
-    dach_platte(m, kaputt, 2.0, 0.0, y_von=-0.5)
+    dach_platte(m, False, 2.0 if not kaputt else 1.2, 0.0, y_von=-0.5)
 
+
+
+def windbrett(m, x, y_von, y_bis, kaputt):
+    """Windbrett an der Außenkante des Ortgangs: hochkant unter der Dachkante, folgt der Schräge."""
+    c = (DACH_ABSTAND + DACH_DICKE / 2) * math.sqrt(2) - 0.07
+    if kaputt:
+        y_bis = y_von + (y_bis - y_von) * 0.55
+    m.kantholz((x, y_von, y_von + c), (x, y_bis, y_bis + c), 0.025, 0.24, "holz_alt" if not kaputt else "holz_verkohlt",
+               oben=(0, -1, 1), biegen=0.0, bruch=1 if kaputt else 0)
+
+
+ORTGANG = 0.5          # seitlicher Dachüberstand
+
+
+def ortgang(m, kaputt, lauf, seite):
+    """Seitlicher Dachüberstand (Ortgang) 0,5 m: setzt die Dachfläche über die Giebelwand hinaus fort.
+    seite -1 (links): x -0,5..0, seite +1 (rechts): x 0..0,5. Ursprung wie das Dach (Traufpunkt am Giebel)."""
+    x0 = -ORTGANG if seite < 0 else 0.0
+    bis = lauf if not kaputt else lauf * 0.6
+    dach_platte(m, False, ORTGANG, bis, x_von=x0)
+    windbrett(m, seite * ORTGANG - seite * 0.0125, 0.0, lauf, kaputt)
+
+
+def dach_ortgang_l(m, kaputt):
+    ortgang(m, kaputt, 2.0, -1)
+
+
+def dach_ortgang_r(m, kaputt):
+    ortgang(m, kaputt, 2.0, 1)
+
+
+def dach_ortgang_1m_l(m, kaputt):
+    ortgang(m, kaputt, 1.0, -1)
+
+
+def dach_ortgang_1m_r(m, kaputt):
+    ortgang(m, kaputt, 1.0, 1)
+
+
+def dach_ecke(m, kaputt, seite):
+    """Ecke zwischen Traufe und Ortgang (0,5 x 0,5 m, außen vor dem Traufpunkt)."""
+    x0 = -ORTGANG if seite < 0 else 0.0
+    if not kaputt:
+        dach_platte(m, False, ORTGANG, 0.0, y_von=-0.5, x_von=x0)
+    windbrett(m, seite * ORTGANG - seite * 0.0125, -0.5, 0.0, kaputt)
+
+
+def dach_ecke_l(m, kaputt):
+    dach_ecke(m, kaputt, -1)
+
+
+def dach_ecke_r(m, kaputt):
+    dach_ecke(m, kaputt, 1)
 
 
 def dach_first(m, kaputt):
@@ -500,7 +558,9 @@ MODELLE = {"wand": wand, "wand_2x1": wand_2x1, "wand_1x1": wand_1x1, "balken_2m"
            "wand_fenster_2x1": wand_fenster_2x1, "wand_fenster_1x1": wand_fenster_1x1, "wand_dreieck": wand_dreieck,
            "wand_dreieck_1x1": wand_dreieck_1x1, "boden_2x2": boden_2x2, "boden_1x1": boden_1x1,
            "dach_2x2": dach_2x2, "dach_2x1": dach_2x1, "dach_1x2": dach_1x2, "dach_1x1": dach_1x1,
-           "dach_traufe": dach_traufe, "dach_first": dach_first, "treppe_holz": treppe_holz, "treppe_stein": treppe_stein}
+           "dach_traufe": dach_traufe, "dach_first": dach_first, "dach_ortgang_l": dach_ortgang_l,
+           "dach_ortgang_r": dach_ortgang_r, "dach_ortgang_1m_l": dach_ortgang_1m_l, "dach_ortgang_1m_r": dach_ortgang_1m_r,
+           "dach_ecke_l": dach_ecke_l, "dach_ecke_r": dach_ecke_r, "treppe_holz": treppe_holz, "treppe_stein": treppe_stein}
 
 
 if __name__ == "__main__":

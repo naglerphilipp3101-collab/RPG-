@@ -913,6 +913,118 @@
     180,
     0
    ]
+  },
+  {
+   "modell": "dach_ortgang_l",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "dach_ortgang_r",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "dach_ecke_l",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "dach_ecke_r",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "dach_ortgang_l",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "dach_ortgang_r",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "dach_ecke_l",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "dach_ecke_r",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
   }
  ]
 }

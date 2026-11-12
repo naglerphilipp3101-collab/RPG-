@@ -24,7 +24,10 @@ const KATALOG = [
   ["Boden und Dach", [
     ["boden_2x2", "Dielenboden", "2 × 2"], ["boden_1x1", "Dielenboden", "1 × 1"],
     ["dach_2x2", "Dach 45°", "2 × 2"], ["dach_2x1", "Dach 45°", "2 × 1"], ["dach_1x2", "Dach 45°", "1 × 2"], ["dach_1x1", "Dach 45°", "1 × 1"],
-    ["dach_traufe", "Dachüberstand", "2 × 0,5"], ["dach_first", "First", "2 m"]]],
+    ["dach_traufe", "Überstand Traufe", "2 × 0,5"], ["dach_first", "First", "2 m"],
+    ["dach_ortgang_l", "Überstand Seite links", "0,5 × 2"], ["dach_ortgang_r", "Überstand Seite rechts", "0,5 × 2"],
+    ["dach_ortgang_1m_l", "Überstand Seite links", "0,5 × 1"], ["dach_ortgang_1m_r", "Überstand Seite rechts", "0,5 × 1"],
+    ["dach_ecke_l", "Überstand Ecke links", "0,5 × 0,5"], ["dach_ecke_r", "Überstand Ecke rechts", "0,5 × 0,5"]]],
   ["Treppen", [["treppe_holz", "Holztreppe", "1 × 2, 1 m hoch"], ["treppe_stein", "Steintreppe", "1 × 2, 1 m hoch"]]],
   ["Einrichtung", [
     ["kiste", "Kiste"], ["fass", "Fass"], ["tisch", "Tisch"], ["stuhl", "Stuhl"], ["hocker", "Hocker"], ["bank", "Bank"],

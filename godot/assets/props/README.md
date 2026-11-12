@@ -34,11 +34,12 @@ Anfangspunkt auf einem Rasterpunkt, von dort läuft es 1 oder 2 m entlang x; ged
 | `strebe_2m` | Schräge über eine 2 × 2-Wand, Mittellinie von (0/0) nach (2/2) |
 
 | `wand_tuer` + `tuer` | 2 × 2-Wand mit Öffnung 0,9 × 1,9 m (x 0,55..1,45) und Zarge; Türblatt 0,8 × 1,85 m mit **demselben Ursprung**, Angel bei x = 0,6 |
-| `wand_fenster`, `wand_fenster_2x1`, `wand_fenster_1x1` | Fensterwände 2 × 2 (Fenster 0,8 × 0,8), 2 × 1 (1,0 × 0,6), 1 × 1 (0,6 × 0,6), mit Rahmen, Kreuz, Glas, Fensterbank vorne |
+| `wand_fenster`, `wand_fenster_2x1`, `wand_fenster_1x1` | Fensterwände 2 × 2 (Fenster 0,8 × 0,8), 2 × 1 (1,0 × 0,6), 1 × 1 (0,6 × 0,6), mit Rahmen, Kreuz, Glas, Fensterbank vorne. Rahmen stecken 1 cm in der Wand (keine Fläche auf der Laibung, kein Flackern) |
 | `wand_dreieck`, `wand_dreieck_1x1` | Giebel: Dreieck (0\|0), (b\|0), (b\|b); die Schräge liegt auf der Diagonale wie `strebe_2m`. Andere Seite: um 180° drehen |
 | `boden_2x2`, `boden_1x1` | Dielen, x 0..b und z 0..-b, Oberkante 0,1 m über dem Rasterpunkt (bündig auf den Balken) |
 | `dach_2x2`, `dach_2x1`, `dach_1x2`, `dach_1x1` | Dach 45°, Breite × Lauf: Traufe am Rasterpunkt, steigt nach -z bis zum First. Liegt auf den Balkenkanten, Enden senkrecht im Raster: zwei Seiten (eine um 180° gedreht) treffen sich am First genau |
 | `dach_traufe`, `dach_first` | 0,5 m Dachüberstand an der Traufe (gleicher Ursprung wie das Dach), Firstabdeckung (Ursprung am First-Rasterpunkt) |
+| `dach_ortgang_l/_r`, `dach_ortgang_1m_l/_r`, `dach_ecke_l/_r` | Seitlicher Überstand 0,5 m mit Windbrett (Lauf 2 oder 1 m) links (x -0,5..0) bzw. rechts (x 0..0,5) am Giebel, Ecke zwischen Traufe und Seite; Ursprung wie das Dach. Auf der Gegenseite (Dach um 180° gedreht) tauschen links und rechts |
 | `treppe_holz`, `treppe_stein` | 1 m breit, 2 m Lauf nach -z, 1 m hoch (5 Stufen à 20 × 40 cm), von Boden zu Boden; stapelbar |
 
 Tiefe läuft bei Boden, Dach und Treppe immer nach **-z** (von der Vorderseite einer ungedrehten Wand weg).
