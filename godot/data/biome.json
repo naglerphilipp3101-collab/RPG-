@@ -1,5 +1,5 @@
 {
-	"_info": "6 Biome plus Stadt. Jedes Biom legt Bodentextur, Bäume, Büsche, Sammelpflanzen, Bodenobjekte und Bodenbewuchs fest (scripts/natur.gd, scripts/gras.gd, Weltimport). Zahlen sind Chancen je Rasterplatz (Bäume: dichte + rauschen × Waldrauschen 0–1, so entstehen Lichtungen) (Bäume 7 m, Büsche/Pflanzen/Bodenobjekte 16 m, Gras 0,55 m). Varianten überschreiben einzelne Werte ihres Bioms.",
+	"_info": "6 Biome plus Stadt. Jedes Biom legt Bodentextur, Bäume, Büsche, Sammelpflanzen, Bodenobjekte und Bodenbewuchs fest (scripts/natur.gd, scripts/gras.gd, Weltimport). Zahlen sind Chancen je Rasterplatz (Bäume: dichte + rauschen × Waldrauschen 0–1, so entstehen Lichtungen) (Bäume 7 m, Büsche/Pflanzen/Bodenobjekte 16 m, Gras 0,55 m). Varianten überschreiben einzelne Werte ihres Bioms. Steine (16-m-Raster, gehäuft in Steinfeldern nach Rauschen): dichte, Anteil Feuerstein (nur Größe 1–2), Gewichte der 5 Größen und der 7 Formen (rund, kantig, plattig, gespalten, hoch, liegend, zerklüftet), steil = größte Hangneigung (Standard 0,8).",
 	"texturen": ["sand", "wiese", "laubboden", "nadelboden", "sumpf", "steppe", "fels", "schnee", "kies"],
 	"generator": {
 		"_info": "Biome des Weltgenerators (biome_*.u8) -> [Biom, Variante]",
@@ -20,6 +20,7 @@
 			"buesche": 0.35,
 			"pflanzen": {"kraut": 0.1, "beeren": 0.07},
 			"bodenobjekte": {"stock": 0.45, "baumstamm": 0.1},
+			"steine": {"dichte": 0.03, "feuerstein": 0.1, "groessen": [3, 3, 2, 1, 0.5], "formen": [3, 2, 1, 2, 1, 3, 1]},
 			"gras": {"gras": 0.22, "farn": 0.1, "kraut": 0.2, "blume": 0.03, "farbe": [0.34, 0.48, 0.18], "ton": [0.9, 0.95, 0.85]},
 			"varianten": {
 				"laub": {},
@@ -37,6 +38,7 @@
 			"buesche": 0.06,
 			"pflanzen": {"hanf": 0.09, "kraut": 0.16, "beeren": 0.02},
 			"bodenobjekte": {},
+			"steine": {"dichte": 0.025, "feuerstein": 0.15, "groessen": [3, 2, 1.5, 1, 0.6], "formen": [4, 1, 1, 1, 0.5, 4, 0.5]},
 			"gras": {"gras": 0.85, "farn": 0.004, "kraut": 0.07, "blume": 0.08, "farbe": [0.4, 0.58, 0.2], "ton": [1.0, 1.0, 1.0]}
 		},
 		"fluss": {
@@ -55,7 +57,7 @@
 			"buesche": 0.0,
 			"pflanzen": {},
 			"bodenobjekte": {"treibholz": 0.08},
-			"geplant": {"stein": 0.05, "feuerstein": 0.03},
+			"steine": {"dichte": 0.07, "feuerstein": 0.35, "groessen": [5, 3, 1.5, 0.4, 0], "formen": [6, 1, 1, 0.5, 0, 4, 0]},
 			"gras": {}
 		},
 		"berg": {
@@ -65,7 +67,8 @@
 			"buesche": 0.0,
 			"pflanzen": {},
 			"bodenobjekte": {},
-			"geplant": {"stein": 0.3, "erz": 0.06},
+			"steine": {"dichte": 0.3, "feuerstein": 0.05, "groessen": [2, 3, 3, 2, 1.2], "formen": [0.5, 3, 2, 2, 2, 1, 3], "steil": 1.2},
+			"geplant": {"erz": 0.06},
 			"gras": {"gras": 0.04, "kraut": 0.02, "farbe": [0.45, 0.5, 0.3], "ton": [0.9, 0.9, 0.8]},
 			"varianten": {
 				"fels": {},
@@ -80,6 +83,7 @@
 			"buesche": 0.22,
 			"pflanzen": {"kraut": 0.28, "beeren": 0.14},
 			"bodenobjekte": {"pfuetze": 0.4, "stock": 0.15},
+			"steine": {"dichte": 0.012, "feuerstein": 0.0, "groessen": [2, 2, 1, 0.5, 0.3], "formen": [4, 1, 1, 1, 0, 4, 0]},
 			"gras": {"gras": 0.4, "farn": 0.06, "kraut": 0.07, "blume": 0.01, "farbe": [0.36, 0.42, 0.2], "ton": [0.85, 0.9, 0.7]}
 		},
 		"stadt": {

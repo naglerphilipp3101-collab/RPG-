@@ -64,3 +64,11 @@ python godot_materialien.py ../materialien                  # Materialien aus ti
 ```
 Formen und Tiers sind in `tiers.py` definiert (`SIZES`, `TIERS`).
 Achtung: `godot_materialien.py` überschreibt Änderungen, die du in Godot an den `.tres` gemacht hast.
+
+## Steine (Stein und Feuerstein)
+`felsbrocken.gd/.tscn`: abbaubarer Stein ohne Erz, `groesse` 1–5, `variante` 1–7 (0 = nach Position), `art` Stein/Feuerstein.
+Modelle `modelle/stein_<größe>_<variante>.glb` aus `blender/steine.py` (Icosphere, 9 Noise-Schichten je Punkt, Beschreibung im Skriptkopf):
+```
+python steine.py -- ../modelle [vorschau.png]
+```
+
