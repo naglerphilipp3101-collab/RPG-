@@ -68,6 +68,7 @@ def wand_flaeche(m, kaputt, breite, hoehe):
             v.co.x += m.rnd.uniform(-0.02, 0.02); v.co.z += m.rnd.uniform(-0.025, 0.02)
     bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=-WAND_D)
     mitte_y(bm)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])   # Außenflächen zeigen nach außen (sonst sieht man die Rückseite)
     bm.normal_update()
     m.teil(bm, "putz", None)
     for k in range(int(4 + 5 * breite * hoehe / 4)):
@@ -183,6 +184,7 @@ def wand_loecher(m, breite, hoehe, oeffnungen, kaputt):
                 v.co.x += m.rnd.uniform(-0.02, 0.02); v.co.z += m.rnd.uniform(-0.025, 0.02)
     bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=-WAND_D)
     mitte_y(bm)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])   # Außenflächen zeigen nach außen (sonst sieht man die Rückseite)
     bm.normal_update()
     m.teil(bm, "putz", None, versatz=(0, 0))
     if kaputt:
