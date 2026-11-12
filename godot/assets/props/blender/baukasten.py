@@ -501,13 +501,16 @@ def dach_form(m, kaputt, f, x0, x1, y0, y1):
     m.teil(bm, "schindeln", None, uv=None)
 
 
-def gratbrett(m, kaputt, t0, t1):
+def gratbrett(m, kaputt, t0, t1, b=None):
     """Zwei Bretter über der Gratlinie (x = y = z) von t0 bis t1, wie die Firstabdeckung: jedes liegt auf einer
-    Dachseite und reicht 1 cm über den Grat."""
+    Dachseite und reicht 1 cm über den Grat. Mit b werden sie oben an den senkrechten Ebenen x = b und y = b
+    abgeschnitten (Gehrung): dort stoßen das Brett des Nachbargrats bzw. die Firstbretter genau an, nichts
+    überlappt (sonst flackern Bretter, die in derselben Dachebene liegen)."""
     oben = (DACH_ABSTAND + DACH_DICKE) * math.sqrt(2)
     d = Vector((1, 1, 1)).normalized()
-    laenge = (t1 - t0) * math.sqrt(3)
-    mitte = Vector(((t0 + t1) / 2,) * 3) + Vector((0, 0, oben))
+    t1_lang = t1 + (0.25 if b is not None else 0.0)        # über die Spitze hinaus, die Schnitte kürzen es
+    laenge = (t1_lang - t0) * math.sqrt(3)
+    mitte = Vector(((t0 + t1_lang) / 2,) * 3) + Vector((0, 0, oben))
     for k, (n, seite) in enumerate(((Vector((-1, 0, 1)), Vector((-1, 1, 0))), (Vector((0, -1, 1)), Vector((1, -1, 0))))):
         n = n.normalized()
         w = n.cross(d)
@@ -515,9 +518,21 @@ def gratbrett(m, kaputt, t0, t1):
         c = mitte + n * (0.015 + 0.003) + quer * (0.12 - 0.01)
         rot = Matrix.Translation(c) @ Matrix((d, w, n)).transposed().to_4x4()
         if kaputt and k == 1:
-            m.brett(laenge * 0.5, 0.24, 0.03, rot @ M((-laenge * 0.25, 0, 0)), "holz_verkohlt", bruch=1, biegen=0.0)
+            m.brett((t1 - t0) * math.sqrt(3) * 0.5, 0.24, 0.03,
+                    Matrix.Translation(Vector(((t0 + t1) / 2,) * 3) - mitte) @ rot @ M((-laenge * 0.2, 0, 0)),
+                    "holz_verkohlt", bruch=1, biegen=0.0)
             continue
-        m.brett(laenge, 0.24, 0.03, rot, "holz_alt", fase=0.0, biegen=0.0)
+        bm = quader(laenge, 0.24, 0.03, max(1, int(laenge / 0.3)))
+        if b is not None:
+            inv = rot.inverted()
+            for normale in (Vector((1, 0, 0)), Vector((0, 1, 0))):
+                geom = bm.verts[:] + bm.edges[:] + bm.faces[:]
+                erg = bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-6, plane_co=inv @ Vector((b, b, b)),
+                                             plane_no=(inv.to_3x3() @ normale).normalized(), clear_outer=True)
+                rand = [e for e in bm.edges if e.is_boundary]
+                if rand:
+                    bmesh.ops.holes_fill(bm, edges=rand, sides=0)
+        m.teil(bm, "holz_alt", rot)
 
 
 def kehle(m, kaputt, b):
@@ -537,7 +552,7 @@ def dach_kehle_1x1(m, kaputt):
 def grat(m, kaputt, b):
     """Grat (Außenecke, Walmdach): Ursprung an der äußeren Traufecke, die Fläche steigt nach +x und +y."""
     dach_form(m, kaputt, lambda x, y: min(x, y), 0.0, b, 0.0, b)
-    gratbrett(m, kaputt, 0.0, b)
+    gratbrett(m, kaputt, 0.0, b, b)
 
 
 def dach_grat_2x2(m, kaputt):
