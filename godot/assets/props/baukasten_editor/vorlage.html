@@ -1,0 +1,179 @@
+<title>Gebäude-Baukasten</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Werkbank: links die Teile-Ablage, in der Mitte das 3D-Raster, oben Gebäude und Speichern, unten Tasten und Maße. */
+:root {
+  --bg: #e9edf0;          /* Bauplan-Grau */
+  --panel: #f8f9fa;
+  --fg: #1c2227;
+  --muted: #5b6670;
+  --line: #d3d9de;
+  --accent: #8a5527;      /* Balkenholz */
+  --accent-fg: #ffffff;
+  --accent-soft: #f1e4d6;
+  --gefahr: #b3261e;
+  --ok: #2e6b3a;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14181b; --panel: #1b2024; --fg: #e5e9ec; --muted: #98a3ad; --line: #2c3338;
+    --accent: #d49a5f; --accent-fg: #1b130b; --accent-soft: #3a2b1e; --gefahr: #f2867c; --ok: #7fc58c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14181b; --panel: #1b2024; --fg: #e5e9ec; --muted: #98a3ad; --line: #2c3338;
+  --accent: #d49a5f; --accent-fg: #1b130b; --accent-soft: #3a2b1e; --gefahr: #f2867c; --ok: #7fc58c;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 14px; overflow: hidden; }
+* { box-sizing: border-box; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: 250px 1fr; }
+header {
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--panel); border-bottom: 1px solid var(--line);
+}
+header h1 { font-family: var(--font-display); font-size: 17px; font-weight: 600; margin: 0 8px 0 0; letter-spacing: 0.01em; white-space: nowrap; }
+#name { min-width: 0; width: 200px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); }
+.knopf { padding: 6px 11px; border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); white-space: nowrap; }
+.knopf:hover { border-color: var(--accent); }
+.knopf.haupt { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+.knopf[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--fg); }
+.gruppe { display: flex; gap: 4px; flex-wrap: wrap; }
+.spacer { flex: 1; }
+#speicherort { font-size: 12px; color: var(--muted); }
+#ungesichert { font-size: 12px; color: var(--accent); font-weight: 600; }
+
+aside { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto; min-height: 0;
+  padding: 10px 10px 16px max(10px, env(safe-area-inset-left, 0px)); }
+aside h2 { font-family: var(--font-display); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--muted); margin: 14px 2px 6px; }
+aside h2:first-child { margin-top: 2px; }
+.teile { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.teil { display: grid; grid-template-rows: 64px auto; gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--bg); text-align: left; min-width: 0; }
+.teil img, .teil .platz { width: 100%; height: 64px; object-fit: contain; display: block; }
+.teil span { font-size: 12px; line-height: 1.25; overflow-wrap: anywhere; }
+.teil small { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); }
+.teil[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); }
+
+main { position: relative; min-width: 0; min-height: 0; }
+#leinwand { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.werkzeuge { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; gap: 6px; }
+.werkzeuge .gruppe { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 4px; flex-direction: column; }
+.werkzeuge .knopf { border: 0; text-align: left; }
+.ebene { position: absolute; top: 10px; right: max(10px, env(safe-area-inset-right, 0px)); background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 8px 10px; display: grid; gap: 6px; font-size: 12.5px; min-width: 170px; }
+.ebene .zeile { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+.ebene b { font-family: var(--font-mono); font-weight: 500; font-variant-numeric: tabular-nums; }
+.ebene .knopf { padding: 2px 9px; }
+.ebene label { display: flex; align-items: center; gap: 6px; }
+#laden { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 15px; background: var(--bg); }
+
+footer { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; background: var(--panel); border-top: 1px solid var(--line);
+  padding-block: 6px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  font-size: 12px; color: var(--muted); }
+footer kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; color: var(--fg); background: var(--bg); }
+#info { color: var(--fg); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Seitenfenster: Gebäudeliste, Export, Import */
+.fenster { position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 55%, transparent); display: grid; place-items: center; padding: 16px; z-index: 5; }
+.karte { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; width: min(560px, 100%); max-height: 100%; overflow: auto;
+  padding: 16px 18px; display: grid; gap: 12px; box-shadow: 0 12px 40px rgb(0 0 0 / 0.18); }
+.karte h3 { font-family: var(--font-display); font-size: 18px; margin: 0; }
+.karte p { margin: 0; color: var(--muted); line-height: 1.45; }
+.liste { display: grid; gap: 6px; }
+.eintrag { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); }
+.eintrag .t { flex: 1; min-width: 0; }
+.eintrag .t b { display: block; overflow-wrap: anywhere; }
+.eintrag .t small { color: var(--muted); font-size: 12px; }
+.eintrag.aktiv { border-color: var(--accent); }
+textarea { width: 100%; min-height: 220px; white-space: pre; overflow: auto; font-family: var(--font-mono); font-size: 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg); padding: 8px; resize: vertical; }
+.reihe { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.leer { color: var(--muted); font-size: 13px; padding: 8px 2px; }
+.gefahr { color: var(--gefahr); }
+#meldung { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 999px;
+  font-size: 13px; z-index: 6; max-width: calc(100% - 32px); text-align: center; }
+
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr 168px auto; }
+  aside { grid-row: 3; border-right: 0; border-top: 1px solid var(--line); padding-left: max(10px, env(safe-area-inset-left, 0px)); }
+  .teile { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+  main { grid-row: 2; }
+  footer .tasten { display: none; }
+  #name { width: 140px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="app">
+  <header>
+    <h1>Gebäude-Baukasten</h1>
+    <input id="name" value="Neues Gebäude" autocomplete="off" spellcheck="false" aria-label="Name des Gebäudes">
+    <span id="ungesichert" hidden>ungespeichert</span>
+    <div class="gruppe">
+      <button class="knopf haupt" id="k-speichern" title="Strg+S">Speichern</button>
+      <button class="knopf" id="k-gebaeude">Gebäude …</button>
+      <button class="knopf" id="k-neu">Neu</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="gruppe">
+      <button class="knopf" id="k-export">Exportieren</button>
+      <button class="knopf" id="k-import">Importieren</button>
+    </div>
+    <span id="speicherort"></span>
+  </header>
+
+  <aside id="ablage" aria-label="Teile"></aside>
+
+  <main>
+    <canvas id="leinwand"></canvas>
+    <div class="werkzeuge" role="toolbar" aria-label="Werkzeug">
+      <div class="gruppe">
+        <button class="knopf" data-werkzeug="setzen" aria-pressed="true" title="1">Setzen</button>
+        <button class="knopf" data-werkzeug="bearbeiten" aria-pressed="false" title="2">Bearbeiten</button>
+        <button class="knopf" data-werkzeug="loeschen" aria-pressed="false" title="3">Löschen</button>
+      </div>
+      <div class="gruppe">
+        <button class="knopf" id="k-drehen" title="R">Drehen ↻</button>
+        <button class="knopf" id="k-kippen" title="T">Hochkant</button>
+        <button class="knopf" id="k-zurueck" title="Strg+Z">Rückgängig</button>
+      </div>
+    </div>
+    <div class="ebene">
+      <div class="zeile"><span>Höhe</span><span class="gruppe"><button class="knopf" id="k-runter" title="Q">−</button><b id="ebene-wert">0 m</b><button class="knopf" id="k-hoch" title="E">+</button></span></div>
+      <div class="zeile"><span>Raster</span>
+        <select id="raster" aria-label="Raster">
+          <option value="1">1 m</option><option value="0.5">0,5 m</option><option value="0.1">0,1 m</option>
+        </select></div>
+      <label><input type="checkbox" id="kaputt"> kaputt setzen <small>(K)</small></label>
+      <label><input type="checkbox" id="durchsicht"> Obere Teile ausblenden</label>
+    </div>
+    <div id="laden">Modelle werden geladen …</div>
+    <div id="meldung" hidden></div>
+    <div class="fenster" id="fenster" hidden><div class="karte" id="karte"></div></div>
+  </main>
+
+  <footer>
+    <span id="info"></span>
+    <span class="tasten"><kbd>Klick</kbd> setzen · <kbd>Ziehen</kbd> Ansicht drehen · <kbd>Rechts</kbd> schieben · <kbd>Rad</kbd> Zoom ·
+      <kbd>R</kbd> drehen · <kbd>T</kbd> hochkant · <kbd>G</kbd> kippen · <kbd>Q</kbd>/<kbd>E</kbd> Höhe · <kbd>K</kbd> kaputt ·
+      <kbd>Alt</kbd>+Klick Teil übernehmen · <kbd>Entf</kbd> löschen · <kbd>Strg</kbd>+<kbd>Z</kbd>/<kbd>Y</kbd></span>
+  </footer>
+</div>
+
+<script>/*THREE*/</script>
+<script>window.BAUKASTEN_DATEN = /*DATEN*/;</script>
+<script>/*EDITOR*/</script>
