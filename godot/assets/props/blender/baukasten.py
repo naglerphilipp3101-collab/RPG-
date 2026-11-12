@@ -419,7 +419,7 @@ def dach_platte(m, kaputt, b, lauf, y_von=None, x_von=0.0):
     for f in bm.faces:
         for l in f.loops:
             p = l.vert.co
-            l[uv].uv = (p.x / ku, p.y * s2 / kv)
+            l[uv].uv = (p.x / ku, p.y)   # eine Kachel je Meter Lauf: Stöße zwischen Dachteilen im Raster passen genau
     m.teil(bm, "schindeln", None, uv=None)
     if loch:   # verkohlte Sparren im Loch
         for x in (b * 0.3, b * 0.65):
@@ -452,12 +452,28 @@ def dach_traufe(m, kaputt):
 
 def windbrett(m, x, y_von, y_bis, kaputt):
     """Windbrett an der Außenkante des Ortgangs: hochkant, folgt der Schräge. Sitzt AUSSEN vor der Dachkante,
-    damit keine seiner Flächen auf der Stirnseite des Dachs liegt (sonst flackert es zwischen Holz und Schindeln)."""
+    damit keine seiner Flächen auf der Stirnseite des Dachs liegt (sonst flackert es zwischen Holz und Schindeln).
+    UVs hängen an der Lage im Raster (u = (y + z) / 2: eine Kachel je Meter Steigung), damit die Maserung
+    an den Stößen zwischen Ecke, kurzem und langem Überstand und zwischen gestapelten Teilen durchläuft."""
     c = (DACH_ABSTAND + DACH_DICKE / 2) * math.sqrt(2) - 0.07
+    mat = "holz_alt" if not kaputt else "holz_verkohlt"
     if kaputt:
         y_bis = y_von + (y_bis - y_von) * 0.55
-    m.kantholz((x, y_von, y_von + c), (x, y_bis, y_bis + c), 0.025, 0.24, "holz_alt" if not kaputt else "holz_verkohlt",
-               oben=(0, -1, 1), fase=0.0, biegen=0.0, bruch=1 if kaputt else 0)
+    a = Vector((x, y_von, y_von + c)); b = Vector((x, y_bis, y_bis + c))
+    bm = quader((b - a).length, 0.025, 0.24, max(1, int((b - a).length / 0.5)), 1, 1)
+    if kaputt:
+        bruchkante(bm, m.rnd, 1, 0.1)
+    bm.transform(basis.ausrichten(a, b, (0, -1, 1)))
+    bm.normal_update()
+    ku, kv = basis.kachel(mat)
+    uv = bm.loops.layers.uv.verify()
+    for f in bm.faces:
+        for l in f.loops:
+            p = l.vert.co
+            u = (p.y + p.z) / 2.0 if ku else 0.0
+            v = ((p.z - p.y) / math.sqrt(2) + (p.x if abs(f.normal.x) < 0.5 else 0.0)) / kv
+            l[uv].uv = (u, v)
+    m.teil(bm, mat, None, uv=None)
 
 
 ORTGANG = 0.5          # seitlicher Dachüberstand
