@@ -27,7 +27,8 @@ const KATALOG = [
     ["dach_traufe", "Überstand Traufe", "2 × 0,5"], ["dach_first", "First", "2 m"],
     ["dach_ortgang_l", "Überstand Seite links", "0,5 × 2"], ["dach_ortgang_r", "Überstand Seite rechts", "0,5 × 2"],
     ["dach_ortgang_1m_l", "Überstand Seite links", "0,5 × 1"], ["dach_ortgang_1m_r", "Überstand Seite rechts", "0,5 × 1"],
-    ["dach_ecke_l", "Überstand Ecke links", "0,5 × 0,5"], ["dach_ecke_r", "Überstand Ecke rechts", "0,5 × 0,5"]]],
+    ["dach_ecke_l", "Überstand Ecke links", "0,5 × 0,5"], ["dach_ecke_r", "Überstand Ecke rechts", "0,5 × 0,5"],
+    ["dach_zier_l", "Giebelzier links", "am First"], ["dach_zier_r", "Giebelzier rechts", "am First"]]],
   ["Treppen", [["treppe_holz", "Holztreppe", "1 × 2, 1 m hoch"], ["treppe_stein", "Steintreppe", "1 × 2, 1 m hoch"]]],
   ["Einrichtung", [
     ["kiste", "Kiste"], ["fass", "Fass"], ["tisch", "Tisch"], ["stuhl", "Stuhl"], ["hocker", "Hocker"], ["bank", "Bank"],

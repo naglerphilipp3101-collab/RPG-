@@ -40,6 +40,7 @@ Anfangspunkt auf einem Rasterpunkt, von dort läuft es 1 oder 2 m entlang x; ged
 | `dach_2x2`, `dach_2x1`, `dach_1x2`, `dach_1x1` | Dach 45°, Breite × Lauf: Traufe am Rasterpunkt, steigt nach -z bis zum First. Liegt auf den Balkenkanten, Enden senkrecht im Raster: zwei Seiten (eine um 180° gedreht) treffen sich am First genau |
 | `dach_traufe`, `dach_first` | 0,5 m Dachüberstand an der Traufe (gleicher Ursprung wie das Dach), Firstabdeckung (Ursprung am First-Rasterpunkt) |
 | `dach_ortgang_l/_r`, `dach_ortgang_1m_l/_r`, `dach_ecke_l/_r` | Seitlicher Überstand 0,5 m mit Windbrett (Lauf 2 oder 1 m) links (x -0,5..0) bzw. rechts (x 0..0,5) am Giebel, Ecke zwischen Traufe und Seite; Ursprung wie das Dach. Auf der Gegenseite (Dach um 180° gedreht) tauschen links und rechts |
+| `dach_zier_l/_r` | Giebelzier am First über dem Ortgang: zwei gekreuzte Zierbretter mit Kopf und Firstkappe für den Überstand. Ursprung am First-Rasterpunkt wie `dach_first`. Die Windbretter enden am First senkrecht, die Zier deckt den Stoß ab |
 | `treppe_holz`, `treppe_stein` | 1 m breit, 2 m Lauf nach -z, 1 m hoch (5 Stufen à 20 × 40 cm), von Boden zu Boden; stapelbar |
 
 Tiefe läuft bei Boden, Dach und Treppe immer nach **-z** (von der Vorderseite einer ungedrehten Wand weg).

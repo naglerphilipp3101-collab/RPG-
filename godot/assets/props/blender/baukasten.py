@@ -450,30 +450,52 @@ def dach_traufe(m, kaputt):
 
 
 
-def windbrett(m, x, y_von, y_bis, kaputt):
-    """Windbrett an der Außenkante des Ortgangs: hochkant, folgt der Schräge. Sitzt AUSSEN vor der Dachkante,
-    damit keine seiner Flächen auf der Stirnseite des Dachs liegt (sonst flackert es zwischen Holz und Schindeln).
-    UVs hängen an der Lage im Raster (u = (y + z) / 2: eine Kachel je Meter Steigung), damit die Maserung
-    an den Stößen zwischen Ecke, kurzem und langem Überstand und zwischen gestapelten Teilen durchläuft."""
-    c = (DACH_ABSTAND + DACH_DICKE / 2) * math.sqrt(2) - 0.07
-    mat = "holz_alt" if not kaputt else "holz_verkohlt"
-    if kaputt:
-        y_bis = y_von + (y_bis - y_von) * 0.55
-    a = Vector((x, y_von, y_von + c)); b = Vector((x, y_bis, y_bis + c))
-    bm = quader((b - a).length, 0.025, 0.24, max(1, int((b - a).length / 0.5)), 1, 1)
-    if kaputt:
-        bruchkante(bm, m.rnd, 1, 0.1)
-    bm.transform(basis.ausrichten(a, b, (0, -1, 1)))
+BRETT_D = 0.025        # Dicke von Windbrett und Giebelzier
+BRETT_H = 0.24         # Höhe (quer zur Schräge)
+
+
+def profil_brett(m, punkte, xa, xb, mat):
+    """Brett aus einem Umriss in der y-z-Ebene (Punkte (y, z), gegen den Uhrzeigersinn egal), zwischen x = xa und xb.
+    UVs hängen an der Lage (u = (y + z) / 2 entlang der Schräge), damit die Maserung über Stöße durchläuft."""
+    bm = bmesh.new()
+    va = [bm.verts.new((xa, y, z)) for y, z in punkte]
+    vb = [bm.verts.new((xb, y, z)) for y, z in punkte]
+    bm.faces.new(va); bm.faces.new(list(reversed(vb)))
+    n = len(punkte)
+    for i in range(n):
+        bm.faces.new((va[i], vb[i], vb[(i + 1) % n], va[(i + 1) % n]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     bm.normal_update()
     ku, kv = basis.kachel(mat)
     uv = bm.loops.layers.uv.verify()
     for f in bm.faces:
         for l in f.loops:
             p = l.vert.co
-            u = (p.y + p.z) / 2.0 if ku else 0.0
+            u = (p.y + p.z) / 2.0 if abs(f.normal.x) > 0.5 else (p.y + p.z) / 2.0
             v = ((p.z - p.y) / math.sqrt(2) + (p.x if abs(f.normal.x) < 0.5 else 0.0)) / kv
             l[uv].uv = (u, v)
     m.teil(bm, mat, None, uv=None)
+
+
+def brett_linien():
+    """Unter- und Oberkante des Windbretts als senkrechter Abstand über der Diagonale z = y."""
+    c = (DACH_ABSTAND + DACH_DICKE / 2) * math.sqrt(2) - 0.07
+    h = BRETT_H / 2 * math.sqrt(2)
+    return c - h, c + h
+
+
+def windbrett(m, x, y_von, y_bis, kaputt):
+    """Windbrett an der Außenkante des Ortgangs, folgt der Schräge, beide Enden SENKRECHT im Raster abgeschnitten:
+    am First stoßen die Bretter beider Dachseiten genau aneinander statt sich zu überlappen (kein Flackern),
+    an der Traufe passt die Ecke bündig an. Sitzt außen vor der Dachkante (x ist die Mitte des Bretts)."""
+    d1, d2 = brett_linien()
+    mat = "holz_alt" if not kaputt else "holz_verkohlt"
+    if kaputt:
+        y_bis = y_von + (y_bis - y_von) * 0.55
+    punkte = [(y_von, y_von + d1), (y_bis, y_bis + d1), (y_bis, y_bis + d2), (y_von, y_von + d2)]
+    if kaputt:   # zackige Bruchkante oben
+        punkte[2:2] = [(y_bis - 0.05, y_bis + (d1 + d2) / 2 + 0.03)]
+    profil_brett(m, punkte, x - BRETT_D / 2, x + BRETT_D / 2, mat)
 
 
 ORTGANG = 0.5          # seitlicher Dachüberstand
@@ -518,6 +540,54 @@ def dach_ecke_l(m, kaputt):
 
 def dach_ecke_r(m, kaputt):
     dach_ecke(m, kaputt, 1)
+
+
+def zier_umriss(laenge_unten=0.4, kopf=True):
+    """Umriss eines Zierbretts der vorderen Dachseite (steigt nach +y) am First (y 0 = First): beginnt
+    laenge_unten vor dem First, läuft über den First hinaus und endet in einem runden Kopf mit Kerbe."""
+    d1, d2 = brett_linien()
+    c = (d1 + d2) / 2
+    y0 = -laenge_unten
+    if not kopf:   # abgebrochen
+        return [(y0, y0 + d1), (0.08, 0.08 + d1), (0.02, 0.1 + c), (0.05, 0.05 + d2), (y0, y0 + d2)]
+    pkt = [(y0, y0 + d1), (0.28, 0.28 + d1)]
+    # runder Kopf: Halbkreis um das Brettende, quer zur Schräge
+    mitte = Vector((0.36, 0.36 + c))
+    r = (d2 - d1) / 2 / math.sqrt(2) * 1.25          # etwas breiter als das Brett
+    rich = Vector((1, 1)).normalized(); quer = Vector((-1, 1)).normalized()
+    for k in range(9):
+        w = math.radians(-100 + 200 * k / 8)
+        q = mitte + rich * (math.sin(w) * r * 1.2) + quer * (-math.cos(w) * r)
+        pkt.append((q.x, q.y))
+    # Kerbe in der Oberkante
+    pkt += [(0.2, 0.2 + d2), (0.14, 0.14 + d2 - 0.06), (0.08, 0.08 + d2), (y0, y0 + d2)]
+    return pkt
+
+
+def giebelzier(m, kaputt, seite):
+    """Giebelzier am First über dem Ortgang: zwei gekreuzte Zierbretter, die über den First hinausragen, und eine
+    Firstkappe über dem 0,5-m-Überstand. Ursprung am First-Rasterpunkt wie dach_first; seite -1 links (x < 0),
+    +1 rechts. Die Bretter liegen in zwei Lagen außen vor den Windbrettern (keine gemeinsame Fläche)."""
+    mat = "holz_alt" if not kaputt else "holz_verkohlt"
+    x1 = seite * (ORTGANG + BRETT_D * 1.5)     # Lage 1: Zierbrett der vorderen Dachseite
+    x2 = seite * (ORTGANG + BRETT_D * 2.5)     # Lage 2: hintere Dachseite (gespiegelt)
+    profil_brett(m, zier_umriss(), x1 - BRETT_D / 2, x1 + BRETT_D / 2, mat)
+    hinten = [(-y, z) for y, z in zier_umriss(kopf=not kaputt)]
+    profil_brett(m, hinten, x2 - BRETT_D / 2, x2 + BRETT_D / 2, mat)
+    # Firstkappe über dem Überstand (wie dach_first, 0,5 m)
+    spitze = (DACH_ABSTAND + DACH_DICKE) * math.sqrt(2)
+    xm = seite * ORTGANG / 2
+    for s_ in (-1, 1):
+        rot = M(rot=(-s_ * 45, 0, 0))
+        m.brett(ORTGANG, 0.24, 0.03, M((xm, 0, spitze + 0.01)) @ rot @ M((0, s_ * 0.11, 0)), "holz_alt", biegen=0.0)
+
+
+def dach_zier_l(m, kaputt):
+    giebelzier(m, kaputt, -1)
+
+
+def dach_zier_r(m, kaputt):
+    giebelzier(m, kaputt, 1)
 
 
 def dach_first(m, kaputt):
@@ -579,7 +649,7 @@ MODELLE = {"wand": wand, "wand_2x1": wand_2x1, "wand_1x1": wand_1x1, "balken_2m"
            "dach_2x2": dach_2x2, "dach_2x1": dach_2x1, "dach_1x2": dach_1x2, "dach_1x1": dach_1x1,
            "dach_traufe": dach_traufe, "dach_first": dach_first, "dach_ortgang_l": dach_ortgang_l,
            "dach_ortgang_r": dach_ortgang_r, "dach_ortgang_1m_l": dach_ortgang_1m_l, "dach_ortgang_1m_r": dach_ortgang_1m_r,
-           "dach_ecke_l": dach_ecke_l, "dach_ecke_r": dach_ecke_r, "treppe_holz": treppe_holz, "treppe_stein": treppe_stein}
+           "dach_ecke_l": dach_ecke_l, "dach_ecke_r": dach_ecke_r, "dach_zier_l": dach_zier_l, "dach_zier_r": dach_zier_r, "treppe_holz": treppe_holz, "treppe_stein": treppe_stein}
 
 
 if __name__ == "__main__":
