@@ -21,7 +21,18 @@ def tabelle(punkte):
 # ---------------------------------------------------------------- Rumpf
 
 
+def _cache(K, schl, bau):
+	c = K.__dict__.setdefault("_feldcache", {})
+	if schl not in c:
+		c[schl] = bau()
+	return c[schl]
+
+
 def rumpf_feld(K, glatt=(3, 2), konvex=1.0):
+	return _cache(K, ("rumpf", glatt, konvex), lambda: _rumpf_feld(K, glatt, konvex))
+
+
+def _rumpf_feld(K, glatt=(3, 2), konvex=1.0):
 	bvh = K.bvh(["Hips", "Spine", "Chest", "UpperChest", "Shoulder", "Neck", "UpperLeg"])
 	achse = g.Achse([(0, 0.0, 0.80), (0, -0.01, 1.62)])
 	return g.Feld(bvh, achse, ringe=84, seg=72, konvex_anteil=konvex, glatt=glatt)
@@ -30,29 +41,42 @@ def rumpf_feld(K, glatt=(3, 2), konvex=1.0):
 Z0 = 0.80   # s = z - Z0 auf der Rumpfachse
 
 
-def schwer_brust(K):
-	arme = schwer_brust_arme(K)
+def schwer_brust(K, riffel=0, fauld=3, unter=None, arme=True, halsberge=True, name="iron_schwer_brust", nur_vorne=False,
+		A=0.03):
+	"""Harnisch. riffel: Anzahl Kehlungen (Riffelung) auf der Brust, unter: dict für wams() (None = Gambeson),
+	nur_vorne: nur Bruststück mit Riemen statt Rücken."""
+	arme = schwer_brust_arme(K) if arme else []
 	f = rumpf_feld(K)
 	t = g.Teil("brust_platte")
 	oben = tabelle([(0, 0.665), (0.4, 0.70), (0.75, 0.66), (1.15, 0.52), (1.57, 0.49), (2.0, 0.52),
 		(2.4, 0.70), (2.8, 0.72), (PI, 0.71)])
 	unten = tabelle([(0, 0.205), (0.6, 0.225), (PI / 2, 0.24), (PI, 0.235)])
-	grat = lambda s, w: 0.012 * math.exp(-(w / 0.22) ** 2 if w < PI else -((w - 2 * PI) / 0.22) ** 2) * g.weich(s, 0.2, 0.45)
-	A = 0.03
-	g.platte(t, f, unten, oben, A, nu=36, nw=96, extra=grat)
+	def grat(s, w):
+		d = g.wdiff(w, 0)
+		e = 0.012 * math.exp(-(d / 0.22) ** 2) * g.weich(s, 0.2, 0.45)
+		if riffel:
+			e += 0.005 * (0.5 + 0.5 * math.cos(w * riffel * 2)) * math.exp(-(d / 1.0) ** 2) * g.weich(s, 0.15, 0.35)
+		return e
+	w0, w1 = (-1.75, 1.75) if nur_vorne else (0.0, 2 * PI)
+	g.platte(t, f, unten, oben, A, nu=36, nw=96 if not nur_vorne else 56, extra=grat, w_von=w0, w_bis=w1)
 	brust = t.objekt(30)
 	g.dicke(brust, 0.003, -1.0)
 	# Wulst an Hals und Armlöchern, Nieten unten
 	r = g.Teil("brust_rand")
-	pts, zu = g.rand_punkte(f, oben, A + 0.002, n=160, extra=grat)
+	pts, zu = g.rand_punkte(f, oben, A + 0.002, n=160, extra=grat, w_von=w0, w_bis=w1)
 	g.zug(r, pts, 0.005, "platte", zu=zu)
-	pts, zu = g.rand_punkte(f, unten, A, n=120, extra=grat)
+	pts, zu = g.rand_punkte(f, unten, A, n=120, extra=grat, w_von=w0, w_bis=w1)
 	g.zug(r, pts, 0.003, "rand", zu=zu)
-	g.nieten_reihe(r, f, lambda w: unten(w) + 0.012, A, [i * 2 * PI / 18 for i in range(18)], 0.005, extra=grat)
+	g.nieten_reihe(r, f, lambda w: unten(w) + 0.012, A, [w0 + 0.1 + i * (w1 - w0 - 0.2) / 17 for i in range(18)], 0.005, extra=grat)
+	if nur_vorne:
+		# Riemen über Schultern und um den Rücken
+		for z in (0.95 - Z0 + 0.12, 0.95 - Z0 + 0.32):
+			pts, _ = g.rand_punkte(f, z, 0.012, w_von=1.6, w_bis=2 * PI - 1.6, n=40)
+			g.zug(r, pts, 0.012, "leder_dunkel", flach=0.3)
 	# Gürtelriemen (Leder) für die Bauchreifen
 	teile = [brust, r.objekt()]
 	# Bauchreifen (Fauld): drei Lamellen
-	for k in range(3):
+	for k in range(fauld):
 		lt = g.Teil("fauld_%d" % k)
 		a = lambda w, k=k: unten(w) - 0.055 * (k + 1)
 		b = lambda w, k=k: unten(w) - 0.055 * k + 0.012
@@ -68,6 +92,11 @@ def schwer_brust(K):
 		g.nieten_reihe(rr, f, lambda w, k=k: unten(w) - 0.055 * k + 0.004, ab, [i * 2 * PI / 12 + 0.26 for i in range(12)],
 			0.0045, extra=weite)
 		teile.append(rr.objekt())
+	if not halsberge:
+		unter = unter or {}
+		u, _ = wams(K, **dict(dict(material="stoff", abstand=0.008, unten_z=0.86, kragen_z=1.50, aermel_bis=1.0, steppung=0.003,
+			weite=0.0, aermel_abstand=0.004), **unter))
+		return g.vereinen(teile + arme + u, name)
 	# Halsberge (Kragen) über dem Brustrand
 	kt = g.Teil("halsberge")
 	hk_u = tabelle([(0, 0.63), (0.6, 0.66), (1.2, 0.635), (PI / 2, 0.63), (2.4, 0.67), (PI, 0.68)])
@@ -82,8 +111,10 @@ def schwer_brust(K):
 	pts, zu = g.rand_punkte(f, hk_u, 0.034, n=120)
 	g.zug(kr, pts, 0.003, "rand", zu=zu)
 	teile.append(kr.objekt())
-	unter, _ = wams(K, "stoff", 0.008, unten_z=0.86, kragen_z=1.50, aermel_bis=1.0, steppung=0.003, weite=0.0, aermel_abstand=0.004)
-	return g.vereinen(teile + arme + unter, "iron_schwer_brust")
+	unter = unter or {}
+	u, _ = wams(K, **dict(dict(material="stoff", abstand=0.008, unten_z=0.86, kragen_z=1.50, aermel_bis=1.0, steppung=0.003,
+		weite=0.0, aermel_abstand=0.004), **unter))
+	return g.vereinen(teile + arme + u, name)
 
 
 # ---------------------------------------------------------------- Arme
@@ -99,6 +130,10 @@ def arm_achse(K, seite=1):
 
 
 def arm_feld(K, seite=1, konvex=1.0):
+	return _cache(K, ("arm", seite, konvex), lambda: _arm_feld(K, seite, konvex))
+
+
+def _arm_feld(K, seite=1, konvex=1.0):
 	achse, l_ober, l_ges = arm_achse(K, seite)
 	n = "Left" if seite > 0 else "Right"
 	bvh = K.bvh([n + "UpperArm", n + "LowerArm"], 0.5)
@@ -192,47 +227,98 @@ def schwer_brust_arme(K):
 # ---------------------------------------------------------------- Wams / Gambeson (Grundlage für alle Klassen)
 
 
-def wams_feld(K):
-	bvh = K.bvh(["Hips", "Spine", "Chest", "UpperChest", "Shoulder", "Neck", "UpperLeg"])
-	achse = g.Achse([(0, 0.0, 0.50), (0, 0.0, 0.80), (0, -0.01, 1.62)])
-	return g.Feld(bvh, achse, ringe=110, seg=72, konvex_anteil=0.7, glatt=(4, 3))
+def wams_feld(K, z0=0.50):
+	"""Rumpf ab z0 abwärts (z0 < 0.5 für Roben bis zum Knöchel; s bleibt z - ZW)."""
+	def bau():
+		namen = ["Hips", "Spine", "Chest", "UpperChest", "Shoulder", "Neck", "UpperLeg"] + (["LowerLeg"] if z0 < 0.5 else [])
+		bvh = K.bvh(namen)
+		pk = ([(0, 0.0, z0)] if z0 < 0.5 else []) + [(0, 0.0, 0.50), (0, 0.0, 0.80), (0, -0.01, 1.62)]
+		a = g.Achse(pk)
+		f = g.Feld(bvh, a, ringe=int(110 * a.laenge() / 1.12), seg=72, konvex_anteil=0.7 if z0 >= 0.5 else 1.0, glatt=(4, 3),
+			s0=0.0)
+		f.versatz = 0.5 - z0
+		return f
+	f = _cache(K, ("wams", z0), bau)
+	return f if z0 >= 0.5 else _Verschoben(f, 0.5 - z0)
+
+
+class _Verschoben:
+	"""Feld, dessen s um d verschoben ist (damit s = z - ZW überall gilt)."""
+
+	def __init__(self, f, d):
+		self.f, self.d = f, d
+		self.achse = _VerschobeneAchse(f.achse, d)
+
+	def punkt(self, s, w, extra=0.0):
+		return self.f.punkt(s + self.d, w, extra)
+
+	def normale(self, s, w, extra=0.0):
+		return self.f.normale(s + self.d, w, extra)
+
+	def radius(self, s, w):
+		return self.f.radius(s + self.d, w)
+
+
+class _VerschobeneAchse:
+	def __init__(self, a, d):
+		self.a, self.d = a, d
+
+	def punkt(self, s):
+		return self.a.punkt(s + self.d)
+
+	def rahmen(self, s):
+		return self.a.rahmen(s + self.d)
+
+	def laenge(self):
+		return self.a.laenge() - self.d
 
 
 ZW = 0.50   # s = z - ZW auf der Wamsachse
 
 
 def wams(K, material="stoff", abstand=0.012, unten_z=0.66, kragen_z=1.56, aermel_bis=0.92, steppung=0.0,
-		weite=0.05, name="wams", aermel_abstand=None):
+		weite=0.05, name="wams", aermel_abstand=None, offen=0.0, puff=0.0, manschette=0.0, z0=0.50, rock_ab=0.95,
+		aermel_material=None, extra_fn=None):
 	"""Rumpf mit Ärmeln. aermel_bis: Anteil der Armlänge (0 = Schulter, 1 = Handgelenk).
 	weite: zusätzliche Weite des Rocks unten (m). steppung: Tiefe der Steppnähte (m)."""
-	f = wams_feld(K)
+	f = wams_feld(K, z0)
 	teile = []
 	def extra(s, w):
 		e = 0.0
 		z = s + ZW
 		# Rock weitet sich unterhalb der Hüfte
-		e += weite * g.weich(-z, -0.95, -0.62)
+		e += weite * g.weich(-z, -rock_ab, -max(z0, unten_z) - 0.0)
+		if extra_fn:
+			e += extra_fn(s, w)
 		# Brust weniger eng, Bauch etwas weiter
 		if steppung > 0:
 			e -= steppung * abs(math.sin(w * 9)) ** 0.3 * 0.0 + steppung * (1 - abs(math.cos(w * 9))) ** 6
 		return e
 	t = g.Teil(name)
-	g.platte(t, f, unten_z - ZW, kragen_z - ZW, abstand, nu=56, nw=96, extra=extra, material_name=material)
+	if offen > 0:
+		g.platte(t, f, unten_z - ZW, kragen_z - ZW, abstand, nu=56, nw=96, extra=extra, material_name=material,
+			w_von=offen, w_bis=2 * PI - offen)
+	else:
+		g.platte(t, f, unten_z - ZW, kragen_z - ZW, abstand, nu=56, nw=96, extra=extra, material_name=material)
 	o = t.objekt(60)
 	g.dicke(o, 0.004, -1.0)
 	g.verringern(o, 5000)
 	teile.append(o)
 	# Ärmel
 	aa = abstand if aermel_abstand is None else aermel_abstand
-	for seite in (1, -1):
+	for seite in ((1, -1) if aermel_bis > 0 else ()):
 		fa, l_ober, l_ges = arm_feld(K, seite, konvex=0.5)
 		at = g.Teil(name + "_aermel")
-		def aex(s, w, l_ober=l_ober):
+		def aex(s, w, l_ober=l_ober, l_ges=l_ges):
 			e = 0.0
+			if puff > 0:
+				e += puff * math.sin(min(1.0, max(0.0, s / (l_ges * aermel_bis))) * PI) ** 1.5
+			if manschette > 0:
+				e += manschette * g.weich(s, l_ges * aermel_bis - 0.08, l_ges * aermel_bis)
 			if steppung > 0:
 				e -= steppung * (1 - abs(math.cos(w * 5))) ** 6
 			return e
-		g.platte(at, fa, -0.02, l_ges * aermel_bis, aa, nu=32, nw=40, extra=aex, material_name=material)
+		g.platte(at, fa, -0.02, l_ges * aermel_bis, aa, nu=32, nw=40, extra=aex, material_name=aermel_material or material)
 		o = at.objekt(60)
 		g.dicke(o, 0.004, -1.0)
 		g.verringern(o, 1600)
@@ -244,6 +330,10 @@ def wams(K, material="stoff", abstand=0.012, unten_z=0.66, kragen_z=1.56, aermel
 
 
 def kopf_feld(K, huelle=10, mitte=(0, -0.045, 1.65)):
+	return _cache(K, ("kopf", huelle, tuple(mitte)), lambda: _kopf_feld(K, huelle, mitte))
+
+
+def _kopf_feld(K, huelle=10, mitte=(0, -0.045, 1.65)):
 	bvh = K.bvh(["Head", "Neck"], 0.4)
 	return g.Kugelfeld(bvh, Vector(mitte), Vector((0, 0, 1)), ringe=64, seg=96, r_max=0.35, phi_max=2.5, huelle=huelle,
 		glatt=(3, 3))
@@ -414,13 +504,17 @@ def bein_achse(K, seite=1):
 
 
 def bein_feld(K, seite=1, konvex=1.0, glatt=(3, 2)):
+	return _cache(K, ("bein", seite, konvex, glatt), lambda: _bein_feld(K, seite, konvex, glatt))
+
+
+def _bein_feld(K, seite=1, konvex=1.0, glatt=(3, 2)):
 	achse, l_knie, l_ges = bein_achse(K, seite)
 	n = "Left" if seite > 0 else "Right"
 	bvh = K.bvh([n + "UpperLeg", n + "LowerLeg"], 0.5)
 	return g.Feld(bvh, achse, ringe=90, seg=56, r_max=0.25, konvex_anteil=konvex, glatt=glatt), l_knie, l_ges
 
 
-def hose(K, material="stoff", abstand=0.006, unten=1.0, name="hose", bund_z=1.02, konvex=0.4):
+def hose(K, material="stoff", abstand=0.006, unten=1.0, name="hose", bund_z=1.02, konvex=0.4, bein_extra=None):
 	"""Hose: zwei Beinröhren und ein Becken-Stück. unten: Anteil Knie..Knöchel (1 = bis Knöchel)."""
 	teile = []
 	f = wams_feld(K)
@@ -432,7 +526,9 @@ def hose(K, material="stoff", abstand=0.006, unten=1.0, name="hose", bund_z=1.02
 	for seite in (1, -1):
 		fb, l_knie, l_ges = bein_feld(K, seite, konvex)
 		bt = g.Teil(name + "_bein")
-		g.platte(bt, fb, 0.04, l_knie + (l_ges - l_knie) * unten - 0.03, abstand, nu=44, nw=40, material_name=material)
+		ex = (lambda s, w, l_knie=l_knie, l_ges=l_ges: bein_extra(s, w, l_knie, l_ges)) if bein_extra else None
+		g.platte(bt, fb, 0.04, l_knie + (l_ges - l_knie) * unten - 0.03, abstand, nu=44, nw=40, material_name=material,
+			extra=ex)
 		o = bt.objekt(60)
 		g.dicke(o, 0.004, -1.0)
 		g.verringern(o, 2400)
@@ -440,8 +536,8 @@ def hose(K, material="stoff", abstand=0.006, unten=1.0, name="hose", bund_z=1.02
 	return teile
 
 
-def schwer_beine(K):
-	teile = hose(K, "stoff", 0.006)
+def schwer_beine(K, hose_material="stoff", name="iron_schwer_beine"):
+	teile = hose(K, hose_material, 0.006)
 	for seite in (1, -1):
 		fb, l_knie, l_ges = bein_feld(K, seite)
 		r = g.Teil("bein_rand")
@@ -487,7 +583,7 @@ def schwer_beine(K):
 			pts, zu = g.rand_punkte(fb, s, A - 0.002, n=64, extra=grat)
 			g.zug(r, pts, 0.004, "rand", zu=zu)
 		teile.append(r.objekt())
-	return g.vereinen(teile, "iron_schwer_beine")
+	return g.vereinen(teile, name)
 
 
 # ---------------------------------------------------------------- Füße
@@ -504,6 +600,10 @@ def fuss_achse(K, seite=1):
 
 
 def fuss_feld(K, seite):
+	return _cache(K, ("fuss", seite), lambda: _fuss_feld(K, seite))
+
+
+def _fuss_feld(K, seite):
 	n = "Left" if seite > 0 else "Right"
 	bvh = K.bvh_bereich(lambda x, y, z: (z < 0.11) & (x * seite > 0.04), ("fuss", seite))
 	return g.Feld(bvh, fuss_achse(K, seite), ringe=40, seg=48, r_max=0.15,

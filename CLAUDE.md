@@ -32,7 +32,10 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
   NPC-Liste `data/npc_aussehen.json`), Regler/Farben/Zufallsgrenzen in `data/charakter.json`. Erstellung: `scripts/charakter_erstellung.gd` (neues Spiel, Esc → „Aussehen ändern“).
   Gegner mit `"mensch"` in `enemies.json` nutzen ein gemeinsames Modell (`gegner_aussehen`). Test: `assets/charakter/test/erstellung.tscn -- --bild x.png [--zufall 7] [--gruppe Nase]`.
 - `ruestung/`: Rüstungsmodelle (ab 12.11.), je Tier 3 Sätze leicht/mittel/schwer, 5 Slots kopf/brust/haende/beine/fuesse, nicht modular.
-  Blender-Python (`blender/rgeo.py` Bausteine, `blender/iron.py` Iron-Sätze, `blender/alle.py <ausgabe> [klassen]` baut, rendert und exportiert GLB).
+  Blender-Python (`blender/rgeo.py` Bausteine, `blender/iron.py` Iron-Grundsätze, `blender/waffensaetze.py` 15 Waffensätze je Tier
+  (`iron_<waffen-id>_<slot>`, Klasse je Teil in `SAETZE`, z. B. Axt M/S/M/S/M), `blender/alle.py <ausgabe> [klassen | waffen [ids]]` baut,
+  rendert und exportiert GLB; `blender/test_satz.py -- <waffe> [slots]` für schnelle Testbilder).
+  Gewicht je Teil L 1/3/1/2/1, M 2/6/2/4/2, S 4/10/3/7/4 kg (Kopf/Brust/Hände/Beine/Füße); Gesamt ≤ 12 kg leicht, ≤ 22 kg mittel, sonst schwer.
   Geformt um den Körper aus `tools/ruestung/mensch_lesen.py` (liest `charakter/daten` wie das Spiel): Röhren um Rumpf/Arm/Bein-Achsen und Kugelfelder (Helm, Schulter),
   abgetastet per Strahl, konvex geglättet, nie unter der Haut. Materialnamen: platte, rand, niete, kette, leder, leder_dunkel, stoff, stoff_akzent, futter.
   Noch nicht im Spiel (offen: Bindung an Körperformen und Skelett, verdeckte Haut ausblenden).

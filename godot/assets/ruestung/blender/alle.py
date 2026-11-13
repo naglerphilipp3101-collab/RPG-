@@ -1,27 +1,45 @@
-"""Baut alle Iron-Teile, speichert Vorschaubilder je Klasse und exportiert sie (GLB für die Browser-Vorschau)."""
-import sys, os, json
+"""Baut Iron-Teile, speichert Vorschaubilder je Satz und exportiert jedes Teil als GLB.
+
+python3 alle.py -- <ausgabe> [schwer,mittel,leicht]      Grundsätze (Klassen)
+python3 alle.py -- <ausgabe> waffen [axe,bow,...]         Waffensätze (ohne Liste: alle 15)
+"""
+import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy
-import rgeo as g, vorschau, iron
+import numpy as np
+import rgeo as g, vorschau, iron, waffensaetze as ws
 
-AUS = sys.argv[sys.argv.index("--") + 1]
-KLASSEN = sys.argv[sys.argv.index("--") + 2].split(",") if len(sys.argv) > sys.argv.index("--") + 2 else ["schwer", "mittel", "leicht"]
+ARG = sys.argv[sys.argv.index("--") + 1:]
+AUS = ARG[0]
+WAFFEN = len(ARG) > 1 and ARG[1] == "waffen"
+if WAFFEN:
+	SAETZE = ARG[2].split(",") if len(ARG) > 2 else list(ws.SAETZE)
+else:
+	SAETZE = ARG[1].split(",") if len(ARG) > 1 else ["schwer", "mittel", "leicht"]
 MAX = int(os.environ.get("MAX_FL", "14000"))
 SLOTS = ["kopf", "brust", "haende", "beine", "fuesse"]
 os.makedirs(AUS, exist_ok=True)
-for klasse in KLASSEN:
+for satz in SAETZE:
 	bpy.ops.wm.read_factory_settings(use_empty=True)
 	K = g.Koerper()
 	koerper = K.objekt()
 	obs = []
+	if WAFFEN:
+		teile = ws.bauen(K, satz)
+	else:
+		teile = {slot: getattr(iron, satz + "_" + slot)(K) for slot in SLOTS}
 	for slot in SLOTS:
-		ob = getattr(iron, klasse + "_" + slot)(K)
-		ob.name = "iron_%s_%s" % (klasse, slot)
-		g.verringern(ob, MAX)
+		ob = teile[slot]
+		ob.name = ob.data.name = "iron_%s_%s" % (satz, slot)
+		g.verringern(ob, max(MAX, int(ob.get("max_fl", 0))))
 		g.box_uv(ob)
 		obs.append(ob)
+		# Ausreißer-Prüfung: nichts darf weit außerhalb des Körpers liegen
+		p = np.array([v.co for v in ob.data.vertices])
+		if p[:, 2].min() < -0.05 or p[:, 2].max() > 2.05 or np.abs(p[:, :2]).max() > 1.0:
+			print("WARNUNG Ausreißer in", ob.name, p.min(0), p.max(0))
 		print(ob.name, len(ob.data.vertices), "Punkte", len(ob.data.polygons), "Flächen")
-	vorschau.bilder(os.path.join(AUS, "iron_" + klasse), hoehe=(-0.02, 1.9), groesse=(400, 620),
+	vorschau.bilder(os.path.join(AUS, "iron_" + satz), hoehe=(-0.02, 1.9), groesse=(400, 620),
 		ansichten=[(0, "v"), (90, "s"), (180, "h"), (35, "vs")])
 	for ob in obs + [koerper]:
 		bpy.ops.object.select_all(action="DESELECT")

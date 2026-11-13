@@ -28,7 +28,8 @@ FARBEN = {
 	"platte": (0.62, 0.63, 0.66), "rand": (0.5, 0.5, 0.52), "niete": (0.35, 0.33, 0.3),
 	"kette": (0.45, 0.46, 0.48), "leder": (0.36, 0.22, 0.12), "leder_dunkel": (0.17, 0.11, 0.07),
 	"stoff": (0.55, 0.47, 0.36), "stoff_akzent": (0.42, 0.16, 0.12), "futter": (0.7, 0.64, 0.52),
-	"haut": (0.8, 0.62, 0.5),
+	"haut": (0.8, 0.62, 0.5), "fell": (0.42, 0.33, 0.24), "schuppen": (0.5, 0.5, 0.52), "holz": (0.4, 0.26, 0.14),
+	"feder": (0.88, 0.85, 0.78), "stoff_dunkel": (0.16, 0.16, 0.18),
 }
 
 
@@ -42,11 +43,11 @@ def material(name):
 		bsdf = m.node_tree.nodes.get("Principled BSDF")
 		if bsdf:
 			bsdf.inputs["Base Color"].default_value = (*c, 1.0)
-			metall = name in ("platte", "rand", "niete", "kette")
+			metall = name in ("platte", "rand", "niete", "kette", "schuppen")
 			bsdf.inputs["Metallic"].default_value = 0.9 if metall else 0.0
 			bsdf.inputs["Roughness"].default_value = 0.35 if metall else 0.8
-		m.metallic = 0.9 if name in ("platte", "rand", "niete", "kette") else 0.0
-		m.roughness = 0.35 if name in ("platte", "rand", "niete", "kette") else 0.8
+		m.metallic = 0.9 if name in ("platte", "rand", "niete", "kette", "schuppen") else 0.0
+		m.roughness = 0.35 if name in ("platte", "rand", "niete", "kette", "schuppen") else 0.8
 	return m
 
 
