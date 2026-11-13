@@ -24,7 +24,8 @@ import anpassen as ap  # noqa: E402
 
 SLOTS = ["kopf", "brust", "haende", "beine", "fuesse"]
 TOL_HAUT = 0.0015      # 1,5 mm unter der Haut gilt als Durchstoßen
-TOL_SCHICHT = 0.0015
+TOL_SCHICHT = 0.003
+WEITE = 0.12
 
 KOERPER_REGLER = ["schultern", "v_form", "taille", "bauch", "huefte", "po", "oberarm_muskel", "arm_laenge",
 	"bein_laenge", "haende", "fuesse", "hals_dicke", "hals_laenge"]
@@ -82,40 +83,62 @@ class Satz:
 			t = {"p": p, "dr": dr, "bind": ap.bindung(p, k0.p)}
 			t["verdeckt"] = ap.verdeckt(k0.p, k0.n, k0.dreiecke, p, dr)
 			self.teile[slot] = t
-		# Schichtpaare: Punkte von A, die im Standard-Körper nahe an B liegen (2 cm)
-		self.paare = []
-		for a in SLOTS:
-			for b in SLOTS:
-				if a == b:
-					continue
-				ta, tb = self.teile[a], self.teile[b]
-				s = vorzeichen_abstand(_bvh(tb["p"], tb["dr"]), ta["p"], 0.02)
-				nah = ~np.isnan(s) & (np.abs(s) > TOL_SCHICHT)
-				if nah.sum() > 10:
-					self.paare.append((a, b, np.where(nah)[0], np.sign(s[nah])))
+		self._basis = None
+
+	def _aussen(self, k, pos, sichtbar):
+		"""Je Hautpunkt: welches Teil (oder die Haut) ganz außen liegt, gesehen entlang der Hautnormale
+		von außen nach innen – also das, was man an dieser Stelle sieht. -> (Teil-Nr., Abstand)"""
+		bvhs = [_bvh(pos[sl], self.teile[sl]["dr"]) for sl in SLOTS] + [_bvh(k.p, k.dreiecke[sichtbar])]
+		start = k.p + k.n * WEITE
+		wer = np.full(len(k.p), -1)
+		t_best = np.full(len(k.p), np.inf)
+		tiefe = np.full((len(k.p), len(bvhs)), np.inf)
+		for j, b in enumerate(bvhs):
+			for i in range(len(k.p)):
+				h = b.ray_cast(Vector(start[i]), Vector(-k.n[i]), WEITE + 0.03)
+				if h[0] is not None:
+					tiefe[i, j] = h[3]
+					if h[3] < t_best[i]:
+						t_best[i], wer[i] = h[3], j
+		return wer, tiefe
 
 	def pruefen(self, k0, k, korr=None):
+		"""Vergleicht, was außen sichtbar ist, mit dem Standard-Körper: wechselt an einem Hautpunkt das
+		äußerste Teil (inneres Teil oder Haut sticht durch), ist das ein Verstoß."""
+		if self._basis is None:
+			self._basis = self._aussen_fuer(k0, k0)
+		wer0 = self._basis
+		wer, tiefe, pos, sichtbar = self._aussen_fuer(k0, k, mit_tiefe=True)
+		erg = {"haut": {}, "schicht": {}}
+		namen = SLOTS + ["haut"]
+		for i in np.where((wer0 >= 0) & (wer0 < len(SLOTS)) & (wer >= 0) & (wer != wer0))[0]:
+			a, b = wer0[i], wer[i]
+			ueber = tiefe[i, a] - tiefe[i, b]          # wie weit das neue Teil vor dem alten liegt
+			if not np.isfinite(ueber):
+				ueber = 0.01
+			if ueber < TOL_SCHICHT:
+				continue
+			if namen[b] == "haut":
+				z = erg["haut"].setdefault(namen[a], [0, 0.0])
+			else:
+				z = erg["schicht"].setdefault("%s>%s" % (namen[b], namen[a]), [0, 0.0])
+			z[0] += 1
+			z[1] = max(z[1], float(ueber * 1000))
+		# Loch: vorher Rüstung, jetzt gar nichts (auch keine Haut, weil verdeckt) -> man sieht ins Leere
+		loch = (wer0 >= 0) & (wer0 < len(SLOTS)) & (wer < 0)
+		if loch.any():
+			erg["haut"]["loch"] = [int(loch.sum()), 0.0]
+		return erg, pos, sichtbar
+
+	def _aussen_fuer(self, k0, k, mit_tiefe=False):
 		haut_weg = np.zeros(len(k.p), bool)
 		pos = {}
 		for slot, t in self.teile.items():
 			haut_weg |= t["verdeckt"]
 			pos[slot] = ap.anwenden(t["p"], t["bind"], k0.p, k.p)
-			if korr is not None:
-				pos[slot] = pos[slot] + korr(slot, t)
 		sichtbar = ~haut_weg[k.dreiecke].all(1)
-		bvh_haut = _bvh(k.p, k.dreiecke)
-		erg = {"haut": {}, "schicht": {}}
-		for slot, t in self.teile.items():
-			s, f = vorzeichen_abstand(bvh_haut, pos[slot], 0.05, True)
-			s[(f >= 0) & ~sichtbar[np.maximum(f, 0)]] = np.nan     # unter verdeckter Haut: unsichtbar
-			schlecht = s < -TOL_HAUT
-			erg["haut"][slot] = (int(np.nansum(schlecht)), float(-np.nanmin(np.append(s, 0)) * 1000))
-		for a, b, idx, sg in self.paare:
-			s = vorzeichen_abstand(_bvh(pos[b], self.teile[b]["dr"]), pos[a][idx], 0.03)
-			gekippt = (~np.isnan(s)) & (np.sign(s) != sg) & (np.abs(s) > TOL_SCHICHT)
-			if gekippt.any():
-				erg["schicht"]["%s>%s" % (a, b)] = (int(gekippt.sum()), float(np.nanmax(np.abs(s[gekippt])) * 1000))
-		return erg, pos, sichtbar
+		wer, tiefe = self._aussen(k, pos, sichtbar)
+		return (wer, tiefe, pos, sichtbar) if mit_tiefe else wer
 
 
 def main():

@@ -30,30 +30,37 @@ def netz(name, p_mh, dr, mats):
 	mi = np.array([namen.index(m) for m in mats])
 	me.polygons.foreach_set("material_index", mi)
 	me.polygons.foreach_set("use_smooth", np.ones(len(dr), bool))
+	import bmesh
+	bm = bmesh.new()
+	bm.from_mesh(me)
+	bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)      # UV-Nähte zusammenführen (sonst kantige Schattierung)
+	bm.to_mesh(me)
+	bm.free()
 	me.set_sharp_from_angle(angle=0.6)
 	ob = bpy.data.objects.new(name, me)
 	bpy.context.scene.collection.objects.link(ob)
 	return ob
 
 
-def satz_auf_koerper(ordner, satz, aussehen, m=None, k0=None, slots=SLOTS, korrektur=True):
+_CACHE = {}
+
+
+def satz_auf_koerper(ordner, satz, aussehen, m=None, k0=None, slots=SLOTS):
 	m = m or Mensch()
 	k0 = k0 or ap.Koerper(m)
 	k = ap.Koerper(m, aussehen)
 	weg = np.zeros(len(k.p), bool)
 	for slot in slots:
 		pf = os.path.join(ordner, "iron_%s_%s.glb" % (satz, slot))
-		p, dr, mat, _ = ap.glb_netz(pf)
-		daten = ap.teil_daten(pf, p, dr, k0) if hasattr(ap, "teil_daten") else None
-		if daten is not None:
-			pos = ap.anpassen_teil(daten, k0, k, aussehen if korrektur else None)
-			weg |= daten["verdeckt"]
-		else:
-			pos = ap.anwenden(p, ap.bindung(p, k0.p), k0.p, k.p)
-			weg |= ap.verdeckt(k0.p, k0.n, k0.dreiecke, p, dr)
+		if pf not in _CACHE:
+			p, dr, mat, _ = ap.glb_netz(pf)
+			_CACHE[pf] = (p, dr, mat, ap.bindung(p, k0.p), ap.verdeckt(k0.p, k0.n, k0.dreiecke, p, dr))
+		p, dr, mat, bind, verd = _CACHE[pf]
+		pos = ap.anwenden(p, bind, k0.p, k.p)
+		weg |= verd
 		netz("iron_%s_%s" % (satz, slot), pos, dr, mat)
 	sichtbar = ~weg[k.dreiecke].all(1)
-	netz("Koerper", k.p, k.dreiecke[sichtbar], ["haut"] * int(sichtbar.sum()))
+	netz("Koerper", k.p, k.dreiecke[sichtbar], [os.environ.get("HAUT", "haut")] * int(sichtbar.sum()))
 	return k
 
 

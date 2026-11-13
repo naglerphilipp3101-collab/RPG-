@@ -7,7 +7,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy
 import numpy as np
-import rgeo as g, vorschau, iron, waffensaetze as ws
+import rgeo as g, vorschau, iron, waffensaetze as ws, nachbearbeitung as nb
 
 ARG = sys.argv[sys.argv.index("--") + 1:]
 AUS = ARG[0]
@@ -31,7 +31,9 @@ for satz in SAETZE:
 	for slot in SLOTS:
 		ob = teile[slot]
 		ob.name = ob.data.name = "iron_%s_%s" % (satz, slot)
-		g.verringern(ob, max(MAX, int(ob.get("max_fl", 0))))
+		if os.environ.get("NACH", "1") == "1":
+			nb.bearbeiten(ob, K, slot)
+		g.verringern(ob, max(MAX * (2 if slot in ("brust", "beine") else 1), int(ob.get("max_fl", 0))))
 		g.box_uv(ob)
 		obs.append(ob)
 		# Ausreißer-Prüfung: nichts darf weit außerhalb des Körpers liegen

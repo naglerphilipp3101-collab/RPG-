@@ -11,9 +11,6 @@ Das ist linear in den Körperformen; das Spiel kann dieselbe Rechnung beim Laden
 
 Zusätzlich je Teil:
 - verdeckt: Hautpunkte, die unter dem Teil liegen und ausgeblendet werden (kein Durchstoßen).
-- korrektur_frau: geglättete Zusatzverschiebung für den Frauenkörper (Geschlecht 0),
-  wird mit (1 − geschlecht) überblendet. Sie macht aus „folgt jeder Rundung“ eine
-  getriebene Form und hält Mindestabstand zur Haut.
 
 Koordinaten: wie MakeHuman/glTF (Y oben, Blick +Z, Meter).
 """
@@ -72,6 +69,8 @@ class Koerper:
 
 	def __init__(self, m: Mensch, aussehen=None):
 		self.m = m
+		from mensch_lesen import STANDARD
+		self.aussehen = dict(STANDARD, **(aussehen or {}))
 		alle = m.form_berechnen(aussehen)
 		self.haut_idx = np.unique(m.koerper_dreiecke)          # MakeHuman-Indizes der Haut
 		self.p = alle[self.haut_idx]
@@ -105,31 +104,36 @@ def bindung(punkte, haut0, k=K_NACHBARN, max_n=None):
 	sigma = np.clip(d0 * SIGMA_FAKTOR, SIGMA_MIN, SIGMA_MAX)
 	idx = np.zeros((len(punkte), max_n), np.int32)
 	w = np.zeros((len(punkte), max_n), np.float32)
-	# Hautpunkte grob ausdünnen, wo sigma groß ist (gleichmäßiger Abdeckung statt der nächsten Handvoll)
-	grob = _ausduennen(haut0, 0.02)
+	grob = _ausduennen(haut0, RASTER)
 	baum_grob = cKDTree(haut0[grob])
-	for i, (p, sg) in enumerate(zip(punkte, sigma)):
-		if sg < 0.025:
-			nb = np.array(baum.query_ball_point(p, 2.5 * sg))
-		else:
-			nb = grob[np.array(baum_grob.query_ball_point(p, 2.5 * sg), dtype=np.int64)]
+	rand = np.exp(-0.5 * 2.5 ** 2)
+	for i, (p, sg, dn) in enumerate(zip(punkte, sigma, d0)):
+		# Glocke über den Abstand ÜBER dem nächsten Hautpunkt: auch weit abstehende Teile finden
+		# immer Hautpunkte, und das Gewicht ändert sich stetig mit der Lage
+		nb = grob[np.array(baum_grob.query_ball_point(p, dn + 2.5 * sg), dtype=np.int64)]
 		if len(nb) == 0:
-			nb = np.array([baum.query(p)[1]])
-		dd = np.linalg.norm(haut0[nb] - p, axis=1)
-		ww = np.exp(-0.5 * (dd / sg) ** 2) - np.exp(-0.5 * 2.5 ** 2)
+			nb = grob[[baum_grob.query(p)[1]]]
+		dd = np.linalg.norm(haut0[nb] - p, axis=1) - dn
+		ww = np.maximum(np.exp(-0.5 * (dd / sg) ** 2) - rand, 0)
 		if len(nb) > max_n:
-			o = np.argpartition(-ww, max_n)[:max_n]
-			nb, ww = nb[o], ww[o]
-		ww = np.maximum(ww, 0) + 1e-9
+			# nur die max_n stärksten; das Gewicht des ersten weggelassenen abziehen -> kein Sprung
+			o = np.argsort(-ww)
+			ww = np.maximum(ww[o[:max_n]] - ww[o[max_n]], 0)
+			nb = nb[o[:max_n]]
+		ww = ww + 1e-9
 		idx[i, :len(nb)] = nb
 		w[i, :len(nb)] = ww / ww.sum()
 	return idx, w
 
 
-SIGMA_FAKTOR = 1.0
-SIGMA_MIN = 0.012
+import os as _os
+_E = lambda n, v: float(_os.environ.get("PF_" + n, v))
+SIGMA_FAKTOR = _E("FAKTOR", 0.8)
+SIGMA_MIN = _E("SMIN", 0.02)
 SIGMA_MAX = 0.06
-MAX_N = 32
+MAX_N = int(_E("MAXN", 160))
+RASTER = _E("RASTER", 0.015)
+FEIN_BIS = _E("FEIN", 0.0)          # unter diesem sigma alle Hautpunkte statt des Rasters
 
 
 def _ausduennen(p, abstand):
@@ -147,23 +151,43 @@ def anwenden(punkte0, bind, haut0, haut):
 
 # ------------------------------------------------------------------ Verdeckte Haut
 def verdeckt(haut, haut_n, dreiecke, ruest_p, ruest_dr, reichweite=0.30, schrumpfen=1):
-	"""Hautpunkte, deren Strahl entlang der Normale das Teil trifft (nahe genug).
-	Danach um `schrumpfen` Ringe verkleinert, damit am Rand immer etwas Haut bleibt."""
+	"""Hautpunkte, die unter dem Teil liegen: der Strahl entlang der Normale UND vier um 35° gekippte
+	Strahlen treffen das Teil (so bleibt Haut sichtbar, die man schräg unter einer Kante sieht).
+	Kleine Löcher werden geschlossen, dann wird um `schrumpfen` Ringe verkleinert.
+	Ohren: liegt ein Ohr überwiegend unter dem Teil, verschwindet es ganz (sonst stechen Ohrspitzen durch)."""
 	import bpy  # noqa: F401  (mathutils kommt mit bpy)
 	from mathutils import Vector
 	from mathutils.bvhtree import BVHTree
 	bvh = BVHTree.FromPolygons([Vector(v) for v in ruest_p], ruest_dr.tolist(), all_triangles=True)
 	tr = np.zeros(len(haut), bool)
+	hilfs = np.where(np.abs(haut_n[:, 1]) < 0.9, 1, 0)
 	for i, (p, n) in enumerate(zip(haut, haut_n)):
-		h = bvh.ray_cast(Vector(p - n * 0.002), Vector(n), reichweite)
-		tr[i] = h[0] is not None
-	# kleine Löcher schließen (z. B. zwischen Riemen), dann vom Rand her schrumpfen
+		a = np.cross(n, [0.0, 1.0, 0.0] if hilfs[i] else [1.0, 0.0, 0.0])
+		a /= np.linalg.norm(a) + 1e-12
+		b = np.cross(n, a)
+		ok = True
+		for d in (n, n + 0.7 * a, n - 0.7 * a, n + 0.7 * b, n - 0.7 * b):
+			h = bvh.ray_cast(Vector(p - n * 0.002), Vector(d / np.linalg.norm(d)), reichweite)
+			if h[0] is None:
+				ok = False
+				break
+		tr[i] = ok
 	nb = _nachbarn(len(haut), dreiecke)
 	for _ in range(2):
 		tr = tr | (_anteil(tr, nb) >= 0.6)
 	for _ in range(schrumpfen):
 		tr = tr & (_anteil(tr, nb) >= 0.999)
+	for ohr in ohren(haut):
+		if tr[ohr].mean() > 0.4:
+			tr[ohr] = True
 	return tr
+
+
+def ohren(haut):
+	"""Hautpunkte des linken und rechten Ohrs (nach Lage am Standard-Körper)."""
+	x, y, z = haut[:, 0], haut[:, 1], haut[:, 2]
+	kopf = (y > 1.585) & (y < 1.69) & (z > 0.0) & (z < 0.08)
+	return [np.where(kopf & (x > 0.064))[0], np.where(kopf & (x < -0.064))[0]]
 
 
 def _nachbarn(n, dr):
