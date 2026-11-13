@@ -840,7 +840,7 @@ def stulpenhandschuh(K, seite, material="leder", glocke=0.026, laenge=0.12, plat
 
 
 def greatsword_kopf(K):
-	"""Kettenhaube mit Lederkappe und Lederband."""
+	"""Kettenhaube mit Lederband (ohne Kappe, Philipp 13.11.)."""
 	f = ir.kopf_feld(K)
 	A = 0.012
 	t = g.Teil("kettenhaube")
@@ -861,15 +861,6 @@ def greatsword_kopf(K):
 		[f.punkt(1.45, w, A + 0.002) for w in np.linspace(-0.9, 0.9, 20)[1:-1]] + \
 		[f.punkt(s, 0.9, A + 0.002) for s in np.linspace(1.45, 2.18, 20)]
 	g.zug(r, gs, 0.005, "leder", flach=0.6)
-	# Lederkappe mit vier Nähten und Stirnband
-	kp = g.Teil("lederkappe")
-	g.platte(kp, f, 0.0, 1.25, 0.024, nu=20, nw=96, material_name="leder_dunkel")
-	teile.append(obj(kp, 50, 0.005))
-	ring(r, f, 1.25, 0.026, 0.009, "leder", flach=0.4, n=96)
-	for k in range(4):
-		w = k * PI / 2 + PI / 4
-		pts = [f.punkt(s, w, 0.0245) for s in np.linspace(0.05, 1.22, 14)]
-		g.zug(r, pts, 0.003, "leder", flach=0.5)
 	teile.append(r.objekt())
 	return g.vereinen(teile, "x")
 
