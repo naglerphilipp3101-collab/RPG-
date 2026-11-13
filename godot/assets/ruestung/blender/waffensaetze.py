@@ -14,6 +14,7 @@ from iron import tabelle, ZW, Z0
 
 PI = math.pi
 SLOTS = ["kopf", "brust", "haende", "beine", "fuesse"]
+AUGE_S, AUGE_W = 1.70, 0.36   # Augenmitte auf dem Kopffeld (s von oben, w zur Seite)
 
 # Klasse je Teil (kopf, brust, haende, beine, fuesse) und Beschreibung für die Rüstkammer
 SAETZE = {
@@ -218,14 +219,16 @@ def tabard(K, unten_z=0.50, A=0.06, material="stoff_akzent", breite=0.95, name="
 	return teile, f
 
 
-def kapuze(K, material="stoff", A=0.022, gesicht=0.95, gesicht_unten=2.3, zipfel=0.05, kragen=True,
-		kragen_unten=None, saum="stoff_akzent", tief=0.0, name="kapuze", kragen_weite=0.03):
-	"""Kapuze (aus der Gugel): Gesichtsöffnung |w| < gesicht, tief zieht den Rand nach vorne über die Stirn.
+def kapuze(K, material="stoff", A=0.022, gesicht=0.95, gesicht_unten=2.45, zipfel=0.0, kragen=True,
+		kragen_unten=None, saum="stoff_akzent", tief=0.0, name="kapuze", kragen_weite=0.03, kragen_ab=0.0):
+	"""Kapuze: Gesichtsöffnung |w| < gesicht, tief zieht den Rand nach vorne über die Stirn, hinten fällt sie weich.
 	kragen_unten: Tabelle für die Unterkante des Schulterkragens (None = Gugel-Standard)."""
 	f = ir.kopf_feld(K, huelle=14)
 	zf = lambda s, w: zipfel * math.exp(-(g.wdiff(w, PI) / 0.5) ** 2) * math.exp(-((s - 0.75) / 0.35) ** 2)
 	vor = lambda s, w: tief * math.exp(-(g.wdiff(w, 0) / 0.9) ** 2) * g.weich(s, 0.5, 1.0)
-	weit = lambda s, w: A + zf(s, w) + 0.012 * g.weich(s, 1.6, 2.4) + vor(s, w)
+	# weicher Stoff: hinten am Hinterkopf etwas weiter, oben anliegend
+	fall = lambda s, w: 0.012 * math.exp(-(g.wdiff(w, PI) / 1.2) ** 2) * g.weich(s, 0.9, 1.8)
+	weit = lambda s, w: A + zf(s, w) + 0.012 * g.weich(s, 1.6, 2.4) + vor(s, w) + fall(s, w)
 	s_stirn = 1.05 - tief * 3.0
 	t = g.Teil(name)
 	g.platte(t, f, 0.0, s_stirn, weit, nu=24, nw=96, material_name=material)
@@ -238,7 +241,7 @@ def kapuze(K, material="stoff", A=0.022, gesicht=0.95, gesicht_unten=2.3, zipfel
 	if kragen:
 		fr = ir.rumpf_feld(K, glatt=(4, 3), konvex=1.0)
 		kt = g.Teil("kragen")
-		flare = lambda s, w: 0.025 + kragen_weite * g.weich(-s, -0.68, -0.48)
+		flare = lambda s, w: 0.025 + kragen_ab + kragen_weite * g.weich(-s, -0.68, -0.48)
 		ku = kragen_unten or tabelle([(0, 0.44), (0.9, 0.5), (PI / 2, 0.52), (2.3, 0.5), (PI, 0.46)])
 		g.platte(kt, fr, ku, 0.79, 0.0, nu=24, nw=96, extra=flare, material_name=material)
 		teile.append(obj(kt, 60, 0.004))
@@ -252,12 +255,14 @@ def kapuze(K, material="stoff", A=0.022, gesicht=0.95, gesicht_unten=2.3, zipfel
 		s = gesicht_unten - (gesicht_unten - s_stirn) * k / 35
 		gs.insert(0, f.punkt(s, -gesicht, weit(s, -gesicht)))
 		gs.append(f.punkt(s, gesicht, weit(s, gesicht)))
-	if s_stirn > 0.05:
-		for k in range(1, 30):
-			w = gesicht + (2 * PI - 2 * gesicht) * k / 30
+	if gesicht_unten >= 2.45:
+		gs = gs[:36] + gs[61:]   # ohne Kinnstück keine Naht unter dem Kinn
 	g.zug(r, gs, 0.006, saum, flach=0.7)
 	teile.append(r.objekt())
 	return teile, f, weit
+
+
+# ---------------- Hammer: Ritterhelm (Armet) mit Sehschlitz
 
 
 def kappe(K, material="leder", A=0.012, s_bis=1.2, extra=None, name="kappe", d=0.004, f=None):
@@ -501,33 +506,52 @@ def sus_beine(K):
 
 
 def hammer_kopf(K):
-	"""Schaller mit langem Nackenschirm und Kinnschutz (Bart), Sehspalt dazwischen."""
 	f = ir.kopf_feld(K)
 	A = 0.026
-	schirm = lambda s, w: 0.07 * g.weich(s, 1.3, 2.2) * math.cos(min(g.wdiff(w, PI), PI / 2)) ** 2
-	kamm = lambda s, w: 0.007 * math.exp(-(math.sin(w) * math.sin(s) / 0.05) ** 2) * g.weich(-s, -1.5, -0.6)
-	ex = lambda s, w: schirm(s, w) + kamm(s, w)
-	unten = lambda w: 1.2 + 1.0 * (g.wdiff(w, 0) / PI) ** 0.8
-	teile = [blech("schaller", f, 0.0, unten, A, d=0.003, nu=40, nw=96, extra=ex)]
+	kamm = lambda s, w: 0.008 * math.exp(-(math.sin(w) * math.sin(s) / 0.05) ** 2) * g.weich(-s, -1.6, -0.6)
+	spalt_o, spalt_u = AUGE_S - 0.045, AUGE_S + 0.05
+	# Glocke: vorne bis über die Augen, hinten und seitlich bis in den Nacken
+	unten = lambda w: spalt_o + (2.4 - spalt_o) * g.weich(g.wdiff(w, 0), 1.15, 1.55)
+	teile = [blech("glocke", f, 0.0, unten, lambda s, w: A + kamm(s, w), d=0.003, nu=44, nw=96)]
 	r = g.Teil("rand")
-	pts, zu = g.rand_punkte(f, unten, A, n=120, extra=ex)
-	g.zug(r, pts, 0.005, "rand", zu=zu)
-	# Bart (Kinnschutz)
-	bo = lambda w: 1.42 + 0.25 * (g.wdiff(w, 0) / 1.5) ** 2
-	bart = lambda s, w: 0.016 + 0.02 * math.exp(-(g.wdiff(w, 0) / 0.6) ** 2) * g.weich(s, 1.5, 1.9)
-	teile.append(blech("bart", f, bo, 2.48, bart, d=0.003, nu=24, nw=48, w_von=-1.5, w_bis=1.5))
-	pts, _ = g.rand_punkte(f, bo, bart, w_von=-1.5, w_bis=1.5, n=60)
-	g.zug(r, pts, 0.005, "rand")
-	pts, _ = g.rand_punkte(f, 2.48, bart, w_von=-1.5, w_bis=1.5, n=60)
+	ring(r, f, unten, lambda s, w: A + kamm(s, w), 0.005, n=120)
+	# Visier mit spitzer Schnauze (Spatzenschnabel)
+	schn = lambda s, w: 0.055 * math.exp(-g.wdiff(w, 0) / 0.42) * math.exp(-((s - 2.02) / 0.3) ** 2)
+	vis = lambda s, w: A + 0.008 + schn(s, w)
+	vu = lambda w: 2.42
+	teile.append(blech("visier", f, spalt_u, vu, vis, d=0.003, nu=30, nw=48, w_von=-1.45, w_bis=1.45))
+	for fn in (spalt_u, vu):
+		pts, _ = g.rand_punkte(f, fn, vis, w_von=-1.45, w_bis=1.45, n=60)
+		g.zug(r, pts, 0.0045, "rand")
+	pts = [f.punkt(s, w, vis(s, w)) for s, w in zip(np.linspace(spalt_u, 2.42, 24), [1.45] * 24)]
 	g.zug(r, pts, 0.004, "rand")
-	for w in (-1.3, 1.3):
-		g.niete(r, f.punkt(1.75, w, bart(1.75, w) + 0.002), f.normale(1.75, w, bart(1.75, w)), 0.008)
-	for k in range(20):
-		w = PI / 2 + PI * k / 19
-		s = unten(w) - 0.07
-		g.niete(r, f.punkt(s, w, A + ex(s, w) + 0.001), f.normale(s, w, A + ex(s, w)), 0.0045)
+	pts = [f.punkt(s, w, vis(s, w)) for s, w in zip(np.linspace(spalt_u, 2.42, 24), [-1.45] * 24)]
+	g.zug(r, pts, 0.004, "rand")
+	# Dunkler Grund im Sehschlitz
+	pts = [f.punkt(AUGE_S, w, A - 0.008) for w in np.linspace(-1.2, 1.2, 40)]
+	g.zug(r, pts, 0.03, "stoff_dunkel", flach=0.12, aussen=lambda p: (p - f.c).normalized())
+	# Atemschlitze auf beiden Seiten der Schnauze
+	for sg in (1, -1):
+		for i in range(4):
+			s = 1.92 + 0.07 * i
+			pts = [f.punkt(s, sg * w, vis(s, sg * w) + 0.0008) for w in np.linspace(0.32, 0.62, 8)]
+			g.zug(r, pts, 0.004, "stoff_dunkel", flach=0.4, aussen=lambda p: (p - f.c).normalized())
+		g.niete(r, f.punkt(AUGE_S, sg * PI / 2, A + 0.012), f.normale(AUGE_S, sg * PI / 2, A + 0.012), 0.011)
+	# Halsreifen
+	for k in range(2):
+		s0 = 2.36 + 0.06 * k
+		teile.append(blech("halsreif", f, s0, s0 + 0.08, A + 0.01 + 0.006 * k, d=0.0025, nu=4, nw=96))
+		ring(r, f, s0, A + 0.01 + 0.006 * k, 0.003, n=96)
+	for k in range(14):
+		w = PI / 2 + PI * k / 13
+		s = unten(w) - 0.08
+		if s > 2.0:
+			g.niete(r, f.punkt(s, w, A + 0.001), f.normale(s, w, A), 0.0045)
 	teile.append(r.objekt())
 	return g.vereinen(teile, "x")
+
+
+# ---------------- Axt: Nordkrieger, grob und spitz
 
 
 def hammer_brust(K):
@@ -586,38 +610,41 @@ def hammer_fuesse(K):
 
 
 def axe_kopf(K):
-	"""Brillenhelm: runde Kappe, Augenbrille mit Nasal, Kettenbehang hinten und seitlich."""
+	"""Brillenhelm: Kappe mit Grat, Augenbrille genau über den Augen, langes Nasal, Kettenbehang."""
 	f = ir.kopf_feld(K)
 	A = 0.026
-	spitze = lambda s, w: 0.018 * max(0.0, 1 - s / 0.8) ** 2
-	teile = [blech("kappe", f, 0.0, 1.2, A, d=0.003, nu=28, nw=96, extra=spitze)]
+	spitze = lambda s, w: 0.03 * max(0.0, 1 - s / 0.7) ** 1.5 + 0.006 * math.exp(-(math.sin(w) * math.sin(s) / 0.04) ** 2)
+	unten = 1.55
+	teile = [blech("kappe", f, 0.0, unten, lambda s, w: A + spitze(s, w), d=0.003, nu=34, nw=96)]
 	r = g.Teil("rand")
-	pts, zu = g.rand_punkte(f, 1.2, A, n=96, extra=spitze)
-	g.zug(r, pts, 0.008, "rand", zu=zu, flach=0.4)
-	# Kreuzbänder über der Kappe
+	pts, zu = g.rand_punkte(f, unten, lambda s, w: A + spitze(s, w), n=96)
+	g.zug(r, pts, 0.009, "rand", zu=zu, flach=0.4)
 	for k in range(4):
 		w = k * PI / 2 + PI / 4
-		pts = [f.punkt(1.18 * (1 - j / 14), w, A + spitze(1.18 * (1 - j / 14), w) + 0.001) for j in range(15)]
+		pts = [f.punkt(unten * (1 - j / 16), w, A + spitze(unten * (1 - j / 16), w) + 0.001) for j in range(17)]
 		g.zug(r, pts, 0.009, "rand", flach=0.3, aussen=lambda p: (p - f.c).normalized())
-	# Brille: zwei Augenringe + Nasal als ein Blech
+	for k in range(16):
+		w = 2 * PI * k / 16
+		g.niete(r, f.punkt(unten - 0.05, w, A + 0.002), f.normale(unten - 0.05, w, A), 0.0055)
+	# Brille: Ringe um die Augen, Nasal bis über die Nase
 	br = g.Teil("brille")
 	for sg in (1, -1):
-		mitte = (1.33, sg * 0.36)
 		pts = []
-		for k in range(41):
+		for k in range(40):
 			a = 2 * PI * k / 40
-			s = mitte[0] + 0.13 * math.sin(a) * 0.8
-			w = mitte[1] + 0.3 * math.cos(a)
-			pts.append(f.punkt(s, w, A + 0.004))
-		g.zug(br, pts, 0.012, "platte", flach=0.25, aussen=lambda p: (p - f.c).normalized(), zu=True)
-	nas = [f.punkt(s, 0.0, A + 0.005) for s in np.linspace(1.18, 1.62, 14)]
-	g.zug(br, nas, 0.014, "platte", flach=0.25, aussen=lambda p: (p - f.c).normalized())
+			s = AUGE_S + 0.11 * math.sin(a)
+			w = sg * AUGE_W + 0.3 * math.cos(a)
+			if s < unten:
+				s = unten - 0.005
+			pts.append(f.punkt(s, w, A + 0.012 + 0.012 * g.weich(s, unten, AUGE_S + 0.1)))
+		g.zug(br, pts, 0.014, "platte", flach=0.25, aussen=lambda p: (p - f.c).normalized(), zu=True)
+	nas = [f.punkt(s, 0.0, A + 0.008 + 0.02 * g.weich(s, 1.6, 1.95)) for s in np.linspace(unten - 0.05, 1.98, 16)]
+	g.zug(br, nas, 0.016, "platte", flach=0.25, aussen=lambda p: (p - f.c).normalized())
 	teile.append(br.objekt())
-	# Kettenbehang
+	# Kettenbehang hinten und seitlich bis auf die Schultern
 	kt = g.Teil("behang")
-	unten = lambda w: 2.38 + 0.12 * (g.wdiff(w, PI) < 1.0)
-	g.platte(kt, f, 1.21, 2.42, lambda s, w: 0.018 + 0.02 * g.weich(s, 1.8, 2.4), nu=26, nw=60, w_von=1.05,
-		w_bis=2 * PI - 1.05, material_name="kette")
+	g.platte(kt, f, unten + 0.01, 2.48, lambda s, w: 0.018 + 0.025 * g.weich(s, 1.9, 2.45), nu=26, nw=60,
+		w_von=1.15, w_bis=2 * PI - 1.15, material_name="kette")
 	teile.append(obj(kt, 60, 0.003))
 	teile.append(r.objekt())
 	return g.vereinen(teile, "x")
@@ -627,25 +654,38 @@ def axe_brust(K):
 	ob = ir.schwer_brust(K, fauld=2, unter=dict(material="kette", unten_z=0.64, weite=0.05, abstand=0.012,
 		aermel_bis=0.8, aermel_abstand=0.009), name="x", halsberge=False)
 	teile = [ob]
+	r = g.Teil("dornen")
+	for seite in (1, -1):
+		teile += _grobe_schulter(K, seite, r)
+	# Brustgrat mit Dornreihe und Stachel am Brustbein
+	f = ir.rumpf_feld(K)
+	for s in (0.42, 0.5):
+		stachel(r, f.punkt(s, 0.0, 0.04), f.normale(s, 0.0, 0.04), 0.025, 0.008)
 	# Fellumhang über Rücken und Schultern
-	f = ir.wams_feld(K)
+	fw = ir.wams_feld(K)
 	oben = tabelle([(0, 0.0), (1.3, 0.66), (PI / 2, 0.69), (PI, 0.68)])
-	fell = lambda s, w: 0.075 + 0.04 * g.weich(-s, -(1.2 - ZW), -(0.7 - ZW)) + 0.003 * math.sin(w * 17 + s * 41 + math.sin(w * 7) * 3)
+	fell = lambda s, w: 0.085 + 0.04 * g.weich(-s, -(1.2 - ZW), -(0.7 - ZW)) + 0.003 * math.sin(w * 17 + s * 41 + math.sin(w * 7) * 3)
 	t = g.Teil("umhang")
-	g.platte(t, f, lambda w: 0.62 - ZW + 0.04 * math.sin(w * 5), lambda w: oben(w) + 0.795 - ZW, fell, nu=50, nw=60,
-		w_von=1.25, w_bis=2 * PI - 1.25, material_name="fell")
+	g.platte(t, fw, lambda w: 0.62 - ZW + 0.04 * math.sin(w * 5), lambda w: oben(w) + 0.795 - ZW, fell, nu=50, nw=60,
+		w_von=1.35, w_bis=2 * PI - 1.35, material_name="fell")
 	teile.append(obj(t, 60, 0.008))
-	# Fellkragen
-	r = g.Teil("kragen")
-	pts, zu = g.rand_punkte(f, lambda w: 1.47 - ZW, lambda s, w: 0.075, n=60, w_von=1.15, w_bis=2 * PI - 1.15)
-	pelzrand(r, pts, False, 0.032)
-	# Mantelschließe vorne
+	pts, zu = g.rand_punkte(fw, lambda w: 1.47 - ZW, lambda s, w: 0.085, n=60, w_von=1.25, w_bis=2 * PI - 1.25)
+	pelzrand(r, pts, False, 0.034)
+	# Tuch vorne und hinten unter dem Gürtel, Beintaschen (Tassetten) darüber
+	for mitte in (0.0, PI):
+		tt = g.Teil("tuch")
+		g.platte(tt, fw, lambda w: 0.52 - ZW + 0.015 * math.sin(w * 13), 0.95 - ZW, 0.06, nu=24, nw=20,
+			w_von=mitte - 0.42, w_bis=mitte + 0.42, material_name="leder")
+		teile.append(obj(tt, 60, 0.004))
 	for sg in (1, -1):
-		p = f.punkt(1.37 - ZW, sg * 0.55, 0.075)
-		g.niete(r, p, f.normale(1.37 - ZW, sg * 0.55, 0.07), 0.016)
-	g.zug(r, [f.punkt(1.37 - ZW, 0.55, 0.08), f.punkt(1.35 - ZW, 0.0, 0.085), f.punkt(1.37 - ZW, -0.55, 0.08)], 0.004, "rand")
+		w0 = sg * 0.95
+		tas = lambda s, w: 0.075 + 0.02 * g.weich(-s, -(0.9 - ZW), -(0.66 - ZW))
+		teile.append(blech("tassette", fw, 0.66 - ZW, 0.94 - ZW, tas, d=0.0035, nu=12, nw=16, w_von=w0 - 0.5, w_bis=w0 + 0.5))
+		pts, _ = g.rand_punkte(fw, 0.66 - ZW, tas, w_von=w0 - 0.5, w_bis=w0 + 0.5, n=16)
+		g.zug(r, pts, 0.005, "rand")
+		stachel(r, fw.punkt(0.72 - ZW, w0, tas(0.72 - ZW, w0)), fw.normale(0.72 - ZW, w0, 0.08) + Vector((0, 0, -0.5)), 0.03, 0.009)
 	teile.append(r.objekt())
-	teile += ir.guertel(K, 0.97, 0.06, 0.06)
+	teile += ir.guertel(K, 0.97, 0.07, 0.07, "leder")
 	return g.vereinen(teile, "x")
 
 
@@ -657,8 +697,14 @@ def axe_haende(K):
 		fa, l_ober, l_ges = ir.arm_feld(K, seite)
 		r = g.Teil("wickel")
 		wickel(r, fa, l_ober + 0.02, l_ober + 0.1, 0.01, n=3, material="leder_dunkel", breite=0.01)
+		aussen = 3 * PI / 2 if seite > 0 else PI / 2
+		for s in (l_ober + 0.16, l_ober + 0.21):
+			stachel(r, fa.punkt(s, aussen, 0.018), fa.normale(s, aussen, 0.018), 0.025, 0.008)
 		teile.append(r.objekt())
 	return g.vereinen(teile, "x")
+
+
+# ---------------- Großschwert: Söldner aus Leder und Kette (nach den Vorlagen)
 
 
 def axe_beine(K):
@@ -666,8 +712,8 @@ def axe_beine(K):
 	teile = [ob]
 	for seite in (1, -1):
 		fb, l_knie, l_ges = ir.bein_feld(K, seite)
-		r = g.Teil("kreuzband")
-		# Kreuzbänder (Wadenwickel) unter der Schiene sichtbar am Knie
+		r = g.Teil("dorn")
+		stachel(r, fb.punkt(l_knie, 0.0, 0.04), fb.normale(l_knie, 0.0, 0.04), 0.045, 0.014)
 		for k in range(3):
 			s = 0.06 + 0.03 * k
 			pts, zu = g.rand_punkte(fb, s, 0.012, n=40)
@@ -697,10 +743,10 @@ def axe_fuesse(K):
 
 def void_kopf(K):
 	"""Tiefe Kapuze mit Halbmaske aus Eisen vor Mund und Kinn."""
-	teile, f, weit = kapuze(K, "stoff_dunkel", A=0.028, gesicht=0.85, tief=0.04, saum="rand", zipfel=0.0,
+	teile, f, weit = kapuze(K, "stoff_dunkel", A=0.028, gesicht=0.85, tief=0.04, saum="rand",
 		kragen_unten=tabelle([(0, 0.52), (0.9, 0.55), (PI / 2, 0.55), (PI, 0.48)]))
 	A = 0.018
-	mo = lambda w: 1.63 + 0.1 * (g.wdiff(w, 0) / 1.2) ** 2
+	mo = lambda w: AUGE_S + 0.13 + 0.1 * (g.wdiff(w, 0) / 1.2) ** 2
 	maske = lambda s, w: A + 0.012 * math.exp(-(g.wdiff(w, 0) / 0.5) ** 2) * g.weich(s, 1.5, 1.8)
 	teile.append(blech("maske", f, mo, 2.36, maske, d=0.0025, nu=20, nw=40, w_von=-1.15, w_bis=1.15))
 	r = g.Teil("rand")
@@ -794,93 +840,205 @@ def stulpenhandschuh(K, seite, material="leder", glocke=0.026, laenge=0.12, plat
 
 
 def greatsword_kopf(K):
-	"""Offener Helm mit Wangenklappen und Nackenschutz."""
+	"""Kettenhaube mit Lederkappe und Lederband."""
 	f = ir.kopf_feld(K)
-	A = 0.026
-	kamm = lambda s, w: 0.012 * math.exp(-(math.sin(w) * math.sin(s) / 0.04) ** 2) * g.weich(-s, -1.1, -0.3)
-	teile = [blech("glocke", f, 0.0, 1.15, A, d=0.003, nu=30, nw=96, extra=kamm)]
-	r = g.Teil("rand")
-	ring(r, f, 1.15, A, 0.005, n=96, extra=kamm)
-	# Stirnschirm
-	krempe(r, f, 1.15, lambda s, w: A + 0.004, lambda w: 0.035 * math.cos(min(g.wdiff(w, 0), PI / 2)) ** 2 + 0.0005,
-		"platte", neigung=0.4, n=96, stufen=3)
-	for sg in (1, -1):
-		wk = lambda s, w: 0.02 + 0.006 * g.weich(s, 1.6, 2.1)
-		w0, w1 = (0.72, 1.6) if sg > 0 else (2 * PI - 1.6, 2 * PI - 0.72)
-		teile.append(blech("wange", f, 1.14, lambda w: 2.12 - 0.15 * abs(w - (w0 if sg > 0 else w1)) * 0, wk, d=0.003,
-			nu=20, nw=16, w_von=w0, w_bis=w1))
-		pts, _ = g.rand_punkte(f, 2.12, wk, w_von=w0, w_bis=w1, n=16)
-		g.zug(r, pts, 0.004, "rand")
-		for s in (1.4, 1.85):
-			g.niete(r, f.punkt(s, (w0 + w1) / 2, wk(s, 0) + 0.002), f.normale(s, (w0 + w1) / 2, wk(s, 0)), 0.005)
-	nk = lambda s, w: A + 0.03 * g.weich(s, 1.3, 1.95)
-	teiles = blech("nacken", f, 1.14, 1.95, nk, d=0.003, nu=16, nw=30, w_von=PI - 1.05, w_bis=PI + 1.05)
-	pts, _ = g.rand_punkte(f, 1.95, nk, w_von=PI - 1.05, w_bis=PI + 1.05, n=30)
-	g.zug(r, pts, 0.004, "rand")
-	teile += [teiles, r.objekt()]
+	A = 0.012
+	t = g.Teil("kettenhaube")
+	g.platte(t, f, 0.0, 1.45, A, nu=24, nw=96, material_name="kette")
+	g.platte(t, f, 1.45, 2.45, A, nu=26, nw=60, w_von=0.9, w_bis=2 * PI - 0.9, material_name="kette")
+	g.platte(t, f, 2.18, 2.45, A, nu=8, nw=24, w_von=-0.92, w_bis=0.92, material_name="kette")
+	teile = [obj(t, 60, 0.003)]
+	fr = ir.rumpf_feld(K, glatt=(4, 3), konvex=1.0)
+	kt = g.Teil("kettenkragen")
+	flare = lambda s, w: 0.02 * g.weich(-s, -0.66, -0.56)
+	ku = tabelle([(0, 0.58), (0.9, 0.62), (PI / 2, 0.6), (2.3, 0.62), (PI, 0.59)])
+	g.platte(kt, fr, ku, 0.78, 0.014, nu=16, nw=96, extra=flare, material_name="kette")
+	teile.append(obj(kt, 60, 0.003))
+	r = g.Teil("leder")
+	pts, zu = g.rand_punkte(fr, ku, 0.014, n=120, extra=flare)
+	g.zug(r, pts, 0.004, "leder", zu=zu, flach=0.5)
+	gs = [f.punkt(s, -0.9, A + 0.002) for s in np.linspace(2.18, 1.45, 20)] + \
+		[f.punkt(1.45, w, A + 0.002) for w in np.linspace(-0.9, 0.9, 20)[1:-1]] + \
+		[f.punkt(s, 0.9, A + 0.002) for s in np.linspace(1.45, 2.18, 20)]
+	g.zug(r, gs, 0.005, "leder", flach=0.6)
+	# Lederkappe mit vier Nähten und Stirnband
+	kp = g.Teil("lederkappe")
+	g.platte(kp, f, 0.0, 1.25, 0.024, nu=20, nw=96, material_name="leder_dunkel")
+	teile.append(obj(kp, 50, 0.005))
+	ring(r, f, 1.25, 0.026, 0.009, "leder", flach=0.4, n=96)
+	for k in range(4):
+		w = k * PI / 2 + PI / 4
+		pts = [f.punkt(s, w, 0.0245) for s in np.linspace(0.05, 1.22, 14)]
+		g.zug(r, pts, 0.003, "leder", flach=0.5)
+	teile.append(r.objekt())
 	return g.vereinen(teile, "x")
 
 
 def greatsword_brust(K):
-	teile, _ = ir.wams(K, "stoff", 0.006, unten_z=0.68, kragen_z=1.53, aermel_bis=1.0, steppung=0.004, weite=0.04,
-		aermel_abstand=0.007, puff=0.012)
-	b, f = vernietet(K, 0.03, "stoff_akzent", unten_z=0.92)
+	# Gesteppter Waffenrock mit langem Schoß, darüber Kettenhemd
+	teile, fw = ir.wams(K, "stoff", 0.008, unten_z=0.52, kragen_z=1.53, aermel_bis=1.0, steppung=0.005, weite=0.06,
+		aermel_abstand=0.007)
+	kette, _ = ir.wams(K, "kette", 0.016, unten_z=0.74, kragen_z=1.5, aermel_bis=0.45, weite=0.05, aermel_abstand=0.012,
+		name="kettenhemd")
+	teile += kette
+	# Lederkürass vorne und hinten mit Kragen
+	b, f = vernietet(K, 0.036, "leder_dunkel", unten_z=0.93, nieten=False)
 	teile += b
-	teile += ir.guertel(K, 0.97, 0.05, 0.05)
+	r = g.Teil("riemen")
+	# Kreuzriemen auf der Brust (wie in der Vorlage), mit Schnallen
+	for (s, w0, w1) in ((0.36, -0.55, 0.35), (0.3, -0.35, 0.55)):
+		pts = [f.punkt(s + 0.08 * u, w0 + (w1 - w0) * u, 0.04) for u in np.linspace(0, 1, 12)]
+		g.zug(r, pts, 0.012, "leder", flach=0.25, aussen=lambda p: (p - f.achse.punkt(p.z - Z0)).normalized())
+	for sg in (1, -1):
+		g.niete(r, f.punkt(0.4, sg * 0.12, 0.045), f.normale(0.4, sg * 0.12, 0.04), 0.009, "rand")
+	# Seitliche Schnallen
+	for sg in (1, -1):
+		for z in (0.25, 0.4):
+			p = f.punkt(z, sg * 1.5, 0.042)
+			g.zug(r, [p + Vector((0, 0.015, 0)), p + Vector((0, -0.015, 0))], 0.009, "leder", flach=0.3)
+			g.niete(r, p, f.normale(z, sg * 1.5, 0.04), 0.007, "rand")
+	# Stehkragen aus Leder
+	kr = lambda s, w: 0.03 + 0.012 * g.weich(s, 0.76, 0.86)
+	teile.append(blech("kragen", f, 0.74, lambda w: 0.86 - 0.03 * (1 - g.wdiff(w, 0) / PI), kr, d=0.006, nu=8, nw=80,
+		w_von=0.45, w_bis=2 * PI - 0.45, material_name="leder"))
+	# Schwertgehänge schräg über die Brust
+	t, vorne, fr = schraeg_riemen(K, 0.05, 0.02, "leder", links_oben=False)
+	teile.append(t.objekt())
+	# Linke Schulter aus Eisen (mit Lamellen), rechte aus Leder
+	teile += ir._schulter(K, 1)
+	fs = ir.schulter_feld(K, -1)
+	aussen = 3 * PI / 2
+	bis = lambda w: 0.95 + 0.55 * (1 - (g.wdiff(w, aussen) / PI) ** 2)
+	teile.append(blech("lederschulter", fs, 0.0, bis, 0.035, d=0.006, nu=20, nw=72, material_name="leder"))
+	pts, zu = g.rand_punkte(fs, bis, 0.035, n=120)
+	g.zug(r, pts, 0.004, "leder_dunkel", zu=zu, flach=0.6)
+	teile.append(r.objekt())
+	teile += ir.guertel(K, 0.96, 0.055, 0.055)
 	return g.vereinen(teile, "x")
 
 
 def greatsword_haende(K):
 	teile = []
 	for seite in (1, -1):
-		teile += stulpenhandschuh(K, seite, "leder", 0.02, 0.13, platte=True)
+		teile.append(ir.handschuh(K, seite, "leder_dunkel", 0.003, 0.05))
+		teile += ir.armschiene_leder(K, seite, 0.012, True)
+		hf, rw = hand_feld(K, seite)
+		teile.append(blech("handplatte", hf, 0.012, hf.achse.laenge() - 0.005, 0.009, d=0.002, nu=6, nw=14,
+			w_von=rw - 1.0, w_bis=rw + 1.0))
 	return g.vereinen(teile, "x")
 
 
 def greatsword_beine(K):
-	teile = ir.hose(K, "stoff", 0.008, bein_extra=steppnaht(0.045, 0.003))
+	teile = ir.hose(K, "stoff_dunkel", 0.006)
 	for seite in (1, -1):
-		teile += kniekachel(K, seite, 0.02, 1.5)
+		fb, l_knie, l_ges = ir.bein_feld(K, seite)
+		# Lederbeinschienen vom Knie bis zum Rist, mit Riemen und Schnallen (Vorlage Lederrüstung)
+		teile.append(blech("lederschiene", fb, l_knie - 0.07, l_ges - 0.13, 0.024, d=0.006, nu=24, nw=28,
+			w_von=-1.55, w_bis=1.55, material_name="leder_dunkel"))
+		r = g.Teil("riemen")
+		pts, _ = g.rand_punkte(fb, l_knie - 0.07, 0.025, w_von=-1.55, w_bis=1.55, n=28)
+		g.zug(r, pts, 0.004, "leder", flach=0.6)
+		for k in range(4):
+			s = l_knie - 0.03 + (l_ges - 0.2 - l_knie) * k / 3
+			ring(r, fb, s, 0.02, 0.007, "leder", flach=0.35, n=48)
+			aussen = 3 * PI / 2 if seite > 0 else PI / 2
+			g.niete(r, fb.punkt(s, aussen, 0.027), fb.normale(s, aussen, 0.027), 0.008, "rand")
+		# Nieten auf der Schiene
+		for k in range(5):
+			s = l_knie + 0.02 + (l_ges - 0.2 - l_knie) * k / 4
+			g.nieten_reihe(r, fb, s, 0.025, [-0.9, -0.3, 0.3, 0.9], 0.005)
+		teile.append(r.objekt())
+		teile += kniekachel(K, seite, 0.03, 1.3, "leder")
 	return g.vereinen(teile, "x")
 
 
 def greatsword_fuesse(K):
 	teile = []
 	for seite in (1, -1):
-		teile.append(ir.stiefel(K, seite, "leder_dunkel", 0.009, 0.36))
-		teile.append(umschlag(K, seite, 0.36, 0.026, "leder_dunkel", 0.05))
+		teile.append(ir.stiefel(K, seite, "leder_dunkel", 0.008, 0.13))
 		fb, l_knie, l_ges = ir.bein_feld(K, seite)
 		r = g.Teil("riemen")
-		for s in (l_ges - 0.08, l_ges - 0.2):
-			ring(r, fb, s, 0.016, 0.006, "leder", flach=0.35, n=48)
+		ring(r, fb, l_ges - 0.08, 0.014, 0.006, "leder", flach=0.35, n=48)
 		teile.append(r.objekt())
 	return g.vereinen(teile, "x")
+
+
+# ---------------- Speer: korinthischer (spartanischer) Helm
 
 
 # ---------------- Speer: Wachsoldat
 
 
 def spear_kopf(K):
-	"""Eisenhut: runde Glocke mit breiter, leicht hängender Krempe, Kinnriemen."""
 	f = ir.kopf_feld(K)
-	A = 0.03
-	kamm = lambda s, w: 0.008 * math.exp(-(math.sin(w) * math.sin(s) / 0.04) ** 2) * g.weich(-s, -1.0, -0.2)
-	teile = [blech("glocke", f, 0.0, 1.08, A, d=0.003, nu=30, nw=96, extra=kamm)]
-	r = g.Teil("krempe")
-	aussen = krempe(r, f, 1.08, A, 0.075, "platte", neigung=0.35, n=96, stufen=5)
-	teile.append(obj(r, 40, 0.003))
-	rr = g.Teil("rand")
-	g.zug(rr, aussen, 0.005, "rand", zu=True)
-	ring(rr, f, 1.06, A + 0.002, 0.004, n=96)
-	for sg in (1, -1):
-		pts = [f.punkt(s, sg * 1.5 + sg * (s - 1.1) * 0.0, 0.012) for s in np.linspace(1.1, 2.35, 20)]
-		pts += [f.punkt(2.35, sg * w, 0.012) for w in np.linspace(1.5, 0.0, 12)[1:]]
-		g.zug(rr, pts, 0.006, "leder_dunkel", flach=0.3, aussen=lambda p: (p - f.c).normalized())
-	for k in range(16):
-		w = 2 * PI * k / 16
-		g.niete(rr, f.punkt(1.0, w, A + 0.002), f.normale(1.0, w, A), 0.004)
-	teile.append(rr.objekt())
+	A = 0.024
+	auge_o, auge_u = AUGE_S - 0.1, AUGE_S + 0.09
+	glocke = lambda s, w: A + 0.012 * g.weich(-s, -1.2, -0.3)
+	# Wangenstücke schwingen nach vorne zum Kinn
+	wange = lambda s, w: 0.012 * g.weich(s, 1.8, 2.3) * math.exp(-(g.wdiff(w, 0) / 1.0) ** 2)
+	ab = lambda s, w: glocke(s, w) + wange(s, w)
+	teile = []
+	t = g.Teil("helm")
+	g.platte(t, f, 0.0, auge_o, ab, nu=36, nw=96)
+	# Augenhöhe: nur Nasal und Seiten
+	g.platte(t, f, auge_o, auge_u, ab, nu=8, nw=60, w_von=0.72, w_bis=2 * PI - 0.72)
+	g.platte(t, f, auge_o, 1.98, ab, nu=12, nw=6, w_von=-0.09, w_bis=0.09)
+	# Wangen bis zum Kinn, vorne ein schmaler Spalt für Mund und Kinn
+	unten = lambda w: 2.42 - 0.12 * math.exp(-(g.wdiff(w, PI) / 0.9) ** 2)
+	g.platte(t, f, auge_u, unten, ab, nu=26, nw=72, w_von=0.2, w_bis=2 * PI - 0.2)
+	teile.append(obj(t, 30, 0.003))
+	r = g.Teil("rand")
+	# Randwülste um die T-Öffnung
+	kontur = [f.punkt(s, 0.2, ab(s, 0.2)) for s in np.linspace(2.4, auge_u, 16)]
+	kontur += [f.punkt(auge_u, w, ab(auge_u, w)) for w in np.linspace(0.2, 0.72, 10)[1:]]
+	kontur += [f.punkt(s, 0.72, ab(s, 0.72)) for s in np.linspace(auge_u, auge_o, 8)[1:]]
+	kontur += [f.punkt(auge_o, w, ab(auge_o, w)) for w in np.linspace(0.72, 0.09, 12)[1:]]
+	kontur += [f.punkt(s, 0.09, ab(s, 0.09)) for s in np.linspace(auge_o, 1.98, 12)[1:]]
+	kontur += [f.punkt(1.98, w, ab(1.98, w)) for w in np.linspace(0.09, -0.09, 4)[1:]]
+	links = kontur
+	rechts = []
+	for p in reversed(kontur[:-3]):
+		q = p.copy()
+		q.x = -q.x
+		rechts.append(q)
+	g.zug(r, links + rechts, 0.004, "rand")
+	pts, _ = g.rand_punkte(f, unten, ab, w_von=0.2, w_bis=2 * PI - 0.2, n=96)
+	g.zug(r, pts, 0.005, "rand")
+	# Helmbusch: Kamm aus Rosshaar von der Stirn bis in den Nacken
+	busch = g.Teil("busch")
+	for k in range(5):
+		dx = 0.006 * (k - 2)
+		mitte, hoehen = [], []
+		for u in np.linspace(0, 1, 44):
+			phi = -0.95 + 2.6 * u          # negativer Winkel = Stirnseite, positiver = Nacken
+			s, w = (abs(phi), 0.0) if phi < 0 else (phi, PI)
+			h = (0.012 + 0.07 * math.sin(min(1.0, u * 1.05) * PI) ** 0.5) * (1 - 0.15 * abs(k - 2))
+			basis = f.punkt(s, w, ab(s, w) + 0.006)
+			n = (basis - f.c).normalized()
+			mitte.append(basis + n * h * 0.5 + Vector((dx, 0, 0)))
+			hoehen.append(h * 0.5)
+		hh = hoehen
+		pts = mitte
+		links, rechts = [], []
+		for i, p in enumerate(pts):
+			n = (p - f.c).normalized()
+			links.append(busch.vert(p + n * hh[i]))
+			rechts.append(busch.vert(p - n * hh[i]))
+		for i in range(len(pts) - 1):
+			busch.flaeche([links[i], rechts[i], rechts[i + 1], links[i + 1]], "stoff_akzent")
+	teile.append(obj(busch, 60, 0.004))
+	# Halter des Busches
+	pts = []
+	for u in np.linspace(0, 1, 30):
+		phi = -0.9 + 2.5 * u
+		s, w = (abs(phi), 0.0) if phi < 0 else (phi, PI)
+		pts.append(f.punkt(s, w, ab(s, w) + 0.004))
+	g.zug(r, pts, 0.008, "rand", flach=0.6, aussen=lambda p: Vector((1, 0, 0)))
+	teile.append(r.objekt())
 	return g.vereinen(teile, "x")
+
+
+# ---------------- Eismagie: Robe wie die anderen Elementarmagier, Schulterplatte und Metallgürtel
 
 
 def schuppen(hoehe=0.03, anzahl=36, tiefe=0.0055):
@@ -960,75 +1118,65 @@ def spear_fuesse(K):
 
 
 def ice_kopf(K):
-	"""Pelzmütze mit Ohrenklappen."""
-	f = ir.kopf_feld(K)
-	ab, H, R = topf_flaeche(f, 0.03, rund=0.03, hoeher=0.03)
-	zott = lambda s, w: 0.002 * math.sin(w * 31 + s * 23) * math.sin(w * 7 - s * 11) * g.weich(s, 0.1, 0.4)
-	teile = [blech("muetze", f, 0.0, 1.12, lambda s, w: ab(s, w) + zott(s, w), d=0.006, nu=36, nw=96, material_name="fell")]
-	r = g.Teil("rand")
-	pts, zu = g.rand_punkte(f, 1.12, ab, n=96)
-	pelzrand(r, pts, zu, 0.03)
-	for sg in (1, -1):
-		w0, w1 = (1.05, 2.15) if sg > 0 else (2 * PI - 2.15, 2 * PI - 1.05)
-		k = lambda s, w: 0.028 + zott(s, w)
-		teile.append(blech("ohrklappe", f, 1.12, lambda w: 2.0 - 0.25 * (abs(w - (w0 + w1) / 2) / 0.55) ** 2, k, d=0.008,
-			nu=14, nw=16, w_von=w0, w_bis=w1, material_name="fell"))
-	teile.append(r.objekt())
+	teile, f, weit = kapuze(K, "stoff", A=0.026, gesicht=0.9, tief=0.025, saum="futter",
+		kragen_unten=tabelle([(0, 0.5), (PI / 2, 0.52), (PI, 0.46)]))
 	return g.vereinen(teile, "x")
 
 
 def ice_brust(K):
-	teile, _ = ir.wams(K, "kette", 0.012, unten_z=0.62, kragen_z=1.5, aermel_bis=0.5, weite=0.04, aermel_abstand=0.01,
-		name="kette")
-	mantel, f = ir.wams(K, "stoff", 0.03, unten_z=0.40, kragen_z=1.52, aermel_bis=1.0, weite=0.1, aermel_abstand=0.022,
-		offen=0.16, manschette=0.012, z0=0.38, name="mantel")
-	teile += mantel
-	r = g.Teil("pelz")
-	# Pelzkragen und Pelzbesatz an Vorderkanten und Saum
-	fk = ir.wams_feld(K)
-	pts, zu = g.rand_punkte(fk, 1.47 - ZW, lambda s, w: 0.05, n=72)
-	pelzrand(r, pts, zu, 0.045)
-	for w in (0.16, 2 * PI - 0.16):
-		pts = [f.punkt(s, w, 0.03 + 0.1 * g.weich(-s - ZW, -0.95, -0.40)) for s in np.linspace(0.40 - ZW, 1.44 - ZW, 40)]
-		pelzrand(r, pts, False, 0.022)
-	pts, zu = g.rand_punkte(f, 0.405 - ZW, lambda s, w: 0.13, n=96, w_von=0.16, w_bis=2 * PI - 0.16)
-	pelzrand(r, pts, False, 0.022)
+	teile, f = ir.wams(K, "stoff", 0.02, unten_z=0.10, kragen_z=1.54, aermel_bis=1.0, weite=0.07, z0=0.08,
+		aermel_abstand=0.01, manschette=0.03, rock_ab=0.95)
+	r = g.Teil("saum")
+	pts, zu = g.rand_punkte(f, 0.105 - ZW, lambda s, w: 0.02 + 0.07 + 0.003, n=120)
+	g.zug(r, pts, 0.008, "futter", zu=zu, flach=0.5)
 	for seite in (1, -1):
 		fa, l_ober, l_ges = ir.arm_feld(K, seite, konvex=0.5)
-		pts, zu = g.rand_punkte(fa, l_ges - 0.02, 0.036, n=48)
-		pelzrand(r, pts, zu, 0.02)
+		pts, zu = g.rand_punkte(fa, l_ges - 0.004, 0.04 + 0.002, n=48)
+		g.zug(r, pts, 0.007, "futter", zu=zu, flach=0.5)
 	teile.append(r.objekt())
-	teile += ir.guertel(K, 0.98, 0.05, 0.075)
+	# Eiserne Schulterplatte links (mit Lamellen)
+	teile += ir._schulter(K, 1)
+	# Breiter Metallgürtel aus Platten
+	fw = ir.wams_feld(K)
+	A = 0.04
+	gt = g.Teil("metallguertel")
+	teile.append(blech("guertel", fw, 0.93 - ZW, 1.05 - ZW, A, d=0.004, nu=6, nw=96))
+	ring(gt, fw, 0.93 - ZW, A + 0.002, 0.005, n=96)
+	ring(gt, fw, 1.05 - ZW, A + 0.002, 0.005, n=96)
+	for k in range(12):
+		w = 2 * PI * k / 12
+		for z in (0.96, 1.02):
+			g.niete(gt, fw.punkt(z - ZW, w, A + 0.001), fw.normale(z - ZW, w, A), 0.006)
+	# Schnallenplatte vorne
+	teile.append(blech("schliesse", fw, 0.92 - ZW, 1.06 - ZW, A + 0.008, d=0.004, nu=4, nw=8, w_von=-0.28, w_bis=0.28))
+	teile.append(gt.objekt())
 	return g.vereinen(teile, "x")
 
 
 def ice_haende(K):
 	teile = []
 	for seite in (1, -1):
-		teile.append(faeustling(K, seite, "leder", 0.008, 0.09))
-		fa, l_ober, l_ges = ir.arm_feld(K, seite, konvex=0.8)
-		r = g.Teil("pelz")
-		pts, zu = g.rand_punkte(fa, l_ges - 0.08, 0.016, n=48)
-		pelzrand(r, pts, zu, 0.024)
-		teile.append(r.objekt())
+		teile += stulpenhandschuh(K, seite, "leder", 0.012, 0.09, platte=True)
 	return g.vereinen(teile, "x")
 
 
 def ice_beine(K):
-	return g.vereinen(ir.hose(K, "stoff_dunkel", 0.012, bein_extra=steppnaht(0.05, 0.004)), "x")
+	return g.vereinen(ir.hose(K, "stoff_dunkel", 0.004), "x")
 
 
 def ice_fuesse(K):
 	teile = []
 	for seite in (1, -1):
-		teile.append(ir.stiefel(K, seite, "fell", 0.019, 0.28, weite=0.02))
+		teile.append(ir.stiefel(K, seite, "leder", 0.009, 0.24))
 		fb, l_knie, l_ges = ir.bein_feld(K, seite)
-		r = g.Teil("rand")
-		pts, zu = g.rand_punkte(fb, l_ges - 0.3, 0.036, n=48)
-		pelzrand(r, pts, zu, 0.026)
-		ring(r, fb, l_ges - 0.1, 0.017, 0.006, "leder_dunkel", flach=0.35, n=48)
+		r = g.Teil("riemen")
+		ring(r, fb, l_ges - 0.1, 0.015, 0.006, "leder_dunkel", flach=0.35, n=48)
+		ring(r, fb, l_ges - 0.2, 0.014, 0.006, "leder_dunkel", flach=0.35, n=48)
 		teile.append(r.objekt())
 	return g.vereinen(teile, "x")
+
+
+# ---------------- Degen, Muskete ohne Feder; Armbrust mit Lederkapuze
 
 
 # ================================================================ LEICHT BIS MITTEL (L/M/L/M/L)
@@ -1076,16 +1224,13 @@ def hut(K, material="stoff_dunkel", hoehe=0.06, breite=0.08, hoch_links=0.0, fed
 
 
 def rapier_kopf(K):
-	"""Barett: weiche, flache Mütze, zur linken Seite gezogen, mit Feder."""
 	f = ir.kopf_feld(K)
-	puff = lambda s, w: 0.012 + 0.05 * math.sin(min(1.0, s / 1.12) * PI) ** 0.8 * (0.75 + 0.35 * math.cos(w - PI / 2)) \
-		+ 0.02 * (1 - min(1.0, s / 1.12)) ** 2 * 0
+	puff = lambda s, w: 0.012 + 0.05 * math.sin(min(1.0, s / 1.12) * PI) ** 0.8 * (0.75 + 0.35 * math.cos(w - PI / 2))
 	flach = lambda s, w: puff(s, w) - 0.035 * max(0.0, 1 - s / 0.5) ** 2
 	teile = [blech("barett", f, 0.0, 1.12, flach, d=0.004, nu=30, nw=96, material_name="stoff_akzent")]
 	r = g.Teil("band")
 	ring(r, f, 1.1, 0.012, 0.009, "stoff_dunkel", flach=0.5, n=96)
 	p0 = f.punkt(0.95, PI / 2 + 0.3, 0.05)
-	feder(r, p0, Vector((0.3, 0.9, 0.1)), Vector((0.3, 0, 1)), 0.26, 0.03)
 	g.niete(r, p0, Vector((1, 0, 0.2)), 0.012, "rand")
 	teile.append(r.objekt())
 	return g.vereinen(teile, "x")
@@ -1132,7 +1277,7 @@ def rapier_fuesse(K):
 
 
 def bow_kopf(K):
-	teile, f, weit = kapuze(K, "stoff", A=0.024, gesicht=0.92, zipfel=0.06, saum="leder",
+	teile, f, weit = kapuze(K, "stoff", A=0.024, gesicht=0.92, saum="leder",
 		kragen_unten=tabelle([(0, 0.36), (0.9, 0.36), (PI / 2, 0.34), (2.4, 0.3), (PI, 0.28)]), kragen_weite=0.05)
 	return g.vereinen(teile, "x")
 
@@ -1181,22 +1326,12 @@ def bow_fuesse(K):
 
 
 def crossbow_kopf(K):
-	"""Lederkappe mit Ohrklappen und Kinnriemen."""
-	kp, f = kappe(K, "leder", 0.014, 1.25, d=0.005)
-	teile = [kp]
-	r = g.Teil("naht")
-	for k in range(4):
-		w = k * PI / 2
-		pts = [f.punkt(s, w, 0.0145) for s in np.linspace(0.05, 1.22, 16)]
-		g.zug(r, pts, 0.003, "leder_dunkel", flach=0.5)
-	ring(r, f, 1.24, 0.015, 0.006, "leder_dunkel", flach=0.5, n=96)
-	for sg in (1, -1):
-		w0, w1 = (1.1, 2.1) if sg > 0 else (2 * PI - 2.1, 2 * PI - 1.1)
-		teile.append(blech("ohrklappe", f, 1.24, lambda w: 1.98 - 0.3 * (abs(w - (w0 + w1) / 2) / 0.5) ** 2, 0.016, d=0.005,
-			nu=12, nw=14, w_von=w0, w_bis=w1, material_name="leder"))
-		g.zug(r, [f.punkt(1.95, (w0 + w1) / 2, 0.02), f.punkt(2.3, sg * 0.9, 0.012), f.punkt(2.4, 0.0, 0.012)], 0.004, "leder_dunkel")
-	teile.append(r.objekt())
+	teile, f, weit = kapuze(K, "leder", A=0.022, gesicht=0.92, saum="leder_dunkel",
+		kragen_unten=tabelle([(0, 0.56), (PI / 2, 0.58), (PI, 0.54)]))
 	return g.vereinen(teile, "x")
+
+
+# ---------------- Lebensmagie: weiße Robe mit Überwurf (Vorlage Heiler)
 
 
 def crossbow_brust(K):
@@ -1249,7 +1384,7 @@ def crossbow_fuesse(K):
 
 
 def musket_kopf(K):
-	return hut(K, "stoff_dunkel", 0.065, 0.095, hoch_links=0.07)
+	return hut(K, "stoff_dunkel", 0.065, 0.095, hoch_links=0.07, feder_an=False)
 
 
 def musket_brust(K):
@@ -1303,43 +1438,68 @@ def musket_fuesse(K):
 
 
 def life_kopf(K):
-	"""Leinenhaube: eng anliegend, Gesicht frei, unter dem Kinn gebunden."""
-	f = ir.kopf_feld(K)
-	A = 0.01
-	t = g.Teil("haube")
-	g.platte(t, f, 0.0, 1.2, A, nu=24, nw=96, material_name="futter")
-	g.platte(t, f, 1.2, 2.25, A, nu=20, nw=60, w_von=0.9, w_bis=2 * PI - 0.9, material_name="futter")
-	teile = [obj(t, 60, 0.003)]
-	r = g.Teil("band")
-	gs = [f.punkt(s, -0.9, A + 0.002) for s in np.linspace(2.25, 1.2, 20)] + \
-		[f.punkt(1.2, w, A + 0.002) for w in np.linspace(-0.9, 0.9, 20)[1:-1]] + \
-		[f.punkt(s, 0.9, A + 0.002) for s in np.linspace(1.2, 2.25, 20)]
-	g.zug(r, gs, 0.005, "stoff_akzent", flach=0.5)
-	pts, _ = g.rand_punkte(f, 2.25, A + 0.001, w_von=0.9, w_bis=2 * PI - 0.9, n=60)
-	g.zug(r, pts, 0.004, "stoff_akzent", flach=0.5)
-	g.zug(r, [f.punkt(2.2, 0.95, A + 0.002), f.punkt(2.42, 0.4, 0.008), f.punkt(2.45, 0.0, 0.01),
-		f.punkt(2.42, -0.4, 0.008), f.punkt(2.2, -0.95, A + 0.002)], 0.004, "futter")
+	"""Zurückgeschlagene Kapuze und Schaltuch um Hals und Schultern."""
+	fr = ir.rumpf_feld(K, glatt=(4, 3), konvex=1.0)
+	teile = []
+	# Schaltuch: weite Rolle um den Hals
+	r = g.Teil("schal")
+	for k in range(3):
+		pts, zu = g.rand_punkte(fr, lambda w, k=k: 0.68 + 0.035 * k - 0.06 * math.cos(w) ** 2 * (w % (2 * PI) < PI / 2 or w % (2 * PI) > 3 * PI / 2),
+			lambda s, w, k=k: 0.035 + 0.012 * k, n=96)
+		g.zug(r, pts, 0.026 - 0.004 * k, "futter", zu=zu, seg=10, flach=0.7)
 	teile.append(r.objekt())
+	# zurückgeschlagene Kapuze liegt im Nacken
+	fw = ir.wams_feld(K)
+	t = g.Teil("kapuze_liegend")
+	bauch = lambda s, w: 0.05 + 0.05 * math.sin(min(1.0, max(0.0, (s - (1.24 - ZW)) / 0.28)) * PI) * math.cos(min(1.0, g.wdiff(w, PI) / 0.75) * PI / 2) ** 0.7
+	g.platte(t, fw, lambda w: 1.24 - ZW + 0.08 * (g.wdiff(w, PI) / 0.75) ** 2, 1.52 - ZW, bauch, nu=16, nw=24, w_von=PI - 0.75, w_bis=PI + 0.75, material_name="futter")
+	teile.append(obj(t, 60, 0.004))
+	rr = g.Teil("saum")
+	pts, _ = g.rand_punkte(fw, lambda w: 1.24 - ZW + 0.08 * (g.wdiff(w, PI) / 0.75) ** 2, lambda s, w: bauch(s, w) + 0.002, w_von=PI - 0.75, w_bis=PI + 0.75, n=24)
+	g.zug(rr, pts, 0.005, "stoff_akzent", flach=0.5)
+	teile.append(rr.objekt())
 	return g.vereinen(teile, "x")
 
 
 def life_brust(K):
-	teile, f = ir.wams(K, "futter", 0.01, unten_z=0.56, kragen_z=1.54, aermel_bis=1.0, steppung=0.004, weite=0.07,
-		aermel_abstand=0.007, manschette=0.008)
-	r = g.Teil("stola")
-	nrm = lambda p: (p - f.achse.punkt(p.z - ZW)).normalized()
-	for sg in (1, -1):
-		pfad = [(1.5 - ZW, sg * 1.2), (1.48 - ZW, sg * 0.75)] + [(s, sg * 0.32) for s in np.linspace(1.4 - ZW, 0.62 - ZW, 24)]
-		pts = [f.punkt(s, w, 0.022 + 0.07 * g.weich(-s - ZW, -0.95, -0.62)) for s, w in pfad]
-		blatt(r, pts, lambda u: 0.035, nrm, "stoff_akzent")
-	pts, _ = g.rand_punkte(f, 1.5 - ZW, 0.02, w_von=1.2, w_bis=2 * PI - 1.2, n=40)
-	blatt(r, pts, lambda u: 0.03, lambda p: Vector((0, 0, 1)).cross((p - f.achse.punkt(p.z - ZW))).cross(Vector((0, 0, 1))).normalized() * 0 + Vector((0, 0, 1)), "stoff_akzent")
-	teile.append(obj(r, 60, 0.003))
-	teile += ir.guertel(K, 0.97, 0.04, 0.05, "leder")
+	teile, f = ir.wams(K, "futter", 0.02, unten_z=0.10, kragen_z=1.54, aermel_bis=1.0, weite=0.06, z0=0.08,
+		aermel_abstand=0.01, manschette=0.025, rock_ab=0.95)
+	r = g.Teil("saum")
+	pts, zu = g.rand_punkte(f, 0.105 - ZW, lambda s, w: 0.02 + 0.06 + 0.003, n=120)
+	g.zug(r, pts, 0.008, "stoff_akzent", zu=zu, flach=0.5)
+	# Überwurf: Mantel über den Schultern, vorne offen, fällt bis unter das Knie
+	fw = ir.wams_feld(K, 0.38)
+	weite = lambda s, w: 0.04 + 0.1 * g.weich(-(s + 0.12) - ZW, -0.95, -0.40)
+	oben = tabelle([(0, 1.44), (1.0, 1.5), (PI / 2, 1.53), (PI, 1.52)])
+	t = g.Teil("ueberwurf")
+	g.platte(t, fw, lambda w: 0.42 - ZW + 0.06 * math.cos(g.wdiff(w, PI) / 2) ** 2, lambda w: oben(w) - ZW, weite, nu=56,
+		nw=80, w_von=0.42, w_bis=2 * PI - 0.42, material_name="futter")
+	teile.append(obj(t, 60, 0.004))
+	for w in (0.42, 2 * PI - 0.42):
+		pts = [fw.punkt(s, w, weite(s, w) + 0.003) for s in np.linspace(0.44 - ZW, oben(w) - ZW, 40)]
+		g.zug(r, pts, 0.008, "stoff_akzent", flach=0.4)
+	pts, _ = g.rand_punkte(fw, lambda w: 0.42 - ZW + 0.06 * math.cos(g.wdiff(w, PI) / 2) ** 2,
+		lambda s, w: weite(s, w) + 0.003, w_von=0.42, w_bis=2 * PI - 0.42, n=80)
+	g.zug(r, pts, 0.008, "stoff_akzent", flach=0.4)
+	# Ärmelsäume
+	for seite in (1, -1):
+		fa, l_ober, l_ges = ir.arm_feld(K, seite, konvex=0.5)
+		pts, zu = g.rand_punkte(fa, l_ges - 0.004, 0.035 + 0.002, n=48)
+		g.zug(r, pts, 0.007, "stoff_akzent", zu=zu, flach=0.5)
+	# Medaillon an einer Kordel
+	fr = ir.rumpf_feld(K)
+	pts = [fr.punkt(0.74 - 0.3 * (1 - u * u), u * 0.9, 0.03) for u in np.linspace(-1, 1, 30)]
+	g.zug(r, pts, 0.003, "leder_dunkel")
+	g.niete(r, fr.punkt(0.43, 0.0, 0.035), fr.normale(0.43, 0.0, 0.03), 0.022, "rand")
+	teile.append(r.objekt())
+	# Gürtel mit großer Umhängetasche und kleinen Taschen
+	teile += ir.guertel(K, 0.97, 0.05, 0.05, "leder")
 	tt = g.Teil("taschen")
-	for w in (-0.9, 0.95, -1.5):
-		tasche(tt, f.punkt(0.9 - ZW, w, 0.075), f.normale(0.9 - ZW, w, 0.07), 0.065, 0.075, 0.028)
-	flasche(tt, f.punkt(0.93 - ZW, 1.45, 0.08), 0.028, "rand")
+	fg = ir.wams_feld(K)
+	tasche(tt, fg.punkt(0.86 - ZW, -0.45, 0.09), fg.normale(0.86 - ZW, -0.45, 0.08), 0.15, 0.13, 0.05)
+	for w in (0.75, 1.3):
+		tasche(tt, fg.punkt(0.9 - ZW, w, 0.075), fg.normale(0.9 - ZW, w, 0.07), 0.06, 0.07, 0.028)
+	flasche(tt, fg.punkt(0.93 - ZW, 1.75, 0.08), 0.028, "rand")
 	teile.append(tt.objekt())
 	return g.vereinen(teile, "x")
 
@@ -1347,37 +1507,33 @@ def life_brust(K):
 def life_haende(K):
 	teile = []
 	for seite in (1, -1):
-		teile.append(ir.handschuh(K, seite, "futter", 0.0026, 0.07))
+		teile += ir.armschiene_leder(K, seite, 0.012, False)
 		fa, l_ober, l_ges = ir.arm_feld(K, seite, konvex=0.8)
-		r = g.Teil("band")
-		ring(r, fa, l_ges - 0.06, 0.006, 0.004, "stoff_akzent", flach=0.5, n=48)
+		r = g.Teil("wickel")
+		wickel(r, fa, l_ges - 0.04, l_ges + 0.01, 0.006, n=3, material="futter", breite=0.008)
 		teile.append(r.objekt())
 	return g.vereinen(teile, "x")
 
 
 def life_beine(K):
-	teile = ir.hose(K, "stoff", 0.006)
-	for seite in (1, -1):
-		fb, l_knie, l_ges = ir.bein_feld(K, seite)
-		teile.append(blech("beinling", fb, l_knie - 0.04, l_ges - 0.1, 0.012, d=0.004, nu=20, nw=24, w_von=-1.5, w_bis=1.5,
-			material_name="leder"))
-		r = g.Teil("riemen")
-		for s in (l_knie + 0.02, l_knie + 0.15, l_ges - 0.14):
-			ring(r, fb, s, 0.013, 0.006, "leder_dunkel", flach=0.35, n=40)
-		teile.append(r.objekt())
-	return g.vereinen(teile, "x")
+	return g.vereinen(ir.hose(K, "stoff", 0.004), "x")
 
 
 def life_fuesse(K):
 	teile = []
 	for seite in (1, -1):
-		teile.append(ir.stiefel(K, seite, "leder", 0.007, 0.075))
-		ff = ir.fuss_feld(K, seite)
-		L = ff.achse.laenge()
-		r = g.Teil("schnuerung")
-		schnuerung(r, ff, L * 0.25, L * 0.62, 0.012, 0.0, 0.18, 5)
+		teile.append(ir.stiefel(K, seite, "leder", 0.009, 0.24, weite=0.012))
+		fb, l_knie, l_ges = ir.bein_feld(K, seite)
+		r = g.Teil("falten")
+		for k in range(3):
+			s = l_ges - 0.2 + 0.045 * k
+			pts, zu = g.rand_punkte(fb, lambda w, s=s: s + 0.01 * math.sin(w * 2 + k), 0.016, n=48)
+			g.zug(r, pts, 0.006, "leder", zu=zu, flach=0.5)
 		teile.append(r.objekt())
 	return g.vereinen(teile, "x")
+
+
+# ---------------- Messer: Kragen über den Riemen; Feuer: keine Wickel unter den Ärmeln
 
 
 # ================================================================ LEICHT
@@ -1387,10 +1543,10 @@ def life_fuesse(K):
 
 
 def knife_kopf(K):
-	teile, f, weit = kapuze(K, "stoff_dunkel", A=0.022, gesicht=0.9, zipfel=0.03, saum="stoff_dunkel",
-		kragen_unten=tabelle([(0, 0.5), (PI / 2, 0.52), (PI, 0.48)]), tief=0.015)
+	teile, f, weit = kapuze(K, "stoff_dunkel", A=0.022, gesicht=0.9, saum="stoff_dunkel",
+		kragen_unten=tabelle([(0, 0.5), (PI / 2, 0.52), (PI, 0.48)]), tief=0.015, kragen_ab=0.018)
 	tuch = lambda s, w: 0.008 + 0.006 * g.weich(s, 1.9, 2.3)
-	o = lambda w: 1.66 + 0.15 * (g.wdiff(w, 0) / 1.0) ** 2
+	o = lambda w: AUGE_S + 0.1 + 0.15 * (g.wdiff(w, 0) / 1.0) ** 2
 	teile.append(blech("tuch", f, o, 2.45, tuch, d=0.003, nu=16, nw=40, w_von=-1.0, w_bis=1.0, material_name="stoff_dunkel"))
 	return g.vereinen(teile, "x")
 
@@ -1459,16 +1615,16 @@ def knife_fuesse(K):
 
 
 def fire_kopf(K):
-	teile, f, weit = kapuze(K, "stoff_akzent", A=0.03, gesicht=0.85, zipfel=0.09, tief=0.035, saum="stoff_dunkel",
+	teile, f, weit = kapuze(K, "stoff_akzent", A=0.03, gesicht=0.85, tief=0.035, saum="stoff_dunkel",
 		kragen_unten=tabelle([(0, 0.48), (PI / 2, 0.5), (PI, 0.44)]))
 	return g.vereinen(teile, "x")
 
 
 def fire_brust(K):
-	teile, f = ir.wams(K, "stoff_akzent", 0.012, unten_z=0.10, kragen_z=1.54, aermel_bis=1.0, weite=0.07, z0=0.08,
+	teile, f = ir.wams(K, "stoff_akzent", 0.02, unten_z=0.10, kragen_z=1.54, aermel_bis=1.0, weite=0.07, z0=0.08,
 		aermel_abstand=0.01, manschette=0.035, rock_ab=0.95)
 	r = g.Teil("saum")
-	pts, zu = g.rand_punkte(f, 0.105 - ZW, lambda s, w: 0.012 + 0.07 + 0.003, n=120)
+	pts, zu = g.rand_punkte(f, 0.105 - ZW, lambda s, w: 0.02 + 0.07 + 0.003, n=120)
 	g.zug(r, pts, 0.008, "stoff_dunkel", zu=zu, flach=0.5)
 	for seite in (1, -1):
 		fa, l_ober, l_ges = ir.arm_feld(K, seite, konvex=0.5)
@@ -1498,15 +1654,13 @@ def fire_haende(K):
 		r = g.Teil("wickel")
 		L = hf.achse.laenge()
 		wickel(r, hf, 0.0, L - 0.01, 0.004, n=6, material="futter", breite=0.008, neigung=0.012)
-		fa, l_ober, l_ges = ir.arm_feld(K, seite, konvex=0.8)
-		wickel(r, fa, l_ges - 0.16, l_ges + 0.0, 0.006, n=8, material="futter", breite=0.009, neigung=0.016)
 		teile.append(r.objekt())
 		teile.append(fingerlos(K, seite, "futter", 0.002, 0.03))
 	return g.vereinen(teile, "x")
 
 
 def fire_beine(K):
-	return g.vereinen(ir.hose(K, "stoff_dunkel", 0.016, konvex=0.8), "x")
+	return g.vereinen(ir.hose(K, "stoff_dunkel", 0.004), "x")
 
 
 def fire_fuesse(K):
@@ -1528,7 +1682,7 @@ def fire_fuesse(K):
 
 
 def lightning_kopf(K):
-	teile, f, weit = kapuze(K, "stoff_dunkel", A=0.022, gesicht=0.95, zipfel=0.04, kragen=False, saum="rand")
+	teile, f, weit = kapuze(K, "stoff_dunkel", A=0.022, gesicht=0.95, kragen=False, saum="rand")
 	fr = ir.rumpf_feld(K, glatt=(4, 3), konvex=1.0)
 	# hoher Stehkragen, vorne offen
 	kr = lambda s, w: 0.045 + 0.05 * g.weich(s, 0.66, 0.9)
@@ -1579,11 +1733,16 @@ def lightning_haende(K):
 		teile.append(ir.handschuh(K, seite, "leder_dunkel", 0.0028, 0.06))
 		hf, rw = hand_feld(K, seite)
 		L = hf.achse.laenge()
-		teile.append(blech("knoechel", hf, L - 0.03, L + 0.004, 0.011, d=0.0025, nu=5, nw=16, w_von=rw - 1.1, w_bis=rw + 1.1))
 		r = g.Teil("nieten")
-		for k in range(4):
-			w = rw - 0.75 + 1.5 * k / 3
-			g.niete(r, hf.punkt(L - 0.013, w, 0.014), hf.normale(L - 0.013, w, 0.014), 0.0045)
+		n = "Left" if seite > 0 else "Right"
+		for fname, pts_f in ir.finger_achsen(K, seite).items():
+			if fname == "Thumb":
+				continue
+			ach = g.Achse(pts_f)
+			fa2 = g.Feld(K.bvh([n + fname], 0.5), ach, ringe=16, seg=24, r_max=0.05, konvex_anteil=1.0, glatt=(1, 1))
+			rw2 = ir._handruecken_winkel(K, seite, ach)
+			for s in (0.004, 0.03):
+				g.niete(r, fa2.punkt(s, rw2, 0.004), fa2.normale(s, rw2, 0.004), 0.0055)
 		fa, l_ober, l_ges = ir.arm_feld(K, seite, konvex=0.8)
 		ring(r, fa, l_ges - 0.05, 0.006, 0.005, "rand", flach=0.5, n=48)
 		teile.append(r.objekt())
@@ -1615,6 +1774,43 @@ def lightning_fuesse(K):
 		L = ff.achse.laenge()
 		teile.append(blech("kappe", ff, L - 0.05, L, 0.014, nu=8, nw=24, w_von=-1.5, w_bis=1.5))
 	return g.vereinen(teile, "x")
+
+
+def stachel(t, p, n, laenge=0.03, r=0.009, material="platte", seg=8, kanten=4):
+	"""Kegel (Dorn) auf der Fläche bei p in Richtung n; kanten = Grate (grob, kantig)."""
+	n = Vector(n).normalized()
+	q = n.orthogonal().normalized()
+	q2 = n.cross(q)
+	ring = []
+	for j in range(seg):
+		a = 2 * PI * j / seg
+		rr = r * (1.0 if (j * kanten // seg) % 1 == 0 and j % (seg // kanten) == 0 else 0.72)
+		ring.append(t.vert(p + (q * math.cos(a) + q2 * math.sin(a)) * rr - n * 0.004))
+	sp = t.vert(p + n * laenge)
+	c = t.vert(p - n * 0.004)
+	for j in range(seg):
+		k = (j + 1) % seg
+		t.flaeche([ring[j], ring[k], sp], material)
+		t.flaeche([ring[k], ring[j], c], material)
+
+
+def _grobe_schulter(K, seite, t_stachel):
+	"""Kantige Schulterkappe über dem Harnisch, mit Graten und Dornen."""
+	f = ir.schulter_feld(K, seite)
+	aussen = PI / 2 if seite > 0 else 3 * PI / 2
+	bis = lambda w: 0.95 + 0.7 * (1 - (g.wdiff(w, aussen) / PI) ** 2)
+	grat = lambda s, w: 0.018 * math.exp(-(g.wdiff(w, aussen) / 0.18) ** 2) * g.weich(-s, -1.4, -0.2)
+	teile = []
+	for k in range(2):
+		A = 0.055 + 0.012 * k
+		b = (lambda w, k=k: bis(w) - 0.28 * k)
+		teile.append(blech("grobe_schulter", f, 0.0, b, lambda s, w, A=A: A + grat(s, w), d=0.0035, nu=18, nw=72))
+		pts, zu = g.rand_punkte(f, b, lambda s, w, A=A: A + grat(s, w), n=96)
+		g.zug(t_stachel, pts, 0.005, "rand", zu=zu)
+	for k, s in enumerate((0.25, 0.55, 0.85)):
+		p = f.punkt(s, aussen, 0.067 + grat(s, aussen))
+		stachel(t_stachel, p, f.normale(s, aussen, 0.067) + Vector((0, 0, 0.6)), 0.05 - 0.008 * k, 0.012)
+	return teile
 
 
 # ================================================================ Zuordnung

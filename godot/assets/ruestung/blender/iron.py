@@ -237,6 +237,9 @@ def wams_feld(K, z0=0.50):
 		f = g.Feld(bvh, a, ringe=int(110 * a.laenge() / 1.12), seg=72, konvex_anteil=0.7 if z0 >= 0.5 else 1.0, glatt=(4, 3),
 			s0=0.0)
 		f.versatz = 0.5 - z0
+		if z0 < 0.5:
+			# Roben: Falten aus den Beinen glätten (weich fallender Stoff)
+			f.r = np.maximum(g.glaetten(f.r, 10, 4), g.glaetten(f.r, 3, 2))
 		return f
 	f = _cache(K, ("wams", z0), bau)
 	return f if z0 >= 0.5 else _Verschoben(f, 0.5 - z0)
@@ -487,7 +490,7 @@ def _handruecken_winkel(K, seite, achse):
 	n = "Left" if seite > 0 else "Right"
 	quer = K.gelenk(n + "LittleProximal") - K.gelenk(n + "IndexProximal")
 	lang = K.gelenk(n + "MiddleProximal") - K.gelenk(n + "Hand")
-	nr = lang.cross(quer).normalized() * (-1 if seite > 0 else 1)
+	nr = lang.cross(quer).normalized() * (1 if seite > 0 else -1)   # zeigt vom Handteller weg
 	c, t, nn, b = achse.rahmen(achse.laenge() * 0.5)
 	return math.atan2(nr.dot(b), nr.dot(nn))
 
@@ -606,8 +609,37 @@ def fuss_feld(K, seite):
 def _fuss_feld(K, seite):
 	n = "Left" if seite > 0 else "Right"
 	bvh = K.bvh_bereich(lambda x, y, z: (z < 0.11) & (x * seite > 0.04), ("fuss", seite))
-	return g.Feld(bvh, fuss_achse(K, seite), ringe=40, seg=48, r_max=0.15,
-		konvex_anteil=1.0, glatt=(3, 2))
+	f = g.Feld(bvh, fuss_achse(K, seite), ringe=40, seg=48, r_max=0.15, konvex_anteil=1.0, glatt=(3, 2))
+	# Schuhspitze: die letzten Zentimeter rund zulaufen lassen (statt abgeschnitten),
+	# oben stärker als unten, damit die Sohle flach bleibt
+	# Längs ohne Dellen (Senke zwischen Rist und Zehen füllen): obere Hülle je Winkel
+	ss = np.linspace(f.s0, f.s1, f.ringe)
+	for j in range(f.seg):
+		r = f.r[:, j]
+		huelle = []
+		for i in range(f.ringe):
+			while len(huelle) >= 2:
+				a, b = huelle[-2], huelle[-1]
+				if (ss[b] - ss[a]) * (r[i] - r[a]) - (r[b] - r[a]) * (ss[i] - ss[a]) >= 0:
+					huelle.pop()
+				else:
+					break
+			huelle.append(i)
+		f.r[:, j] = np.interp(ss, ss[huelle], r[huelle])
+	L = f.achse.laenge()
+	lang = 0.075
+	for i in range(f.ringe):
+		s = f.s0 + (f.s1 - f.s0) * i / (f.ringe - 1)
+		u = min(1.0, max(0.0, (s - (L - lang)) / lang))
+		if u <= 0:
+			continue
+		rund = math.sqrt(max(0.0, 1 - u * u))
+		for j in range(f.seg):
+			w = 2 * math.pi * j / f.seg
+			oben = 0.5 + 0.5 * math.cos(w)      # w = 0 zeigt nach oben
+			faktor = max(0.12, rund) ** (0.6 + 0.6 * oben)
+			f.r[i, j] *= faktor
+	return f
 
 
 def stiefel(K, seite, material="leder", abstand=0.006, schaft=0.16, sohle=0.008, weite=0.0, name="stiefel"):
@@ -914,7 +946,7 @@ def leicht_kopf(K):
 	"""Gugel: Kapuze mit Schulterkragen und Zipfel, Gesicht frei."""
 	f = kopf_feld(K, huelle=14)
 	A = 0.022
-	zipfel = lambda s, w: 0.05 * math.exp(-(g.wdiff(w, PI) / 0.5) ** 2) * math.exp(-((s - 0.75) / 0.35) ** 2)
+	zipfel = lambda s, w: 0.0
 	weit = lambda s, w: A + zipfel(s, w) + 0.012 * g.weich(s, 1.6, 2.4)
 	t = g.Teil("gugel")
 	g.platte(t, f, 0.0, 1.05, weit, nu=24, nw=96, material_name="stoff")
