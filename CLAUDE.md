@@ -38,7 +38,12 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
   Gewicht je Teil L 1/3/1/2/1, M 2/6/2/4/2, S 4/10/3/7/4 kg (Kopf/Brust/Hände/Beine/Füße); Gesamt ≤ 12 kg leicht, ≤ 22 kg mittel, sonst schwer.
   Geformt um den Körper aus `tools/ruestung/mensch_lesen.py` (liest `charakter/daten` wie das Spiel): Röhren um Rumpf/Arm/Bein-Achsen und Kugelfelder (Helm, Schulter),
   abgetastet per Strahl, konvex geglättet, nie unter der Haut. Materialnamen: platte, rand, niete, kette, leder, leder_dunkel, stoff, stoff_akzent, futter.
-  Noch nicht im Spiel (offen: Bindung an Körperformen und Skelett, verdeckte Haut ausblenden).
+  Passform (`tools/ruestung/`): `anpassen.py` bindet jeden Rüstungspunkt an nahe Hautpunkte (Gauß über den Mehrabstand, linear in den Körperformen,
+  dieselbe Regel rechnet die Rüstkammer in JS) und bestimmt die verdeckte Haut (5 Strahlen je Hautpunkt, Ohren ganz oder gar nicht).
+  `passform_test.py <glb-ordner> [sätze]` prüft 102 Körper (Extreme aller Regler, Zufall): sichtbar äußerste Fläche je Hautpunkt gegen den Standard-Mann.
+  `passform_bild.py` / `bilderbogen.py` rendern Sätze auf beliebigen Körpern, `vorschau_daten.py` schreibt Körperformen und verdeckte Haut für die Rüstkammer.
+  `blender/nachbearbeitung.py` (in alle.py, `NACH=0` schaltet ab): Falten auf hängendem Stoff, Mittelgrat auf Blech, leichte Unruhe, nur nach außen.
+  Noch nicht im Spiel (offen: Skelett-Bindung, Texturen nach Liste).
 - `natur/`: Bodenobjekte und tote Bäume (Blender `natur/blender/natur_modelle.py` → `natur/modelle/`: totbaum, baumstamm, stock, treibholz, alge), nur Deko.
 - Terrain3D ist ein Plugin aus der AssetLib und liegt **nicht** im Repository (muss unter `godot/addons/` installiert werden).
 - **6 Erz-Tiers:** Iron, Palladium, Mithril, Glacialore, Sungold, Darksteel. Das Repository ist der neuere Stand und hat bei Abweichungen Vorrang (Nutzerentscheidung).
