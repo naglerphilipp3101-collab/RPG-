@@ -41,7 +41,7 @@ def main():
 		for name, aus_k in KOERPER:
 			bpy.ops.wm.read_factory_settings(use_empty=True)
 			pb.satz_auf_koerper(ordner, satz, aus_k, m=m, k0=k0)
-			f = vorschau.bilder(os.path.join(aus, "_tmp"), hoehe=(-0.02, 1.95), groesse=(300, 520),
+			f = vorschau.bilder(os.path.join(aus, "_tmp_%d" % os.getpid()), hoehe=(-0.02, 2.2), groesse=(300, 580),
 				ansichten=[(25, "v")])
 			im = Image.open(f).convert("RGB")
 			ImageDraw.Draw(im).text((8, 6), name, fill=(20, 20, 20))
@@ -53,8 +53,8 @@ def main():
 		bogen.save(os.path.join(aus, "koerper_%s.png" % satz))
 		print(satz, "fertig")
 		sys.stdout.flush()
-	if os.path.exists(os.path.join(aus, "_tmp.png")):
-		os.remove(os.path.join(aus, "_tmp.png"))
+	for f in [x for x in os.listdir(aus) if x.startswith("_tmp")]:
+		os.remove(os.path.join(aus, f))
 
 
 if __name__ == "__main__":
