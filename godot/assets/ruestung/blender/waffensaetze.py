@@ -236,8 +236,8 @@ def kapuze(K, material="stoff", A=0.022, gesicht=0.95, gesicht_unten=2.45, zipfe
 		if s <= s_top:
 			return 0.0
 		if s < s_mitte:
-			return 0.88 * gesicht * math.sin(PI / 2 * (s - s_top) / (s_mitte - s_top)) ** 0.75
-		return 0.88 * gesicht + 0.25 * g.weich(s, 2.0, S_ENDE)   # unten weicht der Stoff zur Halsseite aus
+			return 0.62 * gesicht * math.sin(PI / 2 * (s - s_top) / (s_mitte - s_top)) ** 0.6
+		return 0.62 * gesicht + 0.14 * g.weich(s, 2.05, S_ENDE)   # unten weicht der Stoff zur Halsseite aus
 
 	def rand(s, w):
 		dw = max(0.0, abs(g.wdiff(w, 0)) - halb(s))
@@ -247,10 +247,11 @@ def kapuze(K, material="stoff", A=0.022, gesicht=0.95, gesicht_unten=2.45, zipfe
 	vor = 0.042 + tief
 	def weit(s, w):
 		hinten = math.exp(-(g.wdiff(w, PI) / 1.3) ** 2)
-		e = A + 0.016
+		e = A + 0.008 + 0.01 * (1 - math.exp(-(g.wdiff(w, 0) / 1.2) ** 2))   # vorne an den Wangen enger
 		e += 0.03 * hinten * g.weich(s, 0.5, 1.5)                                   # Luft am Hinterkopf
 		e += (0.022 + zipfel) * math.exp(-(g.wdiff(w, PI) / 0.45) ** 2) * math.exp(-((s - 0.5) / 0.3) ** 2)   # Spitze
-		e += vor * rand(s, w) * (1 - g.weich(s, 1.75, 2.2))                           # Krempe um das Gesicht
+		# Krempe: über der Stirn deutlich, an den Wangen nah am Gesicht (Nutzer 16.11.)
+		e += vor * rand(s, w) * (0.25 + 0.75 * math.exp(-((s - s_top) / 0.35) ** 2)) * (1 - g.weich(s, 1.75, 2.2))
 		e += 0.02 * g.weich(s, 2.0, S_ENDE) * (0.2 + 0.8 * hinten)                     # fällt hinten locker zum Kragen
 		e += 0.0035 * math.sin(w * 7) * g.weich(s, 0.9, 2.0) * (1 - rand(s, w))       # weiche Längsfalten
 		return e
@@ -258,7 +259,7 @@ def kapuze(K, material="stoff", A=0.022, gesicht=0.95, gesicht_unten=2.45, zipfe
 	def P(s, w):
 		p = f.punkt(s, w, weit(s, w))
 		# Seiten der Krempe kommen nach vorne vor die Wangen
-		p += g.VORNE * (0.03 * rand(s, w) * abs(math.sin(w)) * (1 - g.weich(s, 1.8, 2.25)))
+		p += g.VORNE * (0.012 * rand(s, w) * abs(math.sin(w)) * (1 - g.weich(s, 1.8, 2.25)))
 		return p
 
 	t = g.Teil(name)
