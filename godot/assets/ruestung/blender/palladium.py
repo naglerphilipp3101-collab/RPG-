@@ -400,7 +400,7 @@ def kapuze_diadem(K, material, saum="stoff_akzent", diadem_an=True, **kw):
 	teile, f, weit = ws.kapuze(K, material, saum=saum, **kw)
 	if diadem_an:
 		r = g.Teil("diadem")
-		diadem(r, f, lambda s, w: weit(s, w) + 0.003, 1.12)
+		diadem(r, f, 0.009, 1.22)   # Reif auf der Stirn, unter der Kapuze
 		teile.append(r.objekt())
 	return teile, f, weit
 
@@ -1727,8 +1727,7 @@ def fire_brust(K):
 		g.platte(t, fw, flamme, 1.0 - ZW, lambda s, w: 0.032 + 0.085 * g.weich(-s - ZW, -0.95, -0.35), nu=50, nw=40,
 			w_von=mitte - 0.75, w_bis=mitte + 0.75, material_name="stoff_dunkel")
 		teile.append(obj(t, 60, 0.004))
-	teile += kragen_lagen(K, 1, (0.5,), 0.03, "stoff_dunkel", gezackt_tiefe=0.06)
-	teile.append(stehkragen(K, 0.08, 0.035, "stoff_akzent", 0.4, 0.03))
+	teile += kragen_lagen(K, 1, (0.5,), 0.03, "stoff_dunkel", gezackt_tiefe=0.06)   # kein Stehkragen: die Kapuze deckt den Hals
 	teile += schaerpe(K, 0.98, -1, "stoff_dunkel")
 	return g.vereinen(teile, "x")
 

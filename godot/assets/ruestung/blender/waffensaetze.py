@@ -221,43 +221,102 @@ def tabard(K, unten_z=0.50, A=0.06, material="stoff_akzent", breite=0.95, name="
 
 def kapuze(K, material="stoff", A=0.022, gesicht=0.95, gesicht_unten=2.45, zipfel=0.0, kragen=True,
 		kragen_unten=None, saum="stoff_akzent", tief=0.0, name="kapuze", kragen_weite=0.03, kragen_ab=0.0):
-	"""Kapuze: Gesichtsöffnung |w| < gesicht, tief zieht den Rand nach vorne über die Stirn, hinten fällt sie weich.
-	kragen_unten: Tabelle für die Unterkante des Schulterkragens (None = Gugel-Standard)."""
+	"""Weite Stoffkapuze nach Referenzbildern (Nutzer 16.11.): viel Luft über und hinter dem Kopf mit weicher Spitze
+	am Hinterkopf, Spitzbogen-Öffnung, deren Rand als Krempe vor Stirn und Wangen steht und Schatten wirft,
+	unten schließen sich die Seiten unter dem Kinn und gehen in einen fallenden Schulterkragen (Gugel) mit Wulstfalten über.
+	gesicht: halbe Öffnungsbreite (Winkel) auf Augenhöhe, tief: zusätzlicher Überstand der Krempe, zipfel: größere Spitze.
+	gesicht_unten wird nicht mehr gebraucht (Kinn bleibt offen). Gibt (teile, feld, weit) zurück; weit = radialer Abstand."""
 	f = ir.kopf_feld(K, huelle=14)
-	zf = lambda s, w: zipfel * math.exp(-(g.wdiff(w, PI) / 0.5) ** 2) * math.exp(-((s - 0.75) / 0.35) ** 2)
-	vor = lambda s, w: tief * math.exp(-(g.wdiff(w, 0) / 0.9) ** 2) * g.weich(s, 0.5, 1.0)
-	# weicher Stoff: hinten am Hinterkopf etwas weiter, oben anliegend
-	fall = lambda s, w: 0.012 * math.exp(-(g.wdiff(w, PI) / 1.2) ** 2) * g.weich(s, 0.9, 1.8)
-	weit = lambda s, w: A + zf(s, w) + 0.012 * g.weich(s, 1.6, 2.4) + vor(s, w) + fall(s, w)
-	s_stirn = 1.05 - tief * 3.0
+	S_ENDE = 2.55
+	s_top = 1.1
+	s_mitte = 1.72
+
+	def halb(s):
+		"""Halbe Öffnungsbreite: Spitzbogen oben, unten unter dem Kinn enger."""
+		if s <= s_top:
+			return 0.0
+		if s < s_mitte:
+			return 0.88 * gesicht * math.sin(PI / 2 * (s - s_top) / (s_mitte - s_top)) ** 0.75
+		return 0.88 * gesicht + 0.25 * g.weich(s, 2.0, S_ENDE)   # unten weicht der Stoff zur Halsseite aus
+
+	def rand(s, w):
+		dw = max(0.0, abs(g.wdiff(w, 0)) - halb(s))
+		ds = max(0.0, s_top - s)
+		return math.exp(-(dw / 0.5) ** 2) * math.exp(-(ds / 0.32) ** 2)
+
+	vor = 0.042 + tief
+	def weit(s, w):
+		hinten = math.exp(-(g.wdiff(w, PI) / 1.3) ** 2)
+		e = A + 0.016
+		e += 0.03 * hinten * g.weich(s, 0.5, 1.5)                                   # Luft am Hinterkopf
+		e += (0.022 + zipfel) * math.exp(-(g.wdiff(w, PI) / 0.45) ** 2) * math.exp(-((s - 0.5) / 0.3) ** 2)   # Spitze
+		e += vor * rand(s, w) * (1 - g.weich(s, 1.75, 2.2))                           # Krempe um das Gesicht
+		e += 0.02 * g.weich(s, 2.0, S_ENDE) * (0.2 + 0.8 * hinten)                     # fällt hinten locker zum Kragen
+		e += 0.0035 * math.sin(w * 7) * g.weich(s, 0.9, 2.0) * (1 - rand(s, w))       # weiche Längsfalten
+		return e
+
+	def P(s, w):
+		p = f.punkt(s, w, weit(s, w))
+		# Seiten der Krempe kommen nach vorne vor die Wangen
+		p += g.VORNE * (0.03 * rand(s, w) * abs(math.sin(w)) * (1 - g.weich(s, 1.8, 2.25)))
+		return p
+
 	t = g.Teil(name)
-	g.platte(t, f, 0.0, s_stirn, weit, nu=24, nw=96, material_name=material)
-	g.platte(t, f, s_stirn, 2.45, weit, nu=28, nw=60, w_von=gesicht, w_bis=2 * PI - gesicht, material_name=material)
-	if gesicht_unten < 2.45:
-		g.platte(t, f, gesicht_unten, 2.45, weit, nu=4, nw=24, w_von=-gesicht - 0.02, w_bis=gesicht + 0.02,
-			material_name=material)
+	NU, NW = 44, 72
+	reihen = []
+	for i in range(NU + 1):
+		s = S_ENDE * i / NU
+		h = halb(s)
+		zeile = []
+		for j in range(NW + 1):
+			w = h + (2 * PI - 2 * h) * j / NW
+			zeile.append(t.vert(P(s, w)))
+		reihen.append(zeile)
+	# unterer Rand liegt locker auf Hals und Schultern auf (kein Abschluss als Ring am Hals)
+	h = halb(S_ENDE)
+	unten = [P(S_ENDE, h + (2 * PI - 2 * h) * j / NW) for j in range(NW + 1)]
+	for k in range(1, 5):
+		zeile = []
+		for j, p in enumerate(unten):
+			w = h + (2 * PI - 2 * h) * j / NW
+			aus = p - f.c
+			aus.z = 0
+			aus.normalize()
+			# hinten und seitlich fällt der Stoff auf die Schultern, vorne am Kinn endet er (keine Laschen)
+			hinten = 0.12 + 0.88 * math.exp(-(g.wdiff(w, PI) / 1.5) ** 2)
+			zeile.append(t.vert(p + Vector((0, 0, -0.024 * k * hinten)) + aus * (0.012 * k * hinten)))
+		reihen.append(zeile)
+	for i in range(len(reihen) - 1):
+		for j in range(NW):
+			t.flaeche([reihen[i][j], reihen[i + 1][j], reihen[i + 1][j + 1], reihen[i][j + 1]], material)
 	teile = [obj(t, 60, 0.004)]
 	r = g.Teil("saum")
+	# umgeschlagener Saum entlang der Öffnung (weich, nicht als Rohr)
+	links, rechts = [], []
+	for i in range(NU + 1):
+		s = S_ENDE * i / NU
+		if s < s_top - 1e-6:
+			continue
+		h = halb(s)
+		links.append(P(s, -h))
+		rechts.append(P(s, h))
+	g.zug(r, list(reversed(links)) + rechts[1:], 0.0045, saum, flach=0.45)
 	if kragen:
 		fr = ir.rumpf_feld(K, glatt=(4, 3), konvex=1.0)
 		kt = g.Teil("kragen")
-		flare = lambda s, w: 0.025 + kragen_ab + kragen_weite * g.weich(-s, -0.68, -0.48)
-		ku = kragen_unten or tabelle([(0, 0.44), (0.9, 0.5), (PI / 2, 0.52), (2.3, 0.5), (PI, 0.46)])
-		g.platte(kt, fr, ku, 0.79, 0.0, nu=24, nw=96, extra=flare, material_name=material)
+		ku0 = kragen_unten or tabelle([(0, 0.42), (0.9, 0.49), (PI / 2, 0.52), (2.3, 0.49), (PI, 0.44)])
+		ku = lambda w: ku0(w) - 0.018 * math.sin(w * 5) ** 2
+		def flare(s, w):
+			e = 0.025 + kragen_ab + kragen_weite * g.weich(-s, -0.68, -0.46)
+			# Wulstfalten vorne um den Hals (Stoff staut sich), nach hinten flacher
+			vorne = math.exp(-(g.wdiff(w, 0) / 1.1) ** 2)
+			e += 0.013 * vorne * math.sin(PI * (s - 0.5) / 0.075) ** 2 * g.weich(s, 0.5, 0.62) * (1 - g.weich(s, 0.72, 0.79))
+			e += 0.006 * math.sin(w * 11) * (1 - g.weich(s, ku0(w) + 0.04, ku0(w) + 0.16))   # Falten am Saum
+			return e
+		g.platte(kt, fr, ku, 0.79, 0.0, nu=30, nw=96, extra=flare, material_name=material)
 		teile.append(obj(kt, 60, 0.004))
 		pts, zu = g.rand_punkte(fr, ku, 0.0, n=120, extra=lambda s, w: flare(s, w) + 0.002)
 		g.zug(r, pts, 0.004, saum, zu=zu, flach=0.5)
-	gs = []
-	for k in range(25):
-		w = -gesicht - 0.01 + (2 * gesicht + 0.02) * k / 24
-		gs.append(f.punkt(gesicht_unten, w, weit(gesicht_unten, w)))
-	for k in range(36):
-		s = gesicht_unten - (gesicht_unten - s_stirn) * k / 35
-		gs.insert(0, f.punkt(s, -gesicht, weit(s, -gesicht)))
-		gs.append(f.punkt(s, gesicht, weit(s, gesicht)))
-	if gesicht_unten >= 2.45:
-		gs = gs[:36] + gs[61:]   # ohne Kinnstück keine Naht unter dem Kinn
-	g.zug(r, gs, 0.006, saum, flach=0.7)
 	teile.append(r.objekt())
 	return teile, f, weit
 
