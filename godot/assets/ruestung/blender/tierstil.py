@@ -18,12 +18,15 @@ import rgeo as g
 STILE = {
 	"iron": {"farben": {}, "ranke": False, "kamm": False, "borte": False},
 	"palladium": {
-		# Palladium: silberweißes, edles Metall, Goldbeschläge; Stoffe behalten die Satzfarben
+		# Palladium (Nutzerentscheidung 16.11.): blau-weißes Metall, Zierde gebläut (tiefes Königsblau),
+		# Silberborten auf Stoff, Stoffe elfenbein / Weinrot / dunkles Königsblau
 		"farben": {
-			"platte": (0.80, 0.81, 0.84), "rand": (0.80, 0.60, 0.26), "niete": (0.80, 0.60, 0.26),
-			"kette": (0.68, 0.69, 0.72), "schuppen": (0.78, 0.79, 0.82),
+			"platte": (0.74, 0.78, 0.86), "rand": (0.035, 0.07, 0.30), "niete": (0.035, 0.07, 0.30),
+			"borte": (0.80, 0.82, 0.85), "kette": (0.66, 0.69, 0.75), "schuppen": (0.72, 0.76, 0.84),
 			"leder": (0.30, 0.15, 0.09), "leder_dunkel": (0.11, 0.06, 0.05),
-					},
+			"stoff": (0.69, 0.65, 0.56), "stoff_akzent": (0.16, 0.02, 0.04), "stoff_dunkel": (0.02, 0.03, 0.12),
+			"futter": (0.79, 0.75, 0.68),
+		},
 		"ranke": True, "kamm": False, "borte": True,   # Kamm baut palladium.py selbst
 	},
 }
@@ -31,6 +34,7 @@ STILE = {
 METALL = {"platte", "schuppen"}
 STOFF = {"stoff", "stoff_akzent", "stoff_dunkel"}
 ZIER = "rand"
+ZIER_STOFF = "borte"   # Borten auf Stoff (eigene Farbe je Tier)
 
 
 def farben_setzen(tier):
@@ -136,7 +140,7 @@ def _band(P, N, F, inneres):
 	return D * (1 if treffer[0] >= treffer[1] else -1), max(treffer) / max(1, len(range(0, len(P), max(1, len(P) // 24))))
 
 
-def _zeichnen(t, F, P, D, linien2d, radius, hoehe, flach=1.0):
+def _zeichnen(t, F, P, D, linien2d, radius, hoehe, flach=1.0, material=ZIER):
 	"""2D-Linien (u = Index entlang des Rands, v = Abstand nach innen) auf die Fläche legen und als Röhre bauen."""
 	for lin in linien2d:
 		stueck = []
@@ -151,15 +155,15 @@ def _zeichnen(t, F, P, D, linien2d, radius, hoehe, flach=1.0):
 				q, n = F.auf(pp + dd * v, 0.008)
 			if q is None:
 				if len(stueck) > 3:
-					_rohr(t, F, stueck, radius, hoehe, flach)
+					_rohr(t, F, stueck, radius, hoehe, flach, material)
 				stueck = []
 				continue
 			stueck.append((q, n))
 		if len(stueck) > 3:
-			_rohr(t, F, stueck, radius, hoehe, flach)
+			_rohr(t, F, stueck, radius, hoehe, flach, material)
 
 
-def _rohr(t, F, stueck, radius, hoehe, flach):
+def _rohr(t, F, stueck, radius, hoehe, flach, material):
 	pts = [Vector(q + n * (hoehe + radius * flach)) for q, n in stueck]
 	# doppelte Punkte entfernen
 	sauber = [pts[0]]
@@ -172,7 +176,7 @@ def _rohr(t, F, stueck, radius, hoehe, flach):
 	def aussen(p):
 		_, n = F.auf(p, 0.02)
 		return Vector(n) if n is not None else Vector((0, 0, 1))
-	g.zug(t, sauber, radius, ZIER, seg=4, flach=flach, aussen=aussen)
+	g.zug(t, sauber, radius, material, seg=4, flach=flach, aussen=aussen)
 
 
 def _streifen(t, F, P, D, v0, v1, hoehe, material=ZIER):
@@ -229,7 +233,7 @@ def _ranke_2d(n, schritt, b=0.020, a=0.0055, wl=0.075):
 
 
 def _borte_2d(n, schritt, L, rang):
-	"""Stoffsaum: breite Goldborte, innen eine feine Wellenlinie."""
+	"""Stoffsaum: breite Borte (Farbe je Tier), innen eine feine Wellenlinie."""
 	u = np.arange(n)
 	um = u * schritt
 	return [("band", 0.004, 0.016, 0.0004),
@@ -289,7 +293,7 @@ def _loecher_fuellen(bm, ok, max_flaeche=0.06):
 	return ok
 
 
-def _linien_ziehen(bm, ok, t, F, muster, min_l, hoehe, schritt=0.008):
+def _linien_ziehen(bm, ok, t, F, muster, min_l, hoehe, schritt=0.008, material=ZIER):
 	n_lin = 0
 	bm.verts.ensure_lookup_table()
 	linien = []
@@ -312,9 +316,9 @@ def _linien_ziehen(bm, ok, t, F, muster, min_l, hoehe, schritt=0.008):
 			continue
 		for art, *werte in muster(len(P), schritt, L, rang):
 			if art == "band":
-				_streifen(t, F, P, D, werte[0], werte[1], hoehe + werte[2])
+				_streifen(t, F, P, D, werte[0], werte[1], hoehe + werte[2], material)
 			else:
-				_zeichnen(t, F, P, D, [werte[0]], werte[1], hoehe, werte[2])
+				_zeichnen(t, F, P, D, [werte[0]], werte[1], hoehe, werte[2], material)
 		n_lin += 1
 	return n_lin
 
@@ -393,7 +397,7 @@ def zieren(ob, K, slot, tier):
 		ok[:n_alt] = _aussen_maske(bm, K, slots, STOFF)[:n_alt]
 		if ok.any():
 			F = _Flaeche(bm, ok)
-			bericht.append("borte %d" % _linien_ziehen(bm, ok, t, F, _borte_2d, 0.35, 0.0008))
+			bericht.append("borte %d" % _linien_ziehen(bm, ok, t, F, _borte_2d, 0.35, 0.0008, material=ZIER_STOFF))
 	if st["kamm"] and slot == "kopf":
 		bm.faces.ensure_lookup_table()
 		alle = np.zeros(len(bm.faces), bool)

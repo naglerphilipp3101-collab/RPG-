@@ -127,7 +127,7 @@ def schirm(t, f, s_fn, ab, w_von, w_bis, breite, heben=0.0, material="platte", n
 	return [z[-1].co.copy() for z in reihen]
 
 
-def diadem(t, f, A, s=1.18, spitze=0.035, material="rand"):
+def diadem(t, f, A, s=1.18, spitze=0.035, material="borte"):
 	"""Stirnreif mit Mittelspitze und Stein über der Stirn. A: Abstand (Zahl oder Funktion s, w)."""
 	a = (lambda s_, w_: g._wert(A, s_, w_)) if callable(A) else (lambda s_, w_: A)
 	pts, zu = g.rand_punkte(f, lambda w: s + 0.06 * (1 - math.cos(g.wdiff(w, 0) / 2)) ** 2 * 0, A, n=96)

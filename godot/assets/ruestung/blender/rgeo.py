@@ -43,11 +43,11 @@ def material(name):
 		bsdf = m.node_tree.nodes.get("Principled BSDF")
 		if bsdf:
 			bsdf.inputs["Base Color"].default_value = (*c, 1.0)
-			metall = name in ("platte", "rand", "niete", "kette", "schuppen")
+			metall = name in ("platte", "rand", "niete", "kette", "schuppen", "borte")
 			bsdf.inputs["Metallic"].default_value = 0.9 if metall else 0.0
 			bsdf.inputs["Roughness"].default_value = 0.35 if metall else 0.8
-		m.metallic = 0.9 if name in ("platte", "rand", "niete", "kette", "schuppen") else 0.0
-		m.roughness = 0.35 if name in ("platte", "rand", "niete", "kette", "schuppen") else 0.8
+		m.metallic = 0.9 if name in ("platte", "rand", "niete", "kette", "schuppen", "borte") else 0.0
+		m.roughness = 0.35 if name in ("platte", "rand", "niete", "kette", "schuppen", "borte") else 0.8
 	return m
 
 
