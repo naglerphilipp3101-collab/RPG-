@@ -26,7 +26,10 @@ for satz in SAETZE:
 	K = g.Koerper()
 	koerper = K.objekt()
 	obs = []
-	if WAFFEN:
+	if TIER == "palladium":
+		import palladium
+		teile = palladium.bauen(K, satz)
+	elif WAFFEN:
 		teile = ws.bauen(K, satz)
 	else:
 		teile = {slot: getattr(iron, satz + "_" + slot)(K) for slot in SLOTS}

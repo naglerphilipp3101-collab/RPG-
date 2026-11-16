@@ -24,7 +24,7 @@ STILE = {
 			"kette": (0.68, 0.69, 0.72), "schuppen": (0.78, 0.79, 0.82),
 			"leder": (0.30, 0.15, 0.09), "leder_dunkel": (0.11, 0.06, 0.05),
 					},
-		"ranke": True, "kamm": True, "borte": True,
+		"ranke": True, "kamm": False, "borte": True,   # Kamm baut palladium.py selbst
 	},
 }
 
@@ -261,6 +261,31 @@ def _aussen_maske(bm, K, mats, erlaubt):
 		r = c - q
 		if r.length > 1e-5 and f.normal.dot(r.normalized()) > 0.2:
 			ok[f.index] = True
+	return _loecher_fuellen(bm, ok)
+
+
+def _loecher_fuellen(bm, ok, max_flaeche=0.06):
+	"""Kleine Inseln nicht erlaubter Flächen, die nur an ok-Flächen grenzen (z. B. eingezogene Falte am Gesäß),
+	zählen mit: sonst entstünden dort Goldringe ohne echten Rand."""
+	gesehen = np.zeros(len(bm.faces), bool)
+	for f0 in bm.faces:
+		if ok[f0.index] or gesehen[f0.index]:
+			continue
+		insel, stapel, flaeche, offen = [], [f0], 0.0, False
+		gesehen[f0.index] = True
+		while stapel:
+			f = stapel.pop()
+			insel.append(f.index)
+			flaeche += f.calc_area()
+			for e in f.edges:
+				if len(e.link_faces) < 2:
+					offen = True
+				for n in e.link_faces:
+					if not ok[n.index] and not gesehen[n.index]:
+						gesehen[n.index] = True
+						stapel.append(n)
+		if not offen and flaeche < max_flaeche:
+			ok[insel] = True
 	return ok
 
 
