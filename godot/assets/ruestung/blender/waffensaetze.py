@@ -246,14 +246,15 @@ def kapuze(K, material="stoff", A=0.022, gesicht=0.95, gesicht_unten=2.45, zipfe
 
 	vor = 0.042 + tief
 	def weit(s, w):
-		hinten = math.exp(-(g.wdiff(w, PI) / 1.3) ** 2)
-		e = A + 0.008 + 0.01 * (1 - math.exp(-(g.wdiff(w, 0) / 1.2) ** 2))   # vorne an den Wangen enger
+		hinten = math.exp(-(g.wdiff(w, PI) / 0.9) ** 2)
+		seite = math.sin(w) ** 2 * g.weich(s, 0.6, 1.2)
+		e = A * (1 - 0.55 * seite) + 0.004   # über den Ohren eng anliegend (Nutzer 16.11.), oben und hinten Luft
 		e += 0.03 * hinten * g.weich(s, 0.5, 1.5)                                   # Luft am Hinterkopf
 		e += (0.022 + zipfel) * math.exp(-(g.wdiff(w, PI) / 0.45) ** 2) * math.exp(-((s - 0.5) / 0.3) ** 2)   # Spitze
 		# Krempe: über der Stirn deutlich, an den Wangen nah am Gesicht (Nutzer 16.11.)
 		e += vor * rand(s, w) * (0.25 + 0.75 * math.exp(-((s - s_top) / 0.35) ** 2)) * (1 - g.weich(s, 1.75, 2.2))
 		e += 0.02 * g.weich(s, 2.0, S_ENDE) * (0.2 + 0.8 * hinten)                     # fällt hinten locker zum Kragen
-		e += 0.0035 * math.sin(w * 7) * g.weich(s, 0.9, 2.0) * (1 - rand(s, w))       # weiche Längsfalten
+		e += 0.0025 * math.sin(w * 7) * g.weich(s, 0.9, 2.0) * (1 - rand(s, w))       # weiche Längsfalten
 		return e
 
 	def P(s, w):
