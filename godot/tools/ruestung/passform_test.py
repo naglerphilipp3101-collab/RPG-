@@ -13,6 +13,7 @@ import json
 import os
 import sys
 
+
 import bpy  # noqa: F401
 import numpy as np
 from mathutils import Vector
@@ -21,6 +22,8 @@ from mathutils.bvhtree import BVHTree
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mensch_lesen import Mensch  # noqa: E402
 import anpassen as ap  # noqa: E402
+
+TIER = os.environ.get("TIER", "iron")   # Dateipräfix: iron_, palladium_ ...
 
 SLOTS = ["kopf", "brust", "haende", "beine", "fuesse"]
 TOL_HAUT = 0.0015      # 1,5 mm unter der Haut gilt als Durchstoßen
@@ -78,7 +81,7 @@ class Satz:
 		self.name = name
 		self.teile = {}
 		for slot in SLOTS:
-			pf = os.path.join(ordner, "iron_%s_%s.glb" % (name, slot))
+			pf = os.path.join(ordner, "%s_%s_%s.glb" % (TIER, name, slot))
 			p, dr, mat, _ = ap.glb_netz(pf)
 			t = {"p": p, "dr": dr, "bind": ap.bindung(p, k0.p)}
 			t["verdeckt"] = ap.verdeckt(k0.p, k0.n, k0.dreiecke, p, dr)
@@ -148,7 +151,7 @@ def main():
 	n = int(arg[arg.index("--koerper") + 1]) if "--koerper" in arg else 24
 	ziel = arg[arg.index("--json") + 1] if "--json" in arg else None
 	if saetze is None:
-		saetze = sorted({f[5:].rsplit("_", 1)[0] for f in os.listdir(ordner) if f.startswith("iron_") and f.endswith(".glb")})
+		saetze = sorted({f[len(TIER) + 1:].rsplit("_", 1)[0] for f in os.listdir(ordner) if f.startswith(TIER + "_") and f.endswith(".glb")})
 	m = Mensch()
 	k0 = ap.Koerper(m)
 	koerper = [(name, ap.Koerper(m, a)) for name, a in koerper_liste(n)]

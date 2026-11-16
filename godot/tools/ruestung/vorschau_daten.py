@@ -85,7 +85,7 @@ def main():
 	# Prüfung: JS-Rechnung nachgestellt == form_berechnen
 	verdeckt = {}
 	for f in sorted(os.listdir(ordner)):
-		if f.startswith("iron_") and f.endswith(".glb"):
+		if f.endswith(".glb") and not f.startswith("Koerper"):
 			p, dr, _, _ = ap.glb_netz(os.path.join(ordner, f))
 			v = ap.verdeckt(k0.p, k0.n, k0.dreiecke, p, dr)
 			verdeckt[f[:-4]] = b64(np.where(v)[0].astype(np.uint16))

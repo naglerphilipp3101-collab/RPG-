@@ -6,6 +6,7 @@ import json
 import os
 import sys
 
+
 import bpy
 
 HIER = os.path.dirname(os.path.abspath(__file__))
@@ -14,6 +15,8 @@ sys.path.insert(0, os.path.join(HIER, "..", "..", "assets", "ruestung", "blender
 import anpassen as ap  # noqa: E402
 import passform_bild as pb  # noqa: E402
 from mensch_lesen import Mensch  # noqa: E402
+
+TIER = os.environ.get("TIER", "iron")   # Dateipräfix: iron_, palladium_ ...
 
 KOERPER = [
 	("Mann", {}),
@@ -30,8 +33,8 @@ def main():
 	a = sys.argv[sys.argv.index("--") + 1:]
 	ordner, aus = a[:2]
 	os.makedirs(aus, exist_ok=True)
-	saetze = a[2].split(",") if len(a) > 2 else sorted({f[5:].rsplit("_", 1)[0] for f in os.listdir(ordner)
-		if f.startswith("iron_") and f.endswith(".glb")})
+	saetze = a[2].split(",") if len(a) > 2 else sorted({f[len(TIER) + 1:].rsplit("_", 1)[0] for f in os.listdir(ordner)
+		if f.startswith(TIER + "_") and f.endswith(".glb")})
 	m = Mensch()
 	k0 = ap.Koerper(m)
 	import vorschau

@@ -43,6 +43,8 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
   `passform_test.py <glb-ordner> [sätze]` prüft 102 Körper (Extreme aller Regler, Zufall): sichtbar äußerste Fläche je Hautpunkt gegen den Standard-Mann.
   `passform_bild.py` / `bilderbogen.py` rendern Sätze auf beliebigen Körpern, `vorschau_daten.py` schreibt Körperformen und verdeckte Haut für die Rüstkammer.
   `blender/nachbearbeitung.py` (in alle.py, `NACH=0` schaltet ab): Falten auf hängendem Stoff, Mittelgrat auf Blech, leichte Unruhe, nur nach außen.
+  Tiers: `blender/tierstil.py` (Farben und Zierde je Tier, nach dem Verringern aufgesetzt), Bau mit `TIER=palladium python3 alle.py …` → `palladium_<satz>_<slot>`;
+  Palladium = Iron-Schnitte mit Goldrändern, Ranken an langen Plattenrändern, Helmkamm, Goldborten an Stoffsäumen. Passform-Werkzeuge lesen `TIER` ebenfalls.
   Noch nicht im Spiel (offen: Skelett-Bindung, Texturen nach Liste).
 - `natur/`: Bodenobjekte und tote Bäume (Blender `natur/blender/natur_modelle.py` → `natur/modelle/`: totbaum, baumstamm, stock, treibholz, alge), nur Deko.
 - Terrain3D ist ein Plugin aus der AssetLib und liegt **nicht** im Repository (muss unter `godot/addons/` installiert werden).

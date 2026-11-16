@@ -6,6 +6,7 @@ import json
 import os
 import sys
 
+
 import bpy
 import numpy as np
 
@@ -14,6 +15,8 @@ sys.path.insert(0, HIER)
 sys.path.insert(0, os.path.join(HIER, "..", "..", "assets", "ruestung", "blender"))
 import anpassen as ap  # noqa: E402
 from mensch_lesen import Mensch  # noqa: E402
+
+TIER = os.environ.get("TIER", "iron")   # Dateipräfix: iron_, palladium_ ...
 
 SLOTS = ["kopf", "brust", "haende", "beine", "fuesse"]
 
@@ -51,14 +54,14 @@ def satz_auf_koerper(ordner, satz, aussehen, m=None, k0=None, slots=SLOTS):
 	k = ap.Koerper(m, aussehen)
 	weg = np.zeros(len(k.p), bool)
 	for slot in slots:
-		pf = os.path.join(ordner, "iron_%s_%s.glb" % (satz, slot))
+		pf = os.path.join(ordner, "%s_%s_%s.glb" % (TIER, satz, slot))
 		if pf not in _CACHE:
 			p, dr, mat, _ = ap.glb_netz(pf)
 			_CACHE[pf] = (p, dr, mat, ap.bindung(p, k0.p), ap.verdeckt(k0.p, k0.n, k0.dreiecke, p, dr))
 		p, dr, mat, bind, verd = _CACHE[pf]
 		pos = ap.anwenden(p, bind, k0.p, k.p)
 		weg |= verd
-		netz("iron_%s_%s" % (satz, slot), pos, dr, mat)
+		netz("%s_%s_%s" % (TIER, satz, slot), pos, dr, mat)
 	sichtbar = ~weg[k.dreiecke].all(1)
 	netz("Koerper", k.p, k.dreiecke[sichtbar], [os.environ.get("HAUT", "haut")] * int(sichtbar.sum()))
 	return k
