@@ -33,6 +33,22 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
   Gegner mit `"mensch"` in `enemies.json` nutzen ein gemeinsames Modell (`gegner_aussehen`). Test: `assets/charakter/test/erstellung.tscn -- --bild x.png [--zufall 7] [--gruppe Nase]`.
 - `props/`: Props und Haus-Baukasten, je heil und kaputt (Blender `props/blender/props.py`, `baukasten.py`, Texturen prozedural `texturen.py`).
   `prop.gd` (Prop: modell, kaputt) setzt die Materialien aus `props/materialien/*.tres` ein; Galerie: `props/test/galerie.tscn`. Baukasten (26.10./12.11., Philipp): massive Wände 2×2, 2×1, 1×1 m (0,1 m dick, 1-m-Raster, Stockwerkshöhe frei), Balken 20×20 cm für 1/2 m mit je 10 cm Überstand (1,2/2,2 m lang, Ständer = gedrehter Balken) und Strebe als eigene Modelle; Vorrang bei Überlappung im Shader `props/materialien/balken.gdshader`: je waagerechter, desto höher; Wände und Balken mittig auf den Rasterlinien, Ursprung = Anfangspunkt auf einem Rasterpunkt, später Blueprints und „Blueprint backen“ (ein Mesh, verdeckte Flächen raus). Dazu (12.11.) Tür-/Fensterwände, Giebel, Böden, Dach 45° (Traufe, First, Ortgang, Giebelzier, Kehle und Grat für Eckhäuser/Walmdächer), Treppen. **Gebäude-Baukasten** im Browser: `props/baukasten_editor/gebaeude_baukasten.html` (Quelle `editor.js` + `vorlage.html`, Build `bauen.py`), speichert Gebäude als `data/gebaeude/*.json`, Godot lädt sie mit `props/gebaeude.gd` (Test `props/test/gebaeude_test.tscn`). Noch nicht in der Welt platziert (kommt mit dem Karten-Editor).
+- `ruestung/`: Rüstungsmodelle (ab 12.11.), je Tier 3 Sätze leicht/mittel/schwer, 5 Slots kopf/brust/haende/beine/fuesse, nicht modular.
+  Blender-Python (`blender/rgeo.py` Bausteine, `blender/iron.py` Iron-Grundsätze, `blender/waffensaetze.py` 15 Waffensätze je Tier
+  (`iron_<waffen-id>_<slot>`, Klasse je Teil in `SAETZE`, z. B. Axt M/S/M/S/M), `blender/alle.py <ausgabe> [klassen | waffen [ids]]` baut,
+  rendert und exportiert GLB; `blender/test_satz.py -- <waffe> [slots]` für schnelle Testbilder).
+  Gewicht je Teil L 1/3/1/2/1, M 2/6/2/4/2, S 4/10/3/7/4 kg (Kopf/Brust/Hände/Beine/Füße); Gesamt ≤ 12 kg leicht, ≤ 22 kg mittel, sonst schwer.
+  Geformt um den Körper aus `tools/ruestung/mensch_lesen.py` (liest `charakter/daten` wie das Spiel): Röhren um Rumpf/Arm/Bein-Achsen und Kugelfelder (Helm, Schulter),
+  abgetastet per Strahl, konvex geglättet, nie unter der Haut. Materialnamen: platte, rand, niete, kette, leder, leder_dunkel, stoff, stoff_akzent, futter.
+  Passform (`tools/ruestung/`): `anpassen.py` bindet jeden Rüstungspunkt an nahe Hautpunkte (Gauß über den Mehrabstand, linear in den Körperformen,
+  dieselbe Regel rechnet die Rüstkammer in JS) und bestimmt die verdeckte Haut (5 Strahlen je Hautpunkt, Ohren ganz oder gar nicht).
+  `passform_test.py <glb-ordner> [sätze]` prüft 102 Körper (Extreme aller Regler, Zufall): sichtbar äußerste Fläche je Hautpunkt gegen den Standard-Mann.
+  `passform_bild.py` / `bilderbogen.py` rendern Sätze auf beliebigen Körpern, `vorschau_daten.py` schreibt Körperformen und verdeckte Haut für die Rüstkammer.
+  `blender/nachbearbeitung.py` (in alle.py, `NACH=0` schaltet ab): Falten auf hängendem Stoff, Mittelgrat auf Blech, leichte Unruhe, nur nach außen.
+  Tiers: `blender/tierstil.py` (Farben und Zierde je Tier, nach dem Verringern aufgesetzt), Bau mit `TIER=palladium python3 alle.py …` → `palladium_<satz>_<slot>`;
+  Palladium hat eigene Formen je Satz in `blender/palladium.py` (`BAU[satz]`, von alle.py/test_satz.py bei `TIER=palladium` genutzt: Riffelharnisch, Burgonet, Morion,
+  Cabasset, attischer Helm, Halskrausen, Pelerinen, gezackte Säume, Diademe); tierstil.py setzt danach die Zierde: Palladium gebläut (Königsblau) an Rändern und Ranken, Silberborten (Material `borte`) auf Stoff, Stoffe elfenbein/Weinrot/Königsblau. Passform-Werkzeuge lesen `TIER` ebenfalls.
+  Noch nicht im Spiel (offen: Skelett-Bindung, Texturen nach Liste).
 - `natur/`: Bodenobjekte und tote Bäume (Blender `natur/blender/natur_modelle.py` → `natur/modelle/`: totbaum, baumstamm, stock, treibholz, alge), nur Deko.
 - Terrain3D ist ein Plugin aus der AssetLib und liegt **nicht** im Repository (muss unter `godot/addons/` installiert werden).
 - **6 Erz-Tiers:** Iron, Palladium, Mithril, Glacialore, Sungold, Darksteel. Das Repository ist der neuere Stand und hat bei Abweichungen Vorrang (Nutzerentscheidung).
