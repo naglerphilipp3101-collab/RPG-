@@ -56,6 +56,9 @@ const SHIELD_REST_ROT := Vector3(0, 80, 0)
 const SHIELD_BLOCK_POS := Vector3(-0.12, 0.25, -0.5)
 const SHIELD_BLOCK_ROT := Vector3(0, 8, 0)
 const WEAPON_BLOCK_ROT := Vector3(15, 80, 0) # Waffe quer vor dem Körper
+## Schild am linken Unterarm (relativ zum Griff der linken Hand), wenn der Mensch animiert ist
+const SCHILD_HAND_POS := Vector3(0.0, -0.12, 0.0)
+const SCHILD_HAND_ROT := Vector3(0, 90, 0)
 const SWING_STYLES := {
 	"h_right": [Vector3(5, -95, 0), Vector3(5, 95, 0)],
 	"h_left": [Vector3(5, 95, 0), Vector3(5, -95, 0)],
@@ -129,6 +132,7 @@ var gather_total := 1.0
 var fish_phase := "" # "wait" oder "bite"
 var fish_timer := 0.0
 var tool_pivot: Node3D
+var anim_figur: SpielerAnimation = null # Animationen des Menschen (null = alte Platzhalter-Tweens)
 var tools: Dictionary = {} # Werkzeug-id -> Node3D
 var gather_hp := 0.0
 
@@ -251,6 +255,7 @@ func _ready() -> void:
 
 	_build_model()
 	_build_tools()
+	_an_haende_haengen()
 	_build_camera()
 	# Startausrüstung für ein neues Spiel (ein geladener Spielstand ersetzt sie)
 	equipment["weapon"] = Game.roll_gear("training_sword_shield", [])
@@ -1289,8 +1294,8 @@ func _build_model() -> void:
 	aura.visible = false
 
 
-## Menschlicher Körper aus der Charaktererstellung. Bis es Animationen gibt, steht er in der
-## Modellpose (A-Pose) und bewegt sich mit body_root mit. Blick des Modells: +Z, Spieler: -Z.
+## Menschlicher Körper aus der Charaktererstellung, bewegt von SpielerAnimation.
+## Blick des Modells: +Z, Spieler: -Z.
 func _mensch_bauen() -> void:
 	if aussehen.is_empty():
 		aussehen = CharakterAussehen.standard()
@@ -1301,7 +1306,8 @@ func _mensch_bauen() -> void:
 	mensch.position = Vector3(0, -body_root.position.y, 0)
 	mensch.rotation.y = PI
 	body_root.add_child(mensch)
-	mensch.ruhe_a_pose(true)
+	anim_figur = SpielerAnimation.new(mensch)
+	add_child(anim_figur)
 	for p in _platzhalter_koerper:
 		p.visible = false
 
@@ -1313,7 +1319,21 @@ func aussehen_setzen(a: Dictionary) -> void:
 		mensch.aussehen_setzen(aussehen)
 
 
+## Waffe, Schild und Werkzeuge in die Hände des Menschen (statt frei neben dem Körper).
+func _an_haende_haengen() -> void:
+	if anim_figur == null:
+		return
+	anim_figur.an_hand(weapon_pivot, false)
+	anim_figur.an_hand(offhand_pivot, true)
+	anim_figur.an_hand(tool_pivot, false)
+	anim_figur.an_hand(shield_pivot, true)
+	shield_pivot.position = SCHILD_HAND_POS
+	shield_pivot.rotation_degrees = SCHILD_HAND_ROT
+
+
 func _weapon_rest_pos() -> Vector3:
+	if anim_figur:
+		return Vector3.ZERO
 	if is_ranged():
 		return Vector3(0.22, 0.3, -0.3)
 	if int(weapon_def.get("hands", 1)) == 2 and not weapon_def.get("dual", false):
@@ -1322,6 +1342,8 @@ func _weapon_rest_pos() -> Vector3:
 
 
 func _weapon_rest_rot() -> Vector3:
+	if anim_figur:
+		return Vector3.ZERO
 	var r: Array = weapon_def.get("rest", [20, 15, 0])
 	return Vector3(float(r[0]), float(r[1]), float(r[2]))
 
@@ -1343,8 +1365,8 @@ func _build_weapon_visual() -> void:
 	shield_pivot.visible = shield_active()
 	_build_shield_visual()
 	shield_raised = false
-	shield_pivot.position = SHIELD_REST_POS
-	shield_pivot.rotation_degrees = SHIELD_REST_ROT
+	shield_pivot.position = SCHILD_HAND_POS if anim_figur else SHIELD_REST_POS
+	shield_pivot.rotation_degrees = SCHILD_HAND_ROT if anim_figur else SHIELD_REST_ROT
 
 
 ## Leerenhandschuh: Magieklinge ein- oder ausfahren (für die Fähigkeit, die Philipp noch festlegt).
@@ -1419,6 +1441,7 @@ func _show_tool(profession: String) -> void:
 	weapon_pivot.visible = tool_id == ""
 	offhand_pivot.visible = tool_id == ""
 	tool_pivot.rotation_degrees = Vector3.ZERO
+	tool_pivot.position = Vector3.ZERO if anim_figur else Vector3(0.42, 0.05, -0.15)
 
 
 func _hide_tool() -> void:
@@ -1532,6 +1555,10 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 	var flat_speed := Vector2(velocity.x, velocity.z).length()
+	if anim_figur:
+		var r: Dictionary = weapon_def.get("ranged", {})
+		anim_figur.bewegen(delta, flat_speed, is_on_floor(), combat_timer > 0.0 or blocking, blocking,
+			shield_active(), aiming or action.get("kind", "") == "draw", String(r.get("kind", "")) if is_ranged() else "")
 	still_time = still_time + delta if flat_speed < 0.3 else 0.0
 	aim_time = aim_time + delta if aiming else 0.0
 	if passive_mech == "momentum": # Schwung: Bewegung lädt, Stillstand baut langsam ab
@@ -1679,7 +1706,10 @@ func _start_interaction(target) -> void:
 	if target.is_fishing():
 		state = State.FISH
 		_begin_fish_wait()
-		tool_pivot.rotation_degrees = Vector3(35, 0, 0)
+		if anim_figur:
+			anim_figur.schleife("Idle_Torch")
+		else:
+			tool_pivot.rotation_degrees = Vector3(35, 0, 0)
 		return
 
 	state = State.GATHER
@@ -1691,6 +1721,12 @@ func _start_interaction(target) -> void:
 	gather_total = gather_hp / get_tool_power(profession) * level_factor / (1.0 + bonus("gather_speed:" + profession))
 	if randf() < float(attr_mechanics.get("sofort:" + profession, 0.0)):
 		gather_total = 0.15 # mit einem Schlag (Erdbeben, Schwachstelle, Unbeugsam)
+	if anim_figur:
+		match profession:
+			"harvesting": anim_figur.schleife("Farm_Harvest", 1.3)
+			"skinning": anim_figur.schleife("Fixing_Kneeling", 1.5)
+			_: anim_figur.schleife("TreeChopping")
+		return
 	anim_tween = create_tween().set_loops()
 	match profession:
 		"harvesting":
@@ -1753,6 +1789,10 @@ func _state_fish(delta: float, move_dir: Vector3, captured: bool) -> void:
 			FX.popup(get_tree(), gather_target.global_position + Vector3(0, 0.8, 0), "!", Color(1.0, 0.9, 0.3), 120)
 			_kill_anim(false)
 			anim_tween = create_tween().set_loops()
+			if anim_figur:
+				anim_tween.tween_property(tool_pivot, "rotation_degrees", Vector3(-12, 0, 0), 0.08)
+				anim_tween.tween_property(tool_pivot, "rotation_degrees", Vector3.ZERO, 0.08)
+				return
 			anim_tween.tween_property(tool_pivot, "rotation_degrees", Vector3(20, 0, 0), 0.08)
 			anim_tween.tween_property(tool_pivot, "rotation_degrees", Vector3(35, 0, 0), 0.08)
 	elif pressed:
@@ -1762,7 +1802,7 @@ func _state_fish(delta: float, move_dir: Vector3, captured: bool) -> void:
 	elif fish_timer <= 0.0:
 		message.emit("Der Fisch ist entkommen …")
 		_kill_anim(false)
-		tool_pivot.rotation_degrees = Vector3(35, 0, 0)
+		tool_pivot.rotation_degrees = Vector3.ZERO if anim_figur else Vector3(35, 0, 0)
 		_begin_fish_wait()
 
 
@@ -1773,6 +1813,8 @@ func _end_gather() -> void:
 		state = State.NORMAL
 	_kill_anim(true)
 	_hide_tool()
+	if anim_figur and state != State.DEAD:
+		anim_figur.zuruecksetzen()
 
 
 func _apply_horizontal(target: Vector3, delta: float) -> void:
@@ -1883,6 +1925,8 @@ func _handle_ranged_input() -> void:
 		if r.get("kind", "") == "bow":
 			_begin_action({"kind": "draw", "duration": INF, "hits": []})
 			_kill_anim(false)
+			if anim_figur:
+				return
 			anim_tween = create_tween()
 			anim_tween.tween_property(weapon_pivot, "position:z", _weapon_rest_pos().z + 0.15, 0.3)
 		elif ranged_loaded:
@@ -1916,6 +1960,9 @@ func _fire_ranged(charge: float) -> void:
 		shake = maxf(shake, 0.15)
 	_begin_action({"kind": "fire", "duration": 0.25 if r.get("kind", "") in ["bow", "magic"] else 0.35, "hits": []})
 	_kill_anim(false)
+	if anim_figur:
+		anim_figur.einmal("Spell_Simple_Shoot" if magic else "Pistol_Shoot", 0.45)
+		return
 	anim_tween = create_tween()
 	anim_tween.tween_property(weapon_pivot, "rotation_degrees:x", 12.0, 0.06)
 	anim_tween.tween_property(weapon_pivot, "rotation_degrees", _weapon_rest_rot(), 0.15)
@@ -1930,6 +1977,9 @@ func _start_reload() -> void:
 	duration /= 1.0 + bonus("reload_pct")
 	_begin_action({"kind": "reload", "duration": duration, "hits": [], "keep_facing": true})
 	_kill_anim(false)
+	if anim_figur:
+		anim_figur.einmal("Pistol_Reload", duration)
+		return
 	anim_tween = create_tween()
 	anim_tween.tween_property(weapon_pivot, "rotation_degrees", Vector3(-40, 20, 0), duration * 0.4)
 	anim_tween.tween_property(weapon_pivot, "rotation_degrees", _weapon_rest_rot(), duration * 0.4)
@@ -2926,6 +2976,9 @@ func _kill_anim(reset_pose: bool) -> void:
 
 func _play_style(style: String, hit_time: float) -> void:
 	_kill_anim(false)
+	if anim_figur:
+		anim_figur.schlag(style, hit_time)
+		return
 	var rest_rot := _weapon_rest_rot()
 	var rest_pos := _weapon_rest_pos()
 	anim_tween = create_tween()
@@ -2951,7 +3004,10 @@ func _play_style(style: String, hit_time: float) -> void:
 func _play_spin(duration: float) -> void:
 	_kill_anim(false)
 	anim_tween = create_tween()
-	anim_tween.tween_property(weapon_pivot, "rotation_degrees", Vector3(0, -90, 0), 0.08)
+	if anim_figur:
+		anim_figur.einmal("Sword_Regular_A", duration)
+	else:
+		anim_tween.tween_property(weapon_pivot, "rotation_degrees", Vector3(0, -90, 0), 0.08)
 	anim_tween.tween_property(body_root, "rotation:y", -TAU * maxf(1.0, roundf(duration / 0.45)), duration)
 	anim_tween.tween_callback(func() -> void: body_root.rotation.y = 0.0)
 	anim_tween.tween_property(weapon_pivot, "rotation_degrees", _weapon_rest_rot(), 0.15)
@@ -2964,6 +3020,8 @@ func _set_block_pose(raised: bool) -> void:
 	shield_raised = raised
 	if shield_tween and shield_tween.is_valid():
 		shield_tween.kill()
+	if anim_figur: # die Blockhaltung kommt aus der Animation
+		return
 	shield_tween = create_tween().set_parallel(true)
 	if shield_active():
 		shield_tween.tween_property(shield_pivot, "position", SHIELD_BLOCK_POS if raised else SHIELD_REST_POS, 0.12)
@@ -2997,6 +3055,9 @@ func _start_dodge(move_dir: Vector3) -> void:
 	blocking = false
 	_set_block_pose(false)
 	_kill_anim(true)
+	if anim_figur:
+		anim_figur.einmal("Roll", DODGE_TIME + 0.3)
+		return
 	anim_tween = create_tween()
 	anim_tween.tween_property(body_root, "rotation:x", -TAU, DODGE_TIME * 0.9)
 	anim_tween.tween_callback(func() -> void: body_root.rotation.x = 0.0)
@@ -3024,6 +3085,9 @@ func _stagger(duration: float, push: Vector3) -> void:
 	velocity.x = push.x
 	velocity.z = push.z
 	_kill_anim(true)
+	if anim_figur:
+		anim_figur.einmal("Hit_Chest" if duration < 0.6 else "Hit_Knockback", duration)
+		return
 	anim_tween = create_tween()
 	anim_tween.tween_property(body_root, "rotation:x", 0.35, 0.1)
 	anim_tween.tween_property(body_root, "rotation:x", 0.0, duration)
@@ -3167,6 +3231,10 @@ func _die() -> void:
 	_apply_death_penalty()
 	_set_block_pose(false)
 	_kill_anim(true)
+	if anim_figur:
+		anim_figur.einmal("Death01", -1.0, true)
+		died.emit()
+		return
 	anim_tween = create_tween().set_parallel(true)
 	anim_tween.tween_property(body_root, "rotation:x", -PI / 2.0, 0.5).set_trans(Tween.TRANS_QUAD)
 	anim_tween.tween_property(body_root, "position:y", 0.3, 0.5)
@@ -3189,4 +3257,6 @@ func _respawn() -> void:
 	action = {}
 	ranged_loaded = true
 	_kill_anim(true)
+	if anim_figur:
+		anim_figur.zuruecksetzen()
 	respawned.emit()

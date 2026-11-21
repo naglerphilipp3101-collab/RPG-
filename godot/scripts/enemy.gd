@@ -79,6 +79,8 @@ var expose_time := 0.0
 
 var model: Node3D
 var weapon_pivot: Node3D
+var figur: SpielerAnimation = null # Animationen menschlicher Gegner (sonst Platzhalter-Tweens)
+var waffe_ruhe := WEAPON_REST
 var body_material: StandardMaterial3D
 var collision: CollisionShape3D
 var bar_root: Node3D
@@ -200,7 +202,9 @@ func _build_model() -> void:
 		m.aussehen = a
 		m.rotation.y = PI
 		model.add_child(m)
-		m.ruhe_a_pose(true)
+		figur = SpielerAnimation.new(m)
+		add_child(figur)
+		waffe_ruhe = Vector3.ZERO
 	else:
 		var torso := CapsuleMesh.new()
 		torso.radius = 0.3
@@ -215,7 +219,7 @@ func _build_model() -> void:
 
 	weapon_pivot = Node3D.new()
 	weapon_pivot.position = Vector3(0.38, 1.0, -0.1)
-	weapon_pivot.rotation_degrees = WEAPON_REST
+	weapon_pivot.rotation_degrees = waffe_ruhe
 	model.add_child(weapon_pivot)
 	var wood := MeshUtil.mat(Color(0.4, 0.27, 0.14))
 	var metal := MeshUtil.mat(Color(0.6, 0.62, 0.65), 0.7, 0.4)
@@ -229,6 +233,8 @@ func _build_model() -> void:
 	else:
 		MeshUtil.part(weapon_pivot, MeshUtil.box(Vector3(0.05, 0.05, 0.85)), wood, Vector3(0, 0, -0.38))
 		MeshUtil.part(weapon_pivot, MeshUtil.box(Vector3(0.04, 0.28, 0.2)), metal, Vector3(0, 0.08, -0.72))
+	if figur:
+		figur.an_hand(weapon_pivot, false)
 
 
 func _bar_height() -> float:
@@ -324,6 +330,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y -= GRAVITY * delta
 	move_and_slide()
+	if figur:
+		figur.bewegen(delta, Vector2(velocity.x, velocity.z).length(), is_on_floor(), state != State.IDLE and state != State.RETURN,
+			false, false, false, "")
 	_update_bar()
 
 
@@ -421,6 +430,9 @@ func _start_windup() -> void:
 		body_material.emission = Color(1.0, 0.35, 0.05)
 	anim_tween = create_tween().set_parallel(true)
 	anim_tween.tween_property(body_material, "emission_energy_multiplier", 3.0, t)
+	if figur: # Ausholen und Schlag als eine Animation, Treffer am Ende des Ausholens
+		figur.schlag("big_overhead" if data.get("unblockable", false) else "overhead", t + float(data.get("strike_time", 0.25)) * 0.5)
+		return
 	if weapon_pivot:
 		anim_tween.tween_property(weapon_pivot, "rotation_degrees", Vector3(120, 0, 0), t).set_trans(Tween.TRANS_BACK)
 	anim_tween.tween_property(model, "rotation_degrees:x", 15.0, t)
@@ -440,6 +452,8 @@ func _start_strike() -> void:
 	_kill_anim()
 	anim_tween = create_tween().set_parallel(true)
 	anim_tween.tween_property(body_material, "emission_energy_multiplier", 0.0, t)
+	if figur:
+		return
 	if weapon_pivot:
 		anim_tween.tween_property(weapon_pivot, "rotation_degrees", Vector3(-50, 0, 0), t * 0.5)
 	anim_tween.tween_property(model, "rotation_degrees:x", -12.0, t * 0.5)
@@ -576,7 +590,10 @@ func apply_stun(duration: float) -> void:
 	_kill_anim()
 	body_material.emission_energy_multiplier = 0.0
 	if weapon_pivot:
-		weapon_pivot.rotation_degrees = WEAPON_REST
+		weapon_pivot.rotation_degrees = waffe_ruhe
+	if figur:
+		figur.einmal("Hit_Knockback", stun_time)
+		return
 	anim_tween = create_tween()
 	anim_tween.tween_property(model, "rotation_degrees:x", 18.0, 0.15)
 	anim_tween.tween_interval(maxf(stun_time - 0.3, 0.0))
@@ -791,7 +808,10 @@ func take_damage(amount: float, from_pos: Vector3, knockback: float, stagger: fl
 		_kill_anim()
 		body_material.emission_energy_multiplier = 0.0
 		if weapon_pivot:
-			weapon_pivot.rotation_degrees = WEAPON_REST
+			weapon_pivot.rotation_degrees = waffe_ruhe
+		if figur:
+			figur.einmal("Hit_Chest", stagger)
+			return
 		anim_tween = create_tween()
 		anim_tween.tween_property(model, "rotation_degrees:x", -20.0, 0.08)
 		anim_tween.tween_property(model, "rotation_degrees:x", 0.0, stagger)
@@ -824,8 +844,11 @@ func _die() -> void:
 	_kill_anim()
 	body_material.emission_energy_multiplier = 0.0
 	model.scale = Vector3.ONE * base_scale
-	anim_tween = create_tween()
-	anim_tween.tween_property(model, "rotation_degrees:z", 90.0, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	if figur:
+		figur.einmal("Death01", -1.0, true)
+	else:
+		anim_tween = create_tween()
+		anim_tween.tween_property(model, "rotation_degrees:z", 90.0, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	_drop_loot()
 
 	# Häutbare Leichen bleiben eine Weile liegen, andere verschwinden bald
@@ -881,11 +904,13 @@ func _respawn() -> void:
 	knockback_velocity = Vector3.ZERO
 	attack_cooldown = 0.0
 	_kill_anim()
+	if figur:
+		figur.zuruecksetzen()
 	model.visible = true
 	model.position = Vector3.ZERO
 	model.rotation = Vector3(0, randf() * TAU, 0)
 	if weapon_pivot:
-		weapon_pivot.rotation_degrees = WEAPON_REST
+		weapon_pivot.rotation_degrees = waffe_ruhe
 	collision.set_deferred("disabled", false)
 	_set_state(State.IDLE)
 
@@ -900,5 +925,5 @@ func _return_to_rest(t: float) -> void:
 	anim_tween = create_tween().set_parallel(true)
 	anim_tween.tween_property(body_material, "emission_energy_multiplier", 0.0, t)
 	if weapon_pivot:
-		anim_tween.tween_property(weapon_pivot, "rotation_degrees", WEAPON_REST, t)
+		anim_tween.tween_property(weapon_pivot, "rotation_degrees", waffe_ruhe, t)
 	anim_tween.tween_property(model, "rotation_degrees:x", 0.0, t)
