@@ -26,26 +26,74 @@
 			{
 				"id": "bollwerk",
 				"name": "Bollwerk",
-				"passive": {"id": "ss_trotz", "name": "Trotz", "desc": "Geblockte Treffer laden Trotz (bis 5). Bei vollem Trotz betäubt deine nächste Fähigkeit 2 s.", "mechanic": "trotz", "stats": {"block_pct": 0.1}, "params": {"max": 5, "stun": 2.0}},
-				"skills": [
-					{"id": "ss_bash", "name": "Schildstoß", "desc": "Kurzer Stoß mit dem Schild, betäubt 1 s.", "skill": {"template": "strike", "style": "overhead", "mult": 1.2, "range": 2.2, "arc": 90, "windup": 0.2, "duration": 0.5, "kb": 4, "stag": 1.0, "effects": {"stun": 1.0}, "cooldown": 9}},
-					{"id": "ss_rush", "name": "Schildansturm", "desc": "Stürmt vorwärts und wirft Gegner zurück.", "skill": {"template": "dash", "distance": 7, "time": 0.35, "mult": 1.1, "kb": 9, "stag": 1.2, "cooldown": 12}},
-					{"id": "ss_stance", "name": "Standhaft", "desc": "6 s lang 40 % weniger Schaden, kein Taumeln, Blocken kostet keine Ausdauer.", "skill": {"template": "buff", "duration": 6, "buffs": {"damage_reduction": 0.4, "stagger_immune": 1, "block_free": 1}, "cooldown": 20}},
-					{"id": "ss_storm", "name": "Sturmhieb", "desc": "Sprung nach vorn mit wuchtigem Hieb. Gegner nehmen danach 15 % mehr Schaden.", "skill": {"template": "strike", "style": "big_overhead", "dash": 3, "mult": 1.8, "range": 2.6, "arc": 100, "windup": 0.3, "duration": 0.65, "kb": 5, "stag": 0.8, "effects": {"expose": [0.15, 5]}, "cooldown": 10}}
+				"passive": {"id": "ss_trotz", "name": "Trotz", "desc": "Geblockte Treffer laden Trotz (bis 5). Bei vollem Trotz betäubt deine nächste Fähigkeit 2 s.", "mechanic": "trotz", "stats": {"block_pct": 0.1}, "params": {"max": 5, "stun": 2.0}, "icon": "spikes"},
+				"minors": [
+					{"id": "ss_m_schildwall", "name": "Schildwall", "desc": "Blocken kostet 10 % weniger Ausdauer.", "stats": {"block_pct": 0.1}},
+					{"id": "ss_m_zaeh", "name": "Zähigkeit", "desc": "20 Leben mehr.", "stats": {"health": 20}},
+					{"id": "ss_m_haltung", "name": "Eiserne Haltung", "desc": "5 % weniger Schaden.", "stats": {"damage_reduction": 0.05}},
+					{"id": "ss_m_wind", "name": "Zweiter Wind", "desc": "15 % schnellere Ausdauer-Regeneration.", "stats": {"stamina_regen_pct": 0.15}},
+					{"id": "ss_m_panzer", "name": "Gepanzert", "desc": "10 % mehr Rüstung.", "stats": {"armor_pct": 0.1}},
+					{"id": "ss_m_meister", "name": "Schildmeister", "desc": "8 % kürzere Abklingzeiten.", "stats": {"cooldown_pct": 0.08}}
 				],
-				"ultimate": {"id": "ss_fortress", "name": "Festung", "desc": "8 s lang 60 % weniger Schaden und freies Blocken; alle Gegner in 8 m werden verspottet.", "skill": {"template": "buff", "duration": 8, "buffs": {"damage_reduction": 0.6, "stagger_immune": 1, "block_free": 1}, "taunt_radius": 8, "effects": {"taunt": 8}}}
+				"skills": [
+					{"id": "ss_bash", "name": "Schildstoß", "desc": "Kurzer Stoß mit dem Schild, betäubt 1 s.", "skill": {"template": "strike", "style": "overhead", "mult": 1.2, "range": 2.2, "arc": 90, "windup": 0.2, "duration": 0.5, "kb": 4, "stag": 1.0, "effects": {"stun": 1.0}, "cooldown": 9}, "icon": "shield",
+						"upgrades": [
+							{"id": "ss_bash_u1", "name": "Harter Stoß", "desc": "Betäubt 0,5 s länger.", "add": {"effects.stun": 0.5}},
+							{"id": "ss_bash_u2", "name": "Schneller Stoß", "desc": "2 s kürzere Abklingzeit.", "add": {"cooldown": -2}}
+						]},
+					{"id": "ss_rush", "name": "Schildansturm", "desc": "Stürmt vorwärts und wirft Gegner zurück.", "skill": {"template": "dash", "distance": 7, "time": 0.35, "mult": 1.1, "kb": 9, "stag": 1.2, "cooldown": 12}, "icon": "dash",
+						"upgrades": [
+							{"id": "ss_rush_u1", "name": "Weiter Ansturm", "desc": "3 m weiter.", "add": {"distance": 3}},
+							{"id": "ss_rush_u2", "name": "Rammbock", "desc": "Getroffene Gegner sind 1 s betäubt.", "set": {"effects.stun": 1.0}}
+						]},
+					{"id": "ss_stance", "name": "Standhaft", "desc": "6 s lang 40 % weniger Schaden, kein Taumeln, Blocken kostet keine Ausdauer.", "skill": {"template": "buff", "duration": 6, "buffs": {"damage_reduction": 0.4, "stagger_immune": 1, "block_free": 1}, "cooldown": 20}, "icon": "armor",
+						"upgrades": [
+							{"id": "ss_stance_u1", "name": "Ausdauernd", "desc": "Hält 3 s länger.", "add": {"duration": 3}},
+							{"id": "ss_stance_u2", "name": "Gegenwehr", "desc": "Heilt beim Aktivieren 10 % Leben.", "set": {"heal_pct": 0.1}}
+						]},
+					{"id": "ss_storm", "name": "Sturmhieb", "desc": "Sprung nach vorn mit wuchtigem Hieb. Gegner nehmen danach 15 % mehr Schaden.", "skill": {"template": "strike", "style": "big_overhead", "dash": 3, "mult": 1.8, "range": 2.6, "arc": 100, "windup": 0.3, "duration": 0.65, "kb": 5, "stag": 0.8, "effects": {"expose": [0.15, 5]}, "cooldown": 10}, "icon": "leap",
+						"upgrades": [
+							{"id": "ss_storm_u1", "name": "Tiefer Riss", "desc": "Gegner nehmen 25 % statt 15 % mehr Schaden.", "add": {"effects.expose.0": 0.1}},
+							{"id": "ss_storm_u2", "name": "Wucht", "desc": "30 % mehr Schaden.", "mul": {"mult": 1.3}}
+						]}
+				],
+				"ultimate": {"id": "ss_fortress", "name": "Festung", "desc": "8 s lang 60 % weniger Schaden und freies Blocken; alle Gegner in 8 m werden verspottet.", "skill": {"template": "buff", "duration": 8, "buffs": {"damage_reduction": 0.6, "stagger_immune": 1, "block_free": 1}, "taunt_radius": 8, "effects": {"taunt": 8}}, "icon": "fortress"}
 			},
 			{
 				"id": "herausforderer",
 				"name": "Herausforderer",
-				"passive": {"id": "ss_herausforderer", "name": "Herausforderer", "desc": "Je verspottetem Gegner nimmst du 4 % weniger Schaden, bis zu 5 Gegner.", "mechanic": "herausforderer", "stats": {"health": 25}, "params": {"per_enemy": 0.04, "max": 5}},
-				"skills": [
-					{"id": "ss_taunt", "name": "Spottruf", "desc": "Verspottet alle Gegner in 8 m für 6 s.", "skill": {"template": "strike", "style": "overhead", "mult": 0.3, "range": 8, "arc": 360, "windup": 0.2, "duration": 0.5, "kb": 0, "stag": 0.2, "shockwave": true, "effects": {"taunt": 6}, "cooldown": 14}},
-					{"id": "ss_whirl", "name": "Wirbelklinge", "desc": "Rundumschlag um dich herum.", "skill": {"template": "strike", "spin": true, "mult": 1.6, "range": 3.2, "arc": 360, "windup": 0.3, "duration": 0.6, "kb": 4, "stag": 0.6, "cooldown": 8}},
-					{"id": "ss_challenge", "name": "Herausforderung", "desc": "Hieb, der das Ziel 6 s verspottet und verwundbar macht.", "skill": {"template": "strike", "style": "h_right", "mult": 1.4, "range": 2.5, "arc": 90, "windup": 0.25, "duration": 0.55, "kb": 2, "stag": 0.5, "effects": {"taunt": 6, "expose": [0.1, 6]}, "cooldown": 10}},
-					{"id": "ss_rally", "name": "Sammeln", "desc": "Heilt 20 % Leben und gibt 6 s lang 20 % Schadensreduktion.", "skill": {"template": "buff", "duration": 6, "heal_pct": 0.2, "buffs": {"damage_reduction": 0.2}, "cooldown": 22}}
+				"passive": {"id": "ss_herausforderer", "name": "Herausforderer", "desc": "Je verspottetem Gegner nimmst du 4 % weniger Schaden, bis zu 5 Gegner.", "mechanic": "herausforderer", "stats": {"health": 25}, "params": {"per_enemy": 0.04, "max": 5}, "icon": "crown"},
+				"minors": [
+					{"id": "ss_m_fell", "name": "Dickes Fell", "desc": "25 Leben mehr.", "stats": {"health": 25}},
+					{"id": "ss_m_raub", "name": "Lebensraub", "desc": "3 % deines Schadens heilen dich.", "stats": {"lifesteal": 0.03}},
+					{"id": "ss_m_unbeugsam", "name": "Unbeugsam", "desc": "5 % weniger Schaden.", "stats": {"damage_reduction": 0.05}},
+					{"id": "ss_m_blut", "name": "Blutdurst", "desc": "5 % Blutungschance.", "stats": {"bleed": 0.05}},
+					{"id": "ss_m_blick", "name": "Kritischer Blick", "desc": "5 % mehr kritische Trefferchance.", "stats": {"crit": 0.05}},
+					{"id": "ss_m_vergeltung", "name": "Vergeltung", "desc": "15 % mehr kritischer Schaden.", "stats": {"crit_damage": 0.15}}
 				],
-				"ultimate": {"id": "ss_wall", "name": "Unerschütterlicher Wall", "desc": "Gewaltiger Schildschlag in den Boden: betäubt 2 s und verspottet alle Gegner in 6 m.", "skill": {"template": "strike", "style": "big_overhead", "mult": 2.0, "range": 6, "arc": 360, "windup": 0.45, "duration": 0.8, "kb": 6, "stag": 1.5, "shockwave": true, "effects": {"stun": 2.0, "taunt": 8}}}
+				"skills": [
+					{"id": "ss_taunt", "name": "Spottruf", "desc": "Verspottet alle Gegner in 8 m für 6 s.", "skill": {"template": "strike", "style": "overhead", "mult": 0.3, "range": 8, "arc": 360, "windup": 0.2, "duration": 0.5, "kb": 0, "stag": 0.2, "shockwave": true, "effects": {"taunt": 6}, "cooldown": 14}, "icon": "shout",
+						"upgrades": [
+							{"id": "ss_taunt_u1", "name": "Lauter Ruf", "desc": "4 m mehr Reichweite.", "add": {"range": 4}},
+							{"id": "ss_taunt_u2", "name": "Bedrohung", "desc": "Getroffene Gegner sind 3 s um 30 % langsamer.", "set": {"effects.slow": [0.3, 3]}}
+						]},
+					{"id": "ss_whirl", "name": "Wirbelklinge", "desc": "Rundumschlag um dich herum.", "skill": {"template": "strike", "spin": true, "mult": 1.6, "range": 3.2, "arc": 360, "windup": 0.3, "duration": 0.6, "kb": 4, "stag": 0.6, "cooldown": 8}, "icon": "whirl",
+						"upgrades": [
+							{"id": "ss_whirl_u1", "name": "Scharfe Klinge", "desc": "25 % mehr Schaden.", "mul": {"mult": 1.25}},
+							{"id": "ss_whirl_u2", "name": "Blutige Wirbel", "desc": "Getroffene Gegner bluten 4 s.", "set": {"effects.bleed": 4}}
+						]},
+					{"id": "ss_challenge", "name": "Herausforderung", "desc": "Hieb, der das Ziel 6 s verspottet und verwundbar macht.", "skill": {"template": "strike", "style": "h_right", "mult": 1.4, "range": 2.5, "arc": 90, "windup": 0.25, "duration": 0.55, "kb": 2, "stag": 0.5, "effects": {"taunt": 6, "expose": [0.1, 6]}, "cooldown": 10}, "icon": "sword",
+						"upgrades": [
+							{"id": "ss_challenge_u1", "name": "Brandmal", "desc": "Das Ziel nimmt 20 % statt 10 % mehr Schaden.", "add": {"effects.expose.0": 0.1}},
+							{"id": "ss_challenge_u2", "name": "Rüstungsbrecher", "desc": "Bricht 3 Stufen Rüstung (je +3 % Schaden).", "set": {"effects.sunder": 3}}
+						]},
+					{"id": "ss_rally", "name": "Sammeln", "desc": "Heilt 20 % Leben und gibt 6 s lang 20 % Schadensreduktion.", "skill": {"template": "buff", "duration": 6, "heal_pct": 0.2, "buffs": {"damage_reduction": 0.2}, "cooldown": 22}, "icon": "heart",
+						"upgrades": [
+							{"id": "ss_rally_u1", "name": "Zweiter Atem", "desc": "Heilt 30 % statt 20 % Leben.", "add": {"heal_pct": 0.1}},
+							{"id": "ss_rally_u2", "name": "Kurze Rast", "desc": "6 s kürzere Abklingzeit.", "add": {"cooldown": -6}}
+						]}
+				],
+				"ultimate": {"id": "ss_wall", "name": "Unerschütterlicher Wall", "desc": "Gewaltiger Schildschlag in den Boden: betäubt 2 s und verspottet alle Gegner in 6 m.", "skill": {"template": "strike", "style": "big_overhead", "mult": 2.0, "range": 6, "arc": 360, "windup": 0.45, "duration": 0.8, "kb": 6, "stag": 1.5, "shockwave": true, "effects": {"stun": 2.0, "taunt": 8}}, "icon": "impact"}
 			}
 		]
 	},

@@ -1,0 +1,13 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/props/texturen/dielen_farbe.jpg" id="1_xc1qv"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/dielen_normal.jpg" id="2_kndnl"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/dielen_rauheit.jpg" id="3_1t75q"]
+
+[resource]
+resource_name = "dielen"
+albedo_texture = ExtResource("1_xc1qv")
+roughness_texture = ExtResource("3_1t75q")
+normal_enabled = true
+normal_texture = ExtResource("2_kndnl")
+texture_filter = 5

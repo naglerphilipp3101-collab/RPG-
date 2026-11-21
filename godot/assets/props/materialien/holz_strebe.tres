@@ -1,0 +1,16 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://assets/props/materialien/balken.gdshader" id="1_5j8xt"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_farbe.jpg" id="2_walfu"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_normal.jpg" id="3_udist"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_rauheit.jpg" id="4_bstne"]
+
+[resource]
+resource_name = "holz_strebe"
+render_priority = 0
+shader = ExtResource("1_5j8xt")
+shader_parameter/farbe = ExtResource("2_walfu")
+shader_parameter/normal_karte = ExtResource("3_udist")
+shader_parameter/rauheit = ExtResource("4_bstne")
+shader_parameter/achse = Vector3(0.70710677, 0.70710677, 0)
+shader_parameter/schritt = null

@@ -29,10 +29,11 @@ const STAT_NAMES := {
 	"attack_speed": "Angriffstempo", "cooldown_pct": "kürzere Abklingzeiten", "stamina_regen_pct": "Ausdauer-Regeneration",
 	"damage_reduction": "Schadensreduktion", "move_speed_pct": "Laufgeschwindigkeit", "block_pct": "weniger Blockkosten",
 	"dodge_cost_pct": "weniger Ausweichkosten", "reload_pct": "schneller Nachladen/Spannen", "crit_damage": "Kritischer Schaden",
-	"stagger_immune": "Kein Taumeln",
+	"stagger_immune": "Kein Taumeln", "lifesteal": "Lebensraub", "armor_pct": "Rüstung", "heavy_cost_pct": "weniger Kosten schwerer Angriff",
 }
 const PERCENT_STATS := ["damage_pct", "crit", "bleed", "heavy", "gather", "attack_speed", "cooldown_pct",
-	"stamina_regen_pct", "damage_reduction", "move_speed_pct", "block_pct", "dodge_cost_pct", "reload_pct", "crit_damage"]
+	"stamina_regen_pct", "damage_reduction", "move_speed_pct", "block_pct", "dodge_cost_pct", "reload_pct", "crit_damage",
+	"lifesteal", "armor_pct", "heavy_cost_pct"]
 const SLOT_NAMES := {
 	"weapon": "Waffe", "weapon2": "Zweitwaffe", "weapon3": "Drittwaffe", "shield": "Schild", "head": "Kopf", "chest": "Brust", "legs": "Beine",
 	"ring": "Ring", "tool": "Werkzeug",
@@ -50,9 +51,21 @@ const QUICK_SLOTS := [
 	{"kind": "food", "name": "2. Mahlzeit", "unlock": "Level-Quest ab Level 10"},
 	{"kind": "potion", "name": "2. Trank", "unlock": "Level-Quest ab Level 20"},
 ]
-## Kosten der Skillbaum-Knoten: Meisterschaft Stufe n gibt n Punkte (Stufe 20 = 20), die Startfähigkeit ist frei.
-## Eine ganze Seite kostet dann 11, für die zweite bleiben 9: Passive + 3 Fähigkeiten oder Passive + 2 + Ultimative.
-const NODE_COSTS := {"passive": 2, "active": 2, "ultimate": 3}
+## Skillbaum wie in New World: Meisterschaft Stufe n gibt n Punkte (Stufe 20 = 20), jeder Knoten kostet 1 Punkt.
+## Eine Seite hat bis zu 19 Knoten (4 Fähigkeiten, 8 Verbesserungen, 6 kleine Passiven, große Passive, Ultimative),
+## beide Seiten zusammen also mehr als Punkte: man stellt sich sein Build selbst zusammen.
+const NODE_COSTS := {"passive": 1, "active": 1, "ultimate": 1, "upgrade": 1, "minor": 1}
+## Punkte, die in einer Seite stecken müssen: große Passive, Fähigkeiten 3 und 4, untere kleine Passiven, Ultimative.
+const TREE_POINTS_PASSIVE := 3
+const TREE_POINTS_LOWER := 3
+const TREE_POINTS_MINOR_LOWER := 4
+const TREE_POINTS_ULTIMATE := 7
+## Raster einer Seite (Spalte, Zeile): Fähigkeiten außen mit ihren Verbesserungen darunter,
+## kleine Passiven innen, große Passive in der Mitte, Ultimative unten.
+const TREE_SKILL_POS := [Vector2(0, 0), Vector2(3, 0), Vector2(0, 3), Vector2(3, 3)]
+const TREE_MINOR_POS := [Vector2(1, 0), Vector2(2, 0), Vector2(1, 1), Vector2(2, 1), Vector2(1, 3), Vector2(2, 3)]
+const TREE_PASSIVE_POS := Vector2(1.5, 2)
+const TREE_ULTIMATE_POS := Vector2(1.5, 5)
 ## Waffen vor M6 (Einhand/Zweihand getrennt) -> heutige Waffe; gilt für Spielstände und Gegenstände
 const OLD_WEAPON_TYPES := {
 	"sword_1h": "sword_shield", "axe_1h": "axe", "axe_2h": "axe", "mace_1h": "hammer", "mace_2h": "hammer",
@@ -146,27 +159,76 @@ func mastery_xp_to_next(level: int) -> int:
 	return int(80.0 * pow(level, 1.4))
 
 
-## Ergänzt jede Waffenseite um eine flache Knotenliste: Passive, 4 Fähigkeiten, Ultimative.
-## Jeder Knoten bekommt "type" (passive/active/ultimate) und "side" (0 oder 1).
+## Ergänzt jede Waffenseite um eine flache Knotenliste: Fähigkeiten mit ihren Verbesserungen, kleine Passiven,
+## große Passive, Ultimative. Jeder Knoten bekommt "type" (active/upgrade/minor/passive/ultimate), "side" (0 oder 1),
+## "pos" (Raster), "req" (Knoten davor, sonst "") und "points" (nötige Punkte in dieser Seite).
 func _build_weapon_trees() -> void:
 	for type in weapons:
 		var sides: Array = weapons[type].get("sides", [])
 		for i in sides.size():
 			var side: Dictionary = sides[i]
 			var nodes: Array = []
-			var passive: Dictionary = side["passive"]
-			passive["type"] = "passive"
-			nodes.append(passive)
-			for s in side["skills"]:
-				var skill: Dictionary = s
-				skill["type"] = "active"
-				nodes.append(skill)
-			var ult: Dictionary = side["ultimate"]
-			ult["type"] = "ultimate"
-			nodes.append(ult)
+			var skills: Array = side["skills"]
+			# Seiten ohne ausgebauten Baum (noch keine kleinen Passiven): Fähigkeiten und Passive frei wählbar
+			var full: bool = not side.get("minors", []).is_empty()
+			for k in skills.size():
+				var skill: Dictionary = skills[k]
+				var pos: Vector2 = TREE_SKILL_POS[k % TREE_SKILL_POS.size()]
+				_tree_node(skill, "active", pos, "", TREE_POINTS_LOWER if k >= 2 and full else 0, nodes)
+				var before: String = skill["id"]
+				var upgrades: Array = skill.get("upgrades", [])
+				for u in upgrades.size():
+					var upgrade: Dictionary = upgrades[u]
+					upgrade["skill"] = skill["id"]
+					_tree_node(upgrade, "upgrade", pos + Vector2(0, u + 1), before, 0, nodes)
+					before = upgrade["id"]
+			var minors: Array = side.get("minors", [])
+			for k in minors.size():
+				var minor: Dictionary = minors[k]
+				var req := String(minors[k - 2]["id"]) if k in [2, 3] else "" # zweite Reihe hängt an der ersten
+				_tree_node(minor, "minor", TREE_MINOR_POS[k % TREE_MINOR_POS.size()], req, TREE_POINTS_MINOR_LOWER if k >= 4 else 0, nodes)
+			_tree_node(side["passive"], "passive", TREE_PASSIVE_POS, "", TREE_POINTS_PASSIVE if full else 0, nodes)
+			# Ulti ab 7 Punkten; Seiten ohne ausgebauten Baum (noch zu wenige Knoten) brauchen alle übrigen
+			_tree_node(side["ultimate"], "ultimate", TREE_ULTIMATE_POS, "", mini(TREE_POINTS_ULTIMATE, nodes.size() - 1), nodes)
 			for n in nodes:
 				n["side"] = i
 			side["nodes"] = nodes
+
+
+func _tree_node(node: Dictionary, kind: String, pos: Vector2, req: String, points: int, nodes: Array) -> void:
+	node["type"] = kind
+	node["pos"] = pos
+	node["req"] = String(node.get("req", req))
+	node["points"] = int(node.get("points", points))
+	nodes.append(node)
+
+
+## Fähigkeit mit allen freigeschalteten Verbesserungen: "add" addiert, "mul" multipliziert, "set" setzt.
+## Schlüssel sind Pfade wie "cooldown", "effects.stun" oder "effects.expose.0" (Zahl = Listenplatz).
+func effective_skill(node: Dictionary, unlocked: Array) -> Dictionary:
+	var skill: Dictionary = node.get("skill", {}).duplicate(true)
+	for upgrade in node.get("upgrades", []):
+		if not unlocked.has(upgrade["id"]):
+			continue
+		for op in ["set", "add", "mul"]:
+			var changes: Dictionary = upgrade.get(op, {})
+			for path in changes:
+				_change_path(skill, String(path).split("."), op, changes[path])
+	return skill
+
+
+func _change_path(target, keys: PackedStringArray, op: String, value) -> void:
+	for i in keys.size() - 1:
+		var key = int(keys[i]) if target is Array else keys[i]
+		if target is Dictionary and not target.has(key):
+			target[key] = {}
+		target = target[key]
+	var last = int(keys[-1]) if target is Array else keys[-1]
+	var has_value: bool = (target is Dictionary and target.has(last)) or (target is Array and last < target.size())
+	match op:
+		"set": target[last] = value if not (value is Array or value is Dictionary) else value.duplicate(true)
+		"add": target[last] = (float(target[last]) if has_value else 0.0) + float(value)
+		"mul": target[last] = (float(target[last]) if has_value else 0.0) * float(value)
 
 
 ## Farben der Magie-Elemente (Geschosse, Flächen, Stabkristall).
@@ -205,7 +267,7 @@ func tree_node(type: String, node_id: String) -> Dictionary:
 
 
 func node_cost(node: Dictionary) -> int:
-	return int(node.get("cost", NODE_COSTS.get(node.get("type", "active"), 2)))
+	return int(node.get("cost", NODE_COSTS.get(node.get("type", "active"), 1)))
 
 
 ## Mechanik-Parameter der Passiven (aus weapons.json "params").
@@ -216,17 +278,32 @@ func passive_param(node: Dictionary, key: String, fallback := 0.0) -> float:
 ## Beschreibung eines Skillbaum-Knotens für Tooltips und Anzeige.
 func describe_node(node: Dictionary) -> String:
 	var kind: String = node.get("type", "")
-	var lines: Array[String] = [String(node.get("name", "")), String(node.get("desc", ""))]
+	var kinds := {"active": "Fähigkeit", "upgrade": "Verbesserung", "minor": "Passiver Bonus", "passive": "Große Passive",
+		"ultimate": "Ultimative"}
+	var lines: Array[String] = [String(node.get("name", "")) + "   ·   " + String(kinds.get(kind, "")), String(node.get("desc", ""))]
 	if kind == "active":
-		lines.append("Abklingzeit %d s" % int(node.get("skill", {}).get("cooldown", 10)))
+		lines.append("Abklingzeit %s s" % str(node.get("skill", {}).get("cooldown", 10)))
+	elif kind == "upgrade":
+		var skill_node := tree_node_any(String(node.get("skill", "")))
+		lines.append("Verbessert: %s" % skill_node.get("name", ""))
 	elif kind == "ultimate":
-		lines.append("Ultimative (Taste %s): lädt sich durch Treffer und erlittenen Schaden auf" % ULTIMATE_KEY)
-	elif kind == "passive":
+		lines.append("Taste %s, lädt sich durch Treffer und erlittenen Schaden auf. Nur eine Ultimative ist aktiv." % ULTIMATE_KEY)
+	if kind in ["passive", "minor"]:
 		var stats: Dictionary = node.get("stats", {})
 		for stat in stats:
 			lines.append(format_stat(stat, stats[stat]))
-		lines.append("Nur eine Passive je Waffe ist aktiv.")
+		if kind == "passive":
+			lines.append("Nur eine große Passive je Waffe ist aktiv.")
 	return "\n".join(lines)
+
+
+## Knoten über alle Waffen suchen (für Verbesserungen, die ihre Fähigkeit nennen).
+func tree_node_any(node_id: String) -> Dictionary:
+	for type in weapons:
+		var node := tree_node(type, node_id)
+		if not node.is_empty():
+			return node
+	return {}
 
 
 func node_short_name(node: Dictionary) -> String:

@@ -1,0 +1,13 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_verkohlt_farbe.jpg" id="1_a3vow"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_verkohlt_normal.jpg" id="2_lmgce"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/holz_verkohlt_rauheit.jpg" id="3_df174"]
+
+[resource]
+resource_name = "holz_verkohlt"
+albedo_texture = ExtResource("1_a3vow")
+roughness_texture = ExtResource("3_df174")
+normal_enabled = true
+normal_texture = ExtResource("2_lmgce")
+texture_filter = 5

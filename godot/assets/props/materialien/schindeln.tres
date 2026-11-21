@@ -1,0 +1,13 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/props/texturen/schindeln_farbe.jpg" id="1_u4n12"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/schindeln_normal.jpg" id="2_j8eqs"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/schindeln_rauheit.jpg" id="3_at3y4"]
+
+[resource]
+resource_name = "schindeln"
+albedo_texture = ExtResource("1_u4n12")
+roughness_texture = ExtResource("3_at3y4")
+normal_enabled = true
+normal_texture = ExtResource("2_j8eqs")
+texture_filter = 5
