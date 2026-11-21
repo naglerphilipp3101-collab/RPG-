@@ -49,6 +49,14 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
   Palladium hat eigene Formen je Satz in `blender/palladium.py` (`BAU[satz]`, von alle.py/test_satz.py bei `TIER=palladium` genutzt: Riffelharnisch, Burgonet, Morion,
   Cabasset, attischer Helm, Halskrausen, Pelerinen, gezackte Säume, Diademe); tierstil.py setzt danach die Zierde: Palladium gebläut (Königsblau) an Rändern und Ranken, Silberborten (Material `borte`) auf Stoff, Stoffe elfenbein/Weinrot/Königsblau. Passform-Werkzeuge lesen `TIER` ebenfalls.
   Noch nicht im Spiel (offen: Skelett-Bindung, Texturen nach Liste).
+- `gegner/`: Gegnermodelle (ab 21.11., Rohfassung, noch nicht im Spiel). Gegnerliste als Claude Doc „Gegnerliste Morvane“.
+  Menschen: `blender/kleidung.py` (Kleidung ohne Rüstung auf den Rüstungs-Bausteinen), `blender/gegner_typen.py` (23 Typen: Banditen mit zufälliger
+  Iron-Mischung, Piraten, Wachen, Zombies, Vampire, Kultisten; Körper, Haut, Farben, Abnutzung), `blender/bauen.py -- <ausgabe> [typen]`
+  (gebaut um den Standard-Mann, danach mit `passform.py`/`anpassen.py` auf den Körper des Typs gesetzt; `GLB=1` exportiert je Slot).
+  Wachen sind ein generischer Typ, Name und Level kommen vom Ort. Tiere und Ungeheuer: `blender/tierform.py` (Abstandsfeld aus Kapseln/Ellipsoiden,
+  Marching Cubes, Fell, Punktfarben, Skelett) und `blender/tiere.py -- <ausgabe> [art] [varianten]`: Wolf, Wildschwein, Bär, Berglöwe, Krokodil,
+  Hirsch, Riesenkrabbe, Riesenspinne, Moorschrat, Kalistare (Splitterling, Krieger, Seher, Zahr-Koloss). Varianten teilen die Form, Größe als Skalierung.
+  Braucht `pip install scipy scikit-image` und für Bilder `apt install libegl1` + `xvfb-run`.
 - `natur/`: Bodenobjekte und tote Bäume (Blender `natur/blender/natur_modelle.py` → `natur/modelle/`: totbaum, baumstamm, stock, treibholz, alge), nur Deko.
 - Terrain3D ist ein Plugin aus der AssetLib und liegt **nicht** im Repository (muss unter `godot/addons/` installiert werden).
 - **6 Erz-Tiers:** Iron, Palladium, Mithril, Glacialore, Sungold, Darksteel. Das Repository ist der neuere Stand und hat bei Abweichungen Vorrang (Nutzerentscheidung).
