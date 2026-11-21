@@ -325,6 +325,7 @@ EP der Waffe = EP des Monsters × Schaden der Waffe ÷ Schaden aller Waffen des 
 - **4 Fähigkeiten** pro Seite, davon 3 gleichzeitig ausgerüstet (Tasten Q, E, R).
 - **1 Ultimative** pro Seite (Taste X), lädt sich durch Schaden und Treffer auf.
 - Die Punkte reichen für eine Seite ganz und die andere halb, damit Entscheidungen nötig bleiben.
+- **Skillbaum wie New World** (Philipp, 22.10.): siehe „Skillbäume (22.10.)“ unten.
 - **Tasten** (Philipp, 15.10.): Q/E/R Fähigkeiten, X Ultimative, 1–4 Essen und Tränke. Dafür liegt Interagieren auf F und der Waffenwechsel auf T und dem Mausrad.
 
 Bei 15 Waffen sind das 120 Fähigkeiten plus 30 Ultimative.
@@ -469,7 +470,7 @@ Test: `godot --headless --path godot -- --autotest --character`.
 
 - **10 Waffen** statt 12: Schwert und Schild, Axt, Hammer, Großschwert, Degen, Speer, Messer, Bogen, Armbrust, Muskete. Die Magiearten folgen mit M7. Alle Werte stehen in `data/weapons.json`.
 - **2 Seiten je Waffe** mit Passive, 4 Fähigkeiten und Ultimative, Namen und Passiven wie in der Übersicht oben. Nur eine Passive ist aktiv, im Skillbaum (K) umschaltbar. Die 20 Passiven sind alle als eigene Mechanik umgesetzt (Trotz, Spott, Blutung verbrauchen, Leben gegen Abklingzeit, Rüstungsbruch, Betäubungsleiste, Schwung, Abklingzeit-Verkürzung, Riposte, Rhythmus, Anlauf, Speerspitze, Tarnung, Gift, Distanzgift, Ausweich-Schuss, Durchschlag, Magazin, Zielen auf den Kopf, Markieren und Fallen).
-- **Punkte:** Meisterschaft Stufe n gibt n Punkte, die erste Fähigkeit ist frei. Passive und Fähigkeiten kosten 2, die Ultimative 3 und braucht die Passive und 2 Fähigkeiten ihrer Seite. Mit Stufe 20 reicht es für eine Seite ganz und für die zweite Passive + 3 Fähigkeiten oder Passive + 2 Fähigkeiten + Ultimative.
+- **Punkte (bis 22.10., ersetzt durch „Skillbäume“):** Meisterschaft Stufe n gibt n Punkte, die erste Fähigkeit ist frei. Passive und Fähigkeiten kosten 2, die Ultimative 3 und braucht die Passive und 2 Fähigkeiten ihrer Seite. Mit Stufe 20 reicht es für eine Seite ganz und für die zweite Passive + 3 Fähigkeiten oder Passive + 2 Fähigkeiten + Ultimative.
 - **Ultimative (X):** eine Ladeleiste für alle Waffen, sie füllt sich durch Treffer (3 je Treffer) und erlittenen Schaden. Keine Abklingzeit.
 - **Neue Effekte auf Gegnern:** Betäubung, Spott (der Gegner lässt nicht mehr ab), Rüstungsbruch (+3 % Schaden je Stapel, bis 10), Gift (stapelt bis 10), Tarnung des Spielers (Gegner bemerken dich nicht, der erste Treffer beendet sie). **Kopftreffer** mit Fernwaffen machen 150 % Schaden (Geschicklichkeit 500: +25 %).
 - **Tasten:** Q/E/R, X, F, T und Mausrad, 1 Trank, 2 Essen. Platz 3 und 4 sind sichtbar, aber gesperrt (2. Mahlzeit ab Level 10, 2. Trank ab Level 20, per Level-Quest in M8).
@@ -492,6 +493,18 @@ Tests: `godot --headless --path godot -- --autotest --m6` (19 Prüfungen) und `-
 - **Arkanes Sanktum** stellt die Magiewaffen her (Tier 1 aus Kupfer, Tier 2 aus Eisen), Übungsstäbe gibt es am Übungswaffenständer.
 
 Tests: `godot --headless --path godot -- --autotest --m7` (17 Prüfungen) und `--weapons` (alle 30 Seiten).
+
+### Skillbäume (22.10.)
+
+Vorgabe von Philipp: Mit der Waffe sammelt man Erfahrung in ihrer Kategorie, jede Meisterschaftsstufe gibt einen Skillpunkt, die Seiten werden nach und nach freigeschaltet wie in New World. Es gibt mehr Knoten als Punkte, damit man sich sein Build selbst zusammenstellt.
+
+- **Punkte:** Stufe n gibt n Punkte (20 bei Stufe 20), jeder Knoten kostet 1. Die erste Fähigkeit ist von Anfang an da (sie kostet den Punkt von Stufe 1).
+- **Eine Seite** hat 19 Knoten: 4 Fähigkeiten (Sechsecke mit Bild), je 2 Verbesserungen darunter (kleine Kreise, die zweite hängt an der ersten), 6 kleine Passiven (kleine Kreise, z. B. Krit-Chance, Lebensraub, Schadensreduktion), die große Passive (großer Kreis mit Bild) und die Ultimative (Achteck mit Bild). Beide Seiten zusammen haben 38 Knoten bei 20 Punkten.
+- **Bedingungen:** Fähigkeit 1 und 2 und die obersten kleinen Passiven sind sofort wählbar. Große Passive, Fähigkeit 3 und 4 ab 3 Punkten in der Seite, die unteren kleinen Passiven ab 4, die **Ultimative ab 7**. Verbesserungen brauchen ihre Fähigkeit, die zweite Reihe kleiner Passiven die erste.
+- **Aktiv:** 3 Fähigkeiten auf Q/E/R frei gemischt aus beiden Seiten, **eine** große Passive und **eine** Ultimative (umschaltbar, wenn beide freigeschaltet sind). Alle freigeschalteten Verbesserungen und kleinen Passiven wirken immer, solange die Waffe in der Hand ist.
+- **Daten:** in `data/weapons.json` je Fähigkeit `upgrades` (mit `add`/`mul`/`set` auf Werte der Fähigkeit, z. B. `"add": {"effects.stun": 0.5}`), je Seite `minors` (mit `stats`) und `icon` für das Bild. Bilder können später als Datei unter `assets/icons/faehigkeiten/<id>.png|svg` abgelegt werden, sonst zeichnet `scripts/skill_icons.gd` ein Symbol.
+- **Stand:** Schwert und Schild ist als Prototyp vollständig. Die anderen 14 Waffen haben noch nur Fähigkeiten, Passive und Ultimative; dort sind Passive und Fähigkeiten frei wählbar und die Ultimative braucht 4 Punkte, bis ihre Bäume geschrieben sind.
+- **Alte Spielstände** (Version 3 und älter): Skillpunkte werden erstattet, die Meisterschaftsstufen bleiben.
 
 ### Nächster Schritt
 
