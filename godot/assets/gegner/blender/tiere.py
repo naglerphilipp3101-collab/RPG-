@@ -35,11 +35,11 @@ def nahe(p, c, r):
 def wolf_form(F, mager=0.0):
 	"""Wolf, Blick nach -Y, Widerrist ~0,8 m. mager > 0: schmaler (Moorwolf)."""
 	b = 1.0 - 0.18 * mager
-	# Rumpf: tiefer, schmaler Brustkorb vorne, schlanke Taille, Kruppe
+	# Rumpf: tiefer Brustkorb vorne, kräftige Taille, Kruppe
 	F.ellipsoid((0, -0.18, 0.62), (0.14 * b, 0.26, 0.185), k=0.05, kipp=0.2)
-	F.ellipsoid((0, 0.12, 0.70), (0.1 * b, 0.22, 0.085), k=0.07)
+	F.ellipsoid((0, 0.12, 0.665), (0.122 * b, 0.23, 0.125), k=0.07)
 	F.ellipsoid((0, 0.36, 0.68), (0.115 * b, 0.14, 0.12), k=0.05)
-	F.kette([(0, -0.36, 0.80), (0, -0.1, 0.80), (0, 0.25, 0.76), (0, 0.45, 0.72)], [0.08, 0.075, 0.075, 0.065], k=0.05)
+	F.kette([(0, -0.36, 0.80), (0, -0.1, 0.80), (0, 0.25, 0.76), (0, 0.45, 0.72)], [0.09, 0.085, 0.085, 0.07], k=0.05)
 	F.ellipsoid((0, -0.38, 0.62), (0.09 * b, 0.07, 0.12), k=0.05)          # Brust vorne (Vorbrust)
 	# Hals und Kopf (langer Fang)
 	F.kapsel((0, -0.34, 0.74), (0, -0.53, 0.89), 0.115 * b, 0.08, k=0.05)
