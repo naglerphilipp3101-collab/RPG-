@@ -19,3 +19,6 @@ godot/assets/welt/texturen_scan/
 godot/assets/baeume/texturen_scan/
 # Asset-Bibliothek von Poly Haven (neu laden mit "godot/Assets laden.bat")
 godot/assets/bibliothek/*/
+
+# Mixamo-Animationen: kostenlos fürs Spiel, aber nicht frei weiterzugeben -> nur lokal (godot/assets/animationen/mixamo/)
+godot/assets/animationen/mixamo/

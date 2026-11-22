@@ -57,6 +57,12 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
   Marching Cubes, Fell, Punktfarben, Skelett) und `blender/tiere.py -- <ausgabe> [art] [varianten]`: Wolf, Wildschwein, Bär, Berglöwe, Krokodil,
   Hirsch, Riesenkrabbe, Riesenspinne, Moorschrat, Kalistare (Splitterling, Krieger, Seher, Zahr-Koloss). Varianten teilen die Form, Größe als Skalierung.
   Braucht `pip install scipy scikit-image` und für Bilder `apt install libegl1` + `xvfb-run`.
+- `animationen/`: Menschen-Animationen (ab 21.11.). Quelle Quaternius „Universal Animation Library“ 1+2 (CC0, `quaternius/UAL*_Standard.glb`), beim Import per
+  `knochen_ue.tres` + Rest-Fixer auf das Godot-Humanoid-Profil umgerechnet (Einstellungen in den `.import`-Dateien). `mensch_animationen.gd` (MenschAnimationen:
+  Bibliothek „mensch“, Spuren auf `Skelett:<Knochen>`), `scripts/spieler_animation.gd` (SpielerAnimation: Grundbewegung je Bild, einmalige Schläge/Rolle/Treffer/Tod,
+  Waffen per BoneAttachment in die Hand). Genutzt von player.gd (`anim_figur`) und menschlichen Gegnern in enemy.gd (`figur`). Die T-Pose in mensch.gd richtet dafür
+  Beine, Füße (`FUSS_RICHTUNG`) und Rumpf (`RUMPF_RICHTUNG`) nach der Quaternius-Puppe aus. Bilderbogen: `animationen/test/bogen.tscn -- --anims Idle,Walk [--waffe sword] [--bild x.png]`.
+  Mixamo-Dateien (Lücken bei Waffen) gehören nach `animationen/mixamo/` und sind gitignored (nicht frei weiterzugeben).
 - `natur/`: Bodenobjekte und tote Bäume (Blender `natur/blender/natur_modelle.py` → `natur/modelle/`: totbaum, baumstamm, stock, treibholz, alge), nur Deko.
 - Terrain3D ist ein Plugin aus der AssetLib und liegt **nicht** im Repository (muss unter `godot/addons/` installiert werden).
 - **6 Erz-Tiers:** Iron, Palladium, Mithril, Glacialore, Sungold, Darksteel. Das Repository ist der neuere Stand und hat bei Abweichungen Vorrang (Nutzerentscheidung).
@@ -69,7 +75,7 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
 - Spielstand: `%APPDATA%\Godot\app_userdata\RPG\savegame.json`.
 - **Alles wird per Code aufgebaut**, Szenen minimal (`scenes/main.tscn` enthält nur `main.gd`). **Datengetrieben** über `data/*.json`.
 - Autoload `Game` (`scripts/game.gd`): Daten laden, Waffen-Gegenstände, Rezepte und Übungswaffen aus `weapons.json` erzeugen, Hilfsfunktionen, Tastenbelegung.
-- Grafik im Spiel noch **Platzhalter aus Grundformen** (`mesh_util.gd`, `weapon_models.gd`). Die Assets aus `assets/` sind noch **nicht eingebunden**.
+- Grafik im Spiel noch **Platzhalter aus Grundformen** (`mesh_util.gd`, `weapon_models.gd`). Spieler und menschliche Gegner sind animierte Menschen (siehe `animationen/`).
 
 | Datei | Zweck |
 |---|---|

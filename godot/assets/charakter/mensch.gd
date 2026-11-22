@@ -11,8 +11,19 @@ extends Node3D
 
 signal aufgebaut
 
-## Knochen, die für die T-Pose auf die Richtung des Godot-Humanoid-Profils gedreht werden.
-const T_POSE := ["UpperArm", "LowerArm", "Hand", "Thumb", "Index", "Middle", "Ring", "Little"]
+## Knochen, die für die T-Pose auf die Richtung des Godot-Humanoid-Profils gedreht werden
+## (Beine gerade, Fußknochen waagerecht: so erwarten es die umgerechneten Animationen).
+## Fußknochen: Richtung Knöchel -> Fußballen der Quaternius-Puppe (30° nach unten). Die Animationen
+## stellen diese Linie in der Ruhe waagerecht; mit derselben Drehung steht unsere Sohle dann flach.
+const FUSS_RICHTUNG := Vector3(0.0, -0.511, 0.860)
+## Rumpf und Hals: Richtung zum nächsten Wirbel in der Ruhe der umgerechneten Quaternius-Puppe.
+## Unser Rücken ist anders gebogen; ohne Angleichen hinge der Kopf in jeder Animation nach vorn.
+const RUMPF_RICHTUNG := {
+	"Hips": Vector3(0.0, 0.968, 0.250), "Spine": Vector3(0.0, 0.992, 0.123), "Chest": Vector3(0.0, 0.9995, -0.032),
+	"UpperChest": Vector3(0.0, 0.942, -0.336), "Neck": Vector3(0.0, 0.993, -0.120),
+}
+const RUMPF_KIND := {"Hips": "Spine", "Spine": "Chest", "Chest": "UpperChest", "UpperChest": "Neck", "Neck": "Head"}
+const T_POSE := ["UpperArm", "LowerArm", "Hand", "Thumb", "Index", "Middle", "Ring", "Little", "UpperLeg", "LowerLeg", "Foot"]
 
 @export var aussehen: Dictionary = {}
 ## Gleiche Menschen teilen sich Netze (Gegner, NPCs). Aus, wenn das Aussehen oft wechselt (Erstellung),
@@ -336,7 +347,13 @@ func _skelett_bauen() -> void:
 		var q := Basis()
 		if _t_pose_knochen(name):
 			var d_a := (e - h).normalized()
+			if name.ends_with("Foot"):
+				d_a = FUSS_RICHTUNG
 			q = Basis(Quaternion(d_a, b_t.y.normalized()))
+		elif RUMPF_RICHTUNG.has(name):
+			var kind := _kind_kopf(knochen, i)
+			if kind != Vector3.INF:
+				q = Basis(Quaternion((kind - h).normalized(), (RUMPF_RICHTUNG[name] as Vector3).normalized()))
 		elif eltern >= 0:
 			q = dreh[eltern]
 		dreh.append(q)
@@ -361,6 +378,15 @@ func _skelett_bauen() -> void:
 		skin.add_named_bind(k["name"], a_global[i].affine_inverse())
 	skelett.reset_bone_poses()
 	set_meta("skin", skin)
+
+
+## Kopfpunkt des Rumpf-Kindknochens (Spine -> Chest …), INF falls nicht vorhanden.
+func _kind_kopf(knochen: Array, i: int) -> Vector3:
+	var kind: String = RUMPF_KIND.get(knochen[i]["name"], "")
+	for k in knochen:
+		if k["name"] == kind:
+			return _mittel(k["kopf"])
+	return Vector3.INF
 
 
 func _t_pose_knochen(name: String) -> bool:
