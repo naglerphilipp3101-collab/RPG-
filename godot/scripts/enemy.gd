@@ -203,6 +203,7 @@ func _build_model() -> void:
 		m.rotation.y = PI
 		model.add_child(m)
 		figur = SpielerAnimation.new(m)
+		figur.waffe_setzen("axe") # Einhandwaffen (Axt, Keule): Mixamo-Axt-Satz, sonst Quaternius
 		add_child(figur)
 		waffe_ruhe = Vector3.ZERO
 	else:
@@ -810,7 +811,7 @@ func take_damage(amount: float, from_pos: Vector3, knockback: float, stagger: fl
 		if weapon_pivot:
 			weapon_pivot.rotation_degrees = waffe_ruhe
 		if figur:
-			figur.einmal("Hit_Chest", stagger)
+			figur.satz_einmal("treffer", "Hit_Chest", stagger)
 			return
 		anim_tween = create_tween()
 		anim_tween.tween_property(model, "rotation_degrees:x", -20.0, 0.08)
@@ -845,7 +846,7 @@ func _die() -> void:
 	body_material.emission_energy_multiplier = 0.0
 	model.scale = Vector3.ONE * base_scale
 	if figur:
-		figur.einmal("Death01", -1.0, true)
+		figur.satz_einmal("tod", "Death01", -1.0, true)
 	else:
 		anim_tween = create_tween()
 		anim_tween.tween_property(model, "rotation_degrees:z", 90.0, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)

@@ -656,6 +656,8 @@ func _recalc_stats() -> void:
 	var type_changed := new_type != weapon_type or weapon_def.is_empty()
 	weapon_type = new_type
 	weapon_def = Game.weapon_def(weapon_type)
+	if anim_figur:
+		anim_figur.waffe_setzen(weapon_type)
 	_mastery(weapon_type)
 	_recalc_passives()
 	_recalc_attributes()
@@ -1307,6 +1309,7 @@ func _mensch_bauen() -> void:
 	mensch.rotation.y = PI
 	body_root.add_child(mensch)
 	anim_figur = SpielerAnimation.new(mensch)
+	anim_figur.waffe_setzen(weapon_type)
 	add_child(anim_figur)
 	for p in _platzhalter_koerper:
 		p.visible = false
@@ -1333,7 +1336,7 @@ func _an_haende_haengen() -> void:
 
 func _weapon_rest_pos() -> Vector3:
 	if anim_figur:
-		return Vector3.ZERO
+		return BOGEN_HAND_POS if _bogen() else Vector3.ZERO
 	if is_ranged():
 		return Vector3(0.22, 0.3, -0.3)
 	if int(weapon_def.get("hands", 1)) == 2 and not weapon_def.get("dual", false):
@@ -1343,12 +1346,23 @@ func _weapon_rest_pos() -> Vector3:
 
 func _weapon_rest_rot() -> Vector3:
 	if anim_figur:
-		return Vector3.ZERO
+		return BOGEN_HAND_ROT if _bogen() else Vector3.ZERO
 	var r: Array = weapon_def.get("rest", [20, 15, 0])
 	return Vector3(float(r[0]), float(r[1]), float(r[2]))
 
 
+## Bogen in der linken Hand, Wurfarme senkrecht durch die Faust, Sehne zum Körper.
+const BOGEN_HAND_POS := Vector3(0.0, -0.28, 0.0)
+const BOGEN_HAND_ROT := Vector3(90, 0, 0)
+
+
+func _bogen() -> bool:
+	return weapon_def.get("model", "") == "bow"
+
+
 func _build_weapon_visual() -> void:
+	if anim_figur: # Bogen links, alle anderen Waffen rechts
+		anim_figur.an_hand(weapon_pivot, _bogen())
 	for child in weapon_pivot.get_children():
 		child.queue_free()
 	for child in offhand_pivot.get_children():
@@ -1557,8 +1571,10 @@ func _physics_process(delta: float) -> void:
 	var flat_speed := Vector2(velocity.x, velocity.z).length()
 	if anim_figur:
 		var r: Dictionary = weapon_def.get("ranged", {})
+		var lok := model.global_transform.basis.inverse() * Vector3(velocity.x, 0.0, velocity.z)
 		anim_figur.bewegen(delta, flat_speed, is_on_floor(), combat_timer > 0.0 or blocking, blocking,
-			shield_active(), aiming or action.get("kind", "") == "draw", String(r.get("kind", "")) if is_ranged() else "")
+			shield_active(), aiming or action.get("kind", "") == "draw", String(r.get("kind", "")) if is_ranged() else "",
+			Vector2(lok.x, -lok.z))
 	still_time = still_time + delta if flat_speed < 0.3 else 0.0
 	aim_time = aim_time + delta if aiming else 0.0
 	if passive_mech == "momentum": # Schwung: Bewegung lädt, Stillstand baut langsam ab
@@ -1926,6 +1942,7 @@ func _handle_ranged_input() -> void:
 			_begin_action({"kind": "draw", "duration": INF, "hits": []})
 			_kill_anim(false)
 			if anim_figur:
+				anim_figur.satz_einmal("spannen", "", float(r.get("draw_time", 0.9)) * 0.6)
 				return
 			anim_tween = create_tween()
 			anim_tween.tween_property(weapon_pivot, "position:z", _weapon_rest_pos().z + 0.15, 0.3)
@@ -1961,7 +1978,7 @@ func _fire_ranged(charge: float) -> void:
 	_begin_action({"kind": "fire", "duration": 0.25 if r.get("kind", "") in ["bow", "magic"] else 0.35, "hits": []})
 	_kill_anim(false)
 	if anim_figur:
-		anim_figur.einmal("Spell_Simple_Shoot" if magic else "Pistol_Shoot", 0.45)
+		anim_figur.schuss(magic, 0.2 if magic else 0.45)
 		return
 	anim_tween = create_tween()
 	anim_tween.tween_property(weapon_pivot, "rotation_degrees:x", 12.0, 0.06)
@@ -1978,7 +1995,7 @@ func _start_reload() -> void:
 	_begin_action({"kind": "reload", "duration": duration, "hits": [], "keep_facing": true})
 	_kill_anim(false)
 	if anim_figur:
-		anim_figur.einmal("Pistol_Reload", duration)
+		anim_figur.satz_einmal("nachladen", "Pistol_Reload", duration)
 		return
 	anim_tween = create_tween()
 	anim_tween.tween_property(weapon_pivot, "rotation_degrees", Vector3(-40, 20, 0), duration * 0.4)
@@ -2165,7 +2182,10 @@ func _cast_skill(node: Dictionary, ultimate := false) -> void:
 				"stag": float(skill.get("stag", 1.0)), "effects": effects, "shockwave": true,
 			})
 			velocity.y = GRAVITY * t * 0.5 # so hoch, dass man nach `t` Sekunden wieder landet
-			_play_style("big_overhead", t)
+			if anim_figur and anim_figur.satz.has("leap"):
+				anim_figur.satz_einmal("leap", "", t + 0.35, false, false)
+			else:
+				_play_style("big_overhead", t)
 		"buff":
 			_begin_action({"kind": "buff", "duration": 0.35, "hits": []})
 			_apply_buff(skill)
@@ -2246,6 +2266,8 @@ func _cast_skill(node: Dictionary, ultimate := false) -> void:
 		"sacrifice":
 			_begin_action({"kind": "buff", "duration": 0.35, "hits": []})
 			_sacrifice_summons(float(skill.get("radius", 3.0)), float(skill.get("mult", 2.0)) * mult_factor)
+	if anim_figur:
+		_faehigkeit_animation(String(skill.get("template", "")), skill)
 	if not action.is_empty():
 		action["ctx"] = ctx
 		if _skill_resonance:
@@ -2254,6 +2276,26 @@ func _cast_skill(node: Dictionary, ultimate := false) -> void:
 			action["stealth_after"] = float(skill["stealth"]) # Tarnung erst nach den Treffern
 	if float(skill.get("buff_time", 0.0)) > 0.0:
 		_apply_buff({"buffs": skill.get("buffs", {}), "duration": float(skill["buff_time"])})
+
+
+## Animation einer Fähigkeit (Schläge und Sprung spielen schon in _cast_skill).
+func _faehigkeit_animation(template: String, skill: Dictionary) -> void:
+	var dauer := float(action.get("duration", 0.5))
+	match template:
+		"dash":
+			anim_figur.satz_einmal("dash", "Sword_Regular_C", dauer, false, false)
+		"buff", "detonate", "sacrifice":
+			anim_figur.satz_einmal("buff", "Spell_Simple_Shoot" if is_magic() else "")
+		"summon":
+			anim_figur.satz_einmal("beschwoeren", "Spell_Simple_Shoot")
+		"zone", "wall", "beam":
+			anim_figur.satz_einmal("zone", "Spell_Simple_Shoot" if is_magic() else "")
+		"evade":
+			var zurueck: bool = skill.get("back", false)
+			anim_figur.ausweichen(Vector2(0.0, -1.0 if zurueck else 1.0), dauer + 0.2)
+		"shot":
+			if is_ranged():
+				anim_figur.schuss(is_magic(), 0.2)
 
 
 ## Zahrfluss (jede 4. Fähigkeit ohne Abklingzeit) und Arkane Resonanz (nach drei verschiedenen Fähigkeiten
@@ -3003,6 +3045,9 @@ func _play_style(style: String, hit_time: float) -> void:
 
 func _play_spin(duration: float) -> void:
 	_kill_anim(false)
+	if anim_figur and anim_figur.satz.has("spin"): # die Animation dreht sich selbst
+		anim_figur.satz_einmal("spin", "", duration, false, false)
+		return
 	anim_tween = create_tween()
 	if anim_figur:
 		anim_figur.einmal("Sword_Regular_A", duration)
@@ -3086,7 +3131,10 @@ func _stagger(duration: float, push: Vector3) -> void:
 	velocity.z = push.z
 	_kill_anim(true)
 	if anim_figur:
-		anim_figur.einmal("Hit_Chest" if duration < 0.6 else "Hit_Knockback", duration)
+		if duration < 0.6:
+			anim_figur.satz_einmal("treffer", "Hit_Chest", duration)
+		else:
+			anim_figur.einmal("Hit_Knockback", duration)
 		return
 	anim_tween = create_tween()
 	anim_tween.tween_property(body_root, "rotation:x", 0.35, 0.1)
@@ -3232,7 +3280,7 @@ func _die() -> void:
 	_set_block_pose(false)
 	_kill_anim(true)
 	if anim_figur:
-		anim_figur.einmal("Death01", -1.0, true)
+		anim_figur.satz_einmal("tod", "Death01", -1.0, true)
 		died.emit()
 		return
 	anim_tween = create_tween().set_parallel(true)

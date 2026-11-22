@@ -62,7 +62,12 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
   Bibliothek „mensch“, Spuren auf `Skelett:<Knochen>`), `scripts/spieler_animation.gd` (SpielerAnimation: Grundbewegung je Bild, einmalige Schläge/Rolle/Treffer/Tod,
   Waffen per BoneAttachment in die Hand). Genutzt von player.gd (`anim_figur`) und menschlichen Gegnern in enemy.gd (`figur`). Die T-Pose in mensch.gd richtet dafür
   Beine, Füße (`FUSS_RICHTUNG`) und Rumpf (`RUMPF_RICHTUNG`) nach der Quaternius-Puppe aus. Bilderbogen: `animationen/test/bogen.tscn -- --anims Idle,Walk [--waffe sword] [--bild x.png]`.
-  Mixamo-Dateien (Lücken bei Waffen) gehören nach `animationen/mixamo/` und sind gitignored (nicht frei weiterzugeben).
+  Mixamo (ab 22.11.): FBX „Without Skin“ in `animationen/mixamo/<ordner>/` (schwert_schild, grossschwert, axt, bogen, gewehr, magie, bewegung, einzeln),
+  `animationen/mixamo_umwandeln.gd` (`Godot --headless --path godot -s res://assets/animationen/mixamo_umwandeln.gd [-- --liste]`) rechnet sie auf das Mensch-Skelett um
+  (Weltdrehung je Knochen + Richtungsangleich der Ruhe, Hüftwanderung raus, Meta `weg` m/s und `treffer` = schnellste rechte Hand) und schreibt `mixamo/<ordner>.res`.
+  Alles unter `mixamo/` ist gitignored (nicht frei weiterzugeben); Claude legt die .res direkt in Philipps Ordner. Ohne sie fällt das Spiel auf Quaternius zurück.
+  `SpielerAnimation.SAETZE` ordnet je Waffe Ruhe, Gehen/Rennen in 4 Richtungen, Block, Zielen, Schläge je Schlagart, Treffer, Tod, Fähigkeiten (buff/dash/leap/spin/zone) zu;
+  `waffe_setzen(typ)` (player.gd bei Waffenwechsel, Gegner: Axt-Satz). Bogen hängt in der linken Hand (`BOGEN_HAND_*` in player.gd).
 - `natur/`: Bodenobjekte und tote Bäume (Blender `natur/blender/natur_modelle.py` → `natur/modelle/`: totbaum, baumstamm, stock, treibholz, alge), nur Deko.
 - Terrain3D ist ein Plugin aus der AssetLib und liegt **nicht** im Repository (muss unter `godot/addons/` installiert werden).
 - **6 Erz-Tiers:** Iron, Palladium, Mithril, Glacialore, Sungold, Darksteel. Das Repository ist der neuere Stand und hat bei Abweichungen Vorrang (Nutzerentscheidung).
