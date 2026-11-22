@@ -12,14 +12,19 @@ $ziel = $PSScriptRoot
 $texturen = [ordered]@{
 	"boden" = @("coast_sand_rocks_02", "brown_mud_leaves_01", "aerial_grass_rock", "farm_soil", "dry_river_pebbles", "rocky_trail_02",
 		"forest_leaves_02", "rocks_ground_02", "leaf_scattered_gravel", "forest_leaves_04", "rocks_ground_05", "brown_mud_03",
-		"dry_decay_leaves", "mud_cracked_dry_03", "forest_floor", "muddy_tracks", "farm_furrows", "rocks_ground_03", "red_mud_stones")
+		"dry_decay_leaves", "mud_cracked_dry_03", "forest_floor", "muddy_tracks", "farm_furrows", "rocks_ground_03", "red_mud_stones",
+		"rocky_terrain_02", "sand_01")
 	"fels" = @("aerial_rocks_02", "dark_rock", "gray_rocks", "marble_cliff_05", "dark_rock_02", "lichen_rock", "rock_face_04",
-		"rock_wall_08", "marble_cliff_02", "rock_wall_09")
+		"rock_wall_08", "marble_cliff_02", "rock_wall_09",
+		"aerial_rocks_04", "marble_cliff_03", "marble_rock_03", "rock_wall_17")
 	"holz_rinde" = @("wood_table", "wood_planks", "bark_willow", "bark_brown_02", "wooden_panels", "bark_brown_01", "old_planks_02",
-		"wooden_barrel", "wooden_garage_door", "tree_bark_03", "natural_walnut_veneer")
+		"wooden_barrel", "wooden_garage_door", "tree_bark_03", "natural_walnut_veneer",
+		"black_painted_planks", "coated_pine", "dark_paneled_wood", "hinoki_planks", "japanese_cedar_planks", "jolcham_oak_bark_01",
+		"lacquered_cherry_wood", "weathered_peeling_timber", "wooden_gate")
 	"mauer_boden_dach" = @("stacked_brick_wall", "herringbone_concrete_tile_03", "damaged_plaster", "stone_tiles_02", "stone_wall_04",
 		"stone_pathway_02", "stone_tiles", "grassy_cobblestone", "rough_plasterbrick_05", "thatch_roof_angled", "coral_fort_wall_02",
-		"brick_wall_10", "floor_bricks_02", "roof_tiles_14", "rabdentse_ruins_wall", "castle_brick_broken_06", "rough_plaster_03")
+		"brick_wall_10", "floor_bricks_02", "roof_tiles_14", "rabdentse_ruins_wall", "castle_brick_broken_06", "rough_plaster_03",
+		"brick_floor_04", "multicolored_pebble_floor")
 	"metall" = @("metal_plate_02", "corrugated_iron")
 }
 $modelle = [ordered]@{
