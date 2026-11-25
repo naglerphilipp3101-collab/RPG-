@@ -112,6 +112,7 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
 - **Skillbäume wie New World** (22.10., Prototyp Schwert und Schild): 1 Punkt je Meisterschaftsstufe und Knoten, je Seite 4 Fähigkeiten (Sechsecke) mit 2 Verbesserungen (`upgrades`: `add`/`mul`/`set` auf die Fähigkeitswerte),
   6 kleine Passiven (`minors`), große Passive (ab 3 Punkten) und Ultimative (ab 7). Eine große Passive und eine Ultimative aktiv. Logik in `Game._build_weapon_trees`/`effective_skill`, Fenster `skill_tree_ui.gd`,
   Bilder `skill_icons.gd` (Datei unter `assets/icons/faehigkeiten/<id>.png|svg` hat Vorrang). Die übrigen 14 Waffen haben noch keine Verbesserungen/kleinen Passiven. Details in KONZEPT.md „Skillbäume (22.10.)“
+- **Freie Kamera** (25.11., `scripts/freie_kamera.gd`): F4 an/aus, WASD/Leertaste/C fliegen, Umschalt schnell, Alt langsam, Mausrad Zoom, G Zeitlupe, V Standbild; die Figur bleibt stehen und greift weiter an. Test `--autotest --freecam`
 - **Tasten:** Q/E/R Fähigkeiten, X Ultimative, F Interagieren, T/Mausrad Waffe wechseln, 1 Trank, 2 Essen (3/4 gesperrt bis M8-Level-Quests), K Skillbaum, P Charakter, B Fehler melden (nicht F9: die pausiert im Godot-Editor das laufende Spiel)
 
 **Designregeln des Nutzers:**

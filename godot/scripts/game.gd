@@ -537,6 +537,9 @@ func _setup_input() -> void:
 	_add_key("skill_tree", KEY_K)
 	_add_key("character", KEY_P)
 	_add_key("debug_fly", KEY_F3)
+	_add_key("freie_kamera", KEY_F4)
+	_add_key("zeitlupe", KEY_G) # G statt Z: Tasten zählen nach US-Lage, Z wäre auf deutschen Tastaturen das Y
+	_add_key("standbild", KEY_V)
 	_add_key("fly_down", KEY_C)
 	_add_key("world_map", KEY_M)
 	_add_key("minimap_zoom", KEY_N)
