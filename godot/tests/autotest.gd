@@ -122,6 +122,23 @@ func _ready() -> void:
 		phase = "character_ui" # beendet nach 1,5 s, auch während das Fenster das Spiel anhält
 		process_mode = Node.PROCESS_MODE_ALWAYS
 		_fehler_test()
+	# Mit --schrank: Ausrüstungsschrank legt jede Waffe der Stufe 1 an (mit --write-movie Bild vom Fenster)
+	if OS.get_cmdline_user_args().has("--schrank"):
+		var fehler := 0
+		for typ in Game.weapons:
+			var name: String = player.ausruestung_anlegen(typ)
+			var ok: bool = name != "" and player.weapon_type == typ and player.equipment.has("chest") \
+				and int(player.masteries[typ]["level"]) == Game.MAX_MASTERY_LEVEL \
+				and (player.shield_active() or not Game.weapons[typ].get("allows_shield", false))
+			if not ok:
+				fehler += 1
+			print("AUTOTEST %s %-16s %s" % ["OK    " if ok else "FEHLER", typ, name])
+		print("AUTOTEST Schranktest: %d Fehler" % fehler)
+		player.global_position = Vector3(0, 0.5, 8)
+		player.cam_yaw = PI
+		player.cam_pitch = -0.35
+		phase = "character_ui"
+		get_tree().current_scene.get_node("HUD").open_station.call_deferred("schrank")
 	# Mit --faerber: Färberfenster mit einem gefärbten Schwert (mit --write-movie Bild vom Fenster)
 	if OS.get_cmdline_user_args().has("--faerber"):
 		var schwert: Dictionary = Game.roll_gear("iron_sword", [])

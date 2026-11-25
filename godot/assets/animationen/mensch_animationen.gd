@@ -13,8 +13,13 @@ const QUELLEN := [
 const BIBLIOTHEK := "mensch"
 ## Ohne Schleife geliefert, im Spiel aber als Schleife gebraucht (Sammeln).
 const SCHLEIFEN := ["Sword_Idle", "Farm_Harvest", "Fixing_Kneeling"]
+## Mixamo-Bibliotheken (je Waffe), von mixamo_umwandeln.gd erzeugt. Liegen nur lokal vor (gitignored);
+## fehlt eine, nimmt das Spiel die Quaternius-Animationen.
+const MIXAMO := "res://assets/animationen/mixamo/"
+const MIXAMO_BIBLIOTHEKEN := ["schwert_schild", "grossschwert", "axt", "bogen", "gewehr", "magie", "bewegung", "einzeln"]
 
 static var _bibliothek: AnimationLibrary
+static var _mixamo := {}
 
 
 ## Alle Animationen, Spuren umgeschrieben auf "Skelett:<Knochen>" (AnimationPlayer-Wurzel = Mensch).
@@ -57,8 +62,24 @@ static func spieler_anhaengen(mensch: Node3D) -> AnimationPlayer:
 	mensch.add_child(ap)
 	ap.root_node = NodePath("..")
 	ap.add_animation_library(BIBLIOTHEK, bibliothek())
+	for name in mixamo():
+		ap.add_animation_library(name, _mixamo[name])
 	var sk: Skeleton3D = mensch.skelett
 	var hips := sk.find_bone("Hips")
 	if hips >= 0:
 		sk.motion_scale = sk.get_bone_global_rest(hips).origin.y
 	return ap
+
+
+## Vorhandene Mixamo-Bibliotheken (Name -> AnimationLibrary), einmal geladen.
+static func mixamo() -> Dictionary:
+	if _mixamo.is_empty():
+		for name in MIXAMO_BIBLIOTHEKEN:
+			var pfad: String = MIXAMO + name + ".res"
+			if ResourceLoader.exists(pfad):
+				_mixamo[name] = load(pfad)
+		if _mixamo.is_empty():
+			_mixamo["_"] = null
+	var d := _mixamo.duplicate()
+	d.erase("_")
+	return d

@@ -17,6 +17,7 @@ func _ready() -> void:
 	var gier := 90.0
 	var quelle := false
 	var waffe := ""
+	var links_hand := false
 	for i in args.size():
 		var n: String = args[i + 1] if i + 1 < args.size() else ""
 		match args[i]:
@@ -26,8 +27,12 @@ func _ready() -> void:
 			"--gier": gier = float(n)
 			"--quelle": quelle = true
 			"--waffe": waffe = n
+			"--links": links_hand = true
 			"--liste":
 				print(MenschAnimationen.bibliothek().get_animation_list())
+				var mx := MenschAnimationen.mixamo()
+				for b in mx:
+					print(b, ": ", mx[b].get_animation_list())
 				get_tree().quit()
 				return
 	var env := Environment.new()
@@ -60,7 +65,7 @@ func _ready() -> void:
 			m.position = Vector3(s * abst_x, -z * abst_y, 0)
 			figuren.append([m, name, s])
 		var l := Label3D.new()
-		l.text = name
+		l.text = name.get_file()
 		l.font_size = 48
 		l.pixel_size = 0.004
 		l.position = Vector3(-1.2, -z * abst_y + 1.0, 0)
@@ -70,7 +75,7 @@ func _ready() -> void:
 	for f in figuren:
 		var m: Node3D = f[0]
 		var ap: AnimationPlayer
-		var voll: String = MenschAnimationen.BIBLIOTHEK + "/" + String(f[1])
+		var voll: String = String(f[1]) if String(f[1]).contains("/") else MenschAnimationen.BIBLIOTHEK + "/" + String(f[1])
 		if quelle:
 			ap = m.get_node("AnimationPlayer")
 			voll = String(f[1])
@@ -79,8 +84,11 @@ func _ready() -> void:
 		if waffe != "" and not quelle:
 			var fig := SpielerAnimation.new(m)
 			var rechts := Node3D.new()
-			fig.an_hand(rechts, false)
+			fig.an_hand(rechts, links_hand)
 			WeaponModels.build(waffe, rechts)
+			if waffe == "bow":
+				rechts.position = Spieler.BOGEN_HAND_POS
+				rechts.rotation_degrees = Spieler.BOGEN_HAND_ROT
 			if waffe == "sword":
 				var links := Node3D.new()
 				fig.an_hand(links, true)
