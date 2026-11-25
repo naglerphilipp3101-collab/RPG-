@@ -166,6 +166,35 @@ func _ready() -> void:
 		player.freie_kamera.global_position = player.global_position + Vector3(2.2, 1.3, 0.0)
 		player.anim_figur.schlag("big_overhead", 0.5)
 		phase = "character_ui"
+	# Mit --griffe: jede Waffe von der Seite in Ruhe, beim Schlag/Zielen (mit --write-movie Bilder der Griffe)
+	if OS.get_cmdline_user_args().has("--griffe"):
+		player.global_position = Vector3(0, 0.5, 8)
+		player.set_freie_kamera(true)
+		phase = "griffe"
+		next_action = 0.0
+	# Mit --werkstatt: Animations-Werkstatt (Griff ändern, linke Hand aus der Pose, Animation wählen), speichert nichts
+	if OS.get_cmdline_user_args().has("--werkstatt"):
+		player.ausruestung_anlegen("greatsword")
+		player.global_position = Vector3(0, 0.5, 8)
+		var hud = get_tree().current_scene.get_node("HUD")
+		hud.werkstatt_oeffnen()
+		var w = hud.anim_werkstatt
+		_check("Werkstatt offen mit freier Kamera", w.visible and player.freie_kamera != null and player.ui_open)
+		_check("Posen der Waffe gelistet", w.pose_wahl.item_count >= 5, str(w.pose_wahl.item_count))
+		w.regler["pos_y"].value = 0.05
+		_check("Regler verschiebt die Waffe", is_equal_approx(player.weapon_pivot.position.y, 0.05))
+		w.platz_liste.select(w.PLAETZE.find("buff"))
+		w._platz_gewaehlt()
+		w.filter.text = "kick"
+		w._anims_fuellen()
+		w.anim_liste.select(0)
+		w._uebernehmen()
+		_check("Animation für Stärkung gewählt", String(player.anim_figur.satz.get("buff", "")).contains("kick"), String(player.anim_figur.satz.get("buff", "")))
+		w._standard()
+		_check("Standard wiederhergestellt", String(player.anim_figur.satz.get("buff", "")) == "grossschwert/great_sword_power_up")
+		w.pose_wahl.select(0)
+		w._pose_spielen()
+		phase = "werkstatt"
 	# Mit --faerber: Färberfenster mit einem gefärbten Schwert (mit --write-movie Bild vom Fenster)
 	if OS.get_cmdline_user_args().has("--faerber"):
 		var schwert: Dictionary = Game.roll_gear("iron_sword", [])
@@ -1108,6 +1137,41 @@ func _physics_process(delta: float) -> void:
 				player._try_skill(0)
 			elif time > 3.4 and time < 3.5:
 				get_tree().current_scene.get_node("HUD").set_skill_tree_open(true)
+		"werkstatt":
+			var w = get_tree().current_scene.get_node("HUD").anim_werkstatt
+			if time > 1.0 and time - get_physics_process_delta_time() <= 1.0:
+				w._zweite_aus_pose()
+			if time > 2.5:
+				_check("Griffpunkt aus der Pose übernommen", w.zweite_an.button_pressed)
+				get_tree().current_scene.get_node("HUD").close_all_windows()
+				_check("Werkstatt zu: Kamera und Griff zurück", player.freie_kamera == null and not player.ui_open \
+					and is_equal_approx(player.weapon_pivot.position.y, SpielerAnimation.griff("greatsword")["pos"].y))
+				get_tree().quit()
+		"griffe":
+			var liste: Array = Game.weapons.keys()
+			var nur := OS.get_cmdline_user_args().find("--waffe")
+			if nur >= 0:
+				liste = [OS.get_cmdline_user_args()[nur + 1]]
+			var nr := int(time / 2.0)
+			if nr >= liste.size():
+				get_tree().quit()
+				return
+			var typ: String = liste[nr]
+			if player.weapon_type != typ:
+				player.ausruestung_anlegen(typ)
+				print("SCHRITT %d %s" % [Engine.get_frames_drawn(), typ])
+			player.combat_timer = 5.0
+			player.global_position = Vector3(0, player.global_position.y, 8)
+			player.model.rotation.y = 0.0
+			var cam = player.freie_kamera
+			cam.gier = PI * 0.5
+			cam.neigung = -0.12
+			cam.fov = 40.0
+			cam.global_position = player.global_position + Vector3(3.2, 1.4, 0.0)
+			var t := fmod(time, 2.0)
+			player.aiming = player.is_ranged() and t > 1.0
+			if t > 1.0 and t - get_physics_process_delta_time() <= 1.0 and not player.is_ranged():
+				player.anim_figur.schlag("h_right", 0.5)
 		"weapons":
 			if time >= next_action:
 				next_action = time + (1.2 if OS.get_cmdline_user_args().has("--langsam") else 0.25)
