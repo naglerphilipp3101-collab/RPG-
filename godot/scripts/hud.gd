@@ -13,6 +13,7 @@ const CharakterUIScript := preload("res://scripts/charakter_ui.gd")
 const KompassScript := preload("res://scripts/kompass.gd")
 const FaerberUIScript := preload("res://scripts/faerber_ui.gd")
 const AusruestungUIScript := preload("res://scripts/ausruestung_ui.gd")
+const AnimWerkstattScript := preload("res://scripts/anim_werkstatt.gd")
 const NOTIFY_TIME := 3.5
 const MAX_NOTIFICATIONS := 7
 const HELP_TEXT := """Steuerung
@@ -42,6 +43,7 @@ var inventory_ui: Control
 var crafting_ui: Control
 var faerber_ui: Control
 var ausruestung_ui: Control
+var anim_werkstatt: Control
 var pause_menu: Control
 var charakter_erstellung: Control
 var fehler_melden: Control # B: Fehler mit Ort, Bild und Kommentar festhalten
@@ -245,7 +247,10 @@ func _ready() -> void:
 	faerber_ui = FaerberUIScript.new()
 	root.add_child(faerber_ui)
 	ausruestung_ui = AusruestungUIScript.new()
+	ausruestung_ui.werkstatt_gewuenscht.connect(werkstatt_oeffnen, CONNECT_DEFERRED)
 	root.add_child(ausruestung_ui)
+	anim_werkstatt = AnimWerkstattScript.new()
+	root.add_child(anim_werkstatt)
 	skill_tree_ui = SkillTreeUIScript.new()
 	root.add_child(skill_tree_ui)
 	charakter_ui = CharakterUIScript.new()
@@ -354,7 +359,15 @@ func open_station(station_id: String) -> void:
 	_apply_ui_mode()
 
 
+## Animations-Werkstatt (über den Ausrüstungsschrank): Griffe und Animationen je Waffe einstellen.
+func werkstatt_oeffnen() -> void:
+	close_all_windows()
+	anim_werkstatt.open(player)
+	_apply_ui_mode()
+
+
 func close_all_windows() -> void:
+	anim_werkstatt.close()
 	inventory_ui.close()
 	crafting_ui.close()
 	faerber_ui.close()
@@ -366,7 +379,7 @@ func close_all_windows() -> void:
 
 
 func _any_window_open() -> bool:
-	return inventory_ui.visible or crafting_ui.visible or faerber_ui.visible or ausruestung_ui.visible or skill_tree_ui.visible or charakter_ui.visible or minimap.big
+	return inventory_ui.visible or crafting_ui.visible or faerber_ui.visible or ausruestung_ui.visible or anim_werkstatt.visible or skill_tree_ui.visible or charakter_ui.visible or minimap.big
 
 
 ## Wird von main.gd aufgerufen, wenn eine Welt mit Übersichtskarte geladen ist.
@@ -446,6 +459,11 @@ func _input(event: InputEvent) -> void:
 		return
 	if fehler_melden.visible:
 		return # Tasten gehören dem Kommentarfeld (sonst öffnet z. B. „i“ das Inventar)
+	if anim_werkstatt.visible: # Tasten gehören der Werkstatt (Suchfeld, Notiz); Esc schließt sie
+		if event.is_action_pressed("ui_cancel"):
+			close_all_windows()
+			get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("fehler_melden") and not pause_menu.visible:
 		_fehler_oeffnen()
 		get_viewport().set_input_as_handled()

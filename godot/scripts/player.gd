@@ -1410,7 +1410,7 @@ func _an_haende_haengen() -> void:
 
 func _weapon_rest_pos() -> Vector3:
 	if anim_figur:
-		return BOGEN_HAND_POS if _bogen() else Vector3.ZERO
+		return SpielerAnimation.griff(weapon_type)["pos"]
 	if is_ranged():
 		return Vector3(0.22, 0.3, -0.3)
 	if int(weapon_def.get("hands", 1)) == 2 and not weapon_def.get("dual", false):
@@ -1420,18 +1420,14 @@ func _weapon_rest_pos() -> Vector3:
 
 func _weapon_rest_rot() -> Vector3:
 	if anim_figur:
-		return BOGEN_HAND_ROT if _bogen() else Vector3.ZERO
+		return SpielerAnimation.griff(weapon_type)["rot"]
 	var r: Array = weapon_def.get("rest", [20, 15, 0])
 	return Vector3(float(r[0]), float(r[1]), float(r[2]))
 
 
-## Bogen in der linken Hand, Wurfarme senkrecht durch die Faust, Sehne zum Körper.
-const BOGEN_HAND_POS := Vector3(0.0, -0.28, 0.0)
-const BOGEN_HAND_ROT := Vector3(90, 0, 0)
-
-
+## Hand der Waffe aus data/griffe.json (Bogen links, sonst rechts).
 func _bogen() -> bool:
-	return weapon_def.get("model", "") == "bow"
+	return SpielerAnimation.griff(weapon_type)["links"]
 
 
 func _build_weapon_visual() -> void:
@@ -1450,6 +1446,8 @@ func _build_weapon_visual() -> void:
 			WeaponModels.build(weapon_def.get("model", "dagger"), offhand_pivot)
 	weapon_pivot.position = _weapon_rest_pos()
 	weapon_pivot.rotation_degrees = _weapon_rest_rot()
+	if anim_figur: # Zweihänder: die linke Hand greift mit
+		anim_figur.zweite_hand(weapon_pivot, SpielerAnimation.griff(weapon_type)["zweite"])
 	shield_pivot.visible = shield_active()
 	_build_shield_visual()
 	shield_raised = false

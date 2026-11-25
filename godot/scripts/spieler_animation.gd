@@ -141,7 +141,18 @@ func waffe_setzen(typ: String) -> void:
 	satz = {}
 	if ap == null:
 		return # wird in _ready nachgeholt
-	var roh: Dictionary = SAETZE.get(SATZ_VON.get(typ, typ), {})
+	var roh: Dictionary = SAETZE.get(SATZ_VON.get(typ, typ), {}).duplicate(true)
+	# Auswahl aus der Animations-Werkstatt (data/animationen_wahl.json) hat Vorrang
+	var eigene: Dictionary = wahl().get(typ, {})
+	for k: String in eigene:
+		if k == "notizen" or String(eigene[k]) == "":
+			continue
+		if k.begins_with("schlaege/"):
+			if not roh.has("schlaege"):
+				roh["schlaege"] = {}
+			roh["schlaege"][k.trim_prefix("schlaege/")] = eigene[k]
+		else:
+			roh[k] = eigene[k]
 	for k in roh:
 		var v = roh[k]
 		if v is Dictionary:
@@ -424,3 +435,145 @@ static func griff_transform(sk: Skeleton3D, links: bool) -> Transform3D:
 	var pos := mitte * 0.75
 	var flaeche := x * (0.025 if links else -0.025)
 	return Transform3D(Basis(x, y, z), pos + flaeche)
+
+
+# --- Griffe (Philipp, 25.11.) -----------------------------------------------
+## Je Waffe in data/griffe.json: Hand ("rechts"/"links"), Lage der Waffe im Griff der Hand (pos in m, rot in Grad)
+## und bei Zweihändern der Punkt, an dem die zweite Hand greift ("zweite", im Raum der Waffe). Vorausgerichtet aus
+## den Mixamo-Posen (tests/griffe_vorausrichten.gd), einstellbar in der Animations-Werkstatt.
+const GRIFFE_DATEI := "res://data/griffe.json"
+static var _griffe = null
+
+var _ik: TwoBoneIK3D
+var _ik_ziel: Node3D
+var _zweite: Node3D               # Griffpunkt der linken Hand an der Waffe (null = einhändig)
+var _zweite_versatz := Vector3.ZERO
+
+
+const WAHL_DATEI := "res://data/animationen_wahl.json"
+static var _wahl = null
+
+
+## Animationen je Waffe und Platz aus der Werkstatt: {waffe: {"schlaege/h_right": "lib/anim", "buff": …, "notizen": {platz: text}}}.
+static func wahl() -> Dictionary:
+	if _wahl == null:
+		_wahl = {}
+		if FileAccess.file_exists(WAHL_DATEI):
+			var d = JSON.parse_string(FileAccess.get_file_as_string(WAHL_DATEI))
+			if d is Dictionary:
+				_wahl = d
+	return _wahl
+
+
+static func wahl_speichern(d: Dictionary) -> bool:
+	_wahl = d
+	var f := FileAccess.open(WAHL_DATEI, FileAccess.WRITE)
+	if f == null:
+		return false
+	f.store_string(JSON.stringify(d, "\t", false))
+	return true
+
+
+static func griffe() -> Dictionary:
+	if _griffe == null:
+		_griffe = {}
+		var f := FileAccess.open(GRIFFE_DATEI, FileAccess.READ)
+		if f:
+			var d = JSON.parse_string(f.get_as_text())
+			if d is Dictionary:
+				_griffe = d
+	return _griffe
+
+
+static func griffe_speichern(d: Dictionary) -> bool:
+	_griffe = d
+	var f := FileAccess.open(GRIFFE_DATEI, FileAccess.WRITE)
+	if f == null:
+		return false
+	f.store_string(JSON.stringify(d, "\t", false))
+	return true
+
+
+static func _v(a, standard := Vector3.ZERO) -> Vector3:
+	return Vector3(float(a[0]), float(a[1]), float(a[2])) if a is Array and a.size() == 3 else standard
+
+
+## Griff einer Waffe: {"links": bool, "pos": Vector3, "rot": Vector3 (Grad), "zweite": Vector3 oder null}.
+static func griff(typ: String) -> Dictionary:
+	var g: Dictionary = griffe().get(typ, {})
+	return {"links": String(g.get("hand", "rechts")) == "links", "pos": _v(g.get("pos")), "rot": _v(g.get("rot")),
+		"zweite": _v(g.get("zweite")) if g.get("zweite") is Array else null}
+
+
+## Zweite Hand an die Waffe: `punkt` im Raum von `waffe` (null = loslassen). Die linke Hand greift per IK dorthin.
+func zweite_hand(waffe: Node3D, punkt: Variant) -> void:
+	if punkt == null or waffe == null:
+		if _zweite:
+			_zweite.queue_free()
+		_zweite = null
+		if _ik:
+			_ik.active = false
+		return
+	if _ik == null:
+		_ik_anlegen()
+	if _zweite == null or _zweite.get_parent() != waffe:
+		if _zweite:
+			_zweite.queue_free()
+		_zweite = Node3D.new()
+		_zweite.name = "ZweiteHand"
+		waffe.add_child(_zweite)
+	_zweite.position = punkt
+	_ik.active = true
+
+
+func _ik_anlegen() -> void:
+	var sk := mensch.skelett
+	_ik_ziel = Node3D.new()
+	_ik_ziel.name = "LinkeHandZiel"
+	sk.add_child(_ik_ziel)
+	var pol := Node3D.new()
+	pol.name = "LinkerEllbogenPol"
+	pol.position = Vector3(0.9, 0.6, -0.6) # links, Hüfthöhe, hinter dem Körper: Ellbogen zeigt nach unten außen
+	sk.add_child(pol)
+	# Vor der IK: liest die Pose der Animation, setzt Ziel und Stärke (Modifikatoren laufen in Reihenfolge der Kinder)
+	var helfer := ZweiteHand.new()
+	helfer.name = "ZweiteHandHelfer"
+	helfer.figur = self
+	sk.add_child(helfer)
+	_ik = TwoBoneIK3D.new()
+	_ik.name = "LinkeHandIK"
+	sk.add_child(_ik)
+	_ik.setting_count = 1
+	_ik.set_root_bone_name(0, "LeftUpperArm")
+	_ik.set_middle_bone_name(0, "LeftLowerArm")
+	_ik.set_end_bone_name(0, "LeftHand")
+	_ik.set_target_node(0, _ik.get_path_to(_ik_ziel))
+	_ik.set_pole_node(0, _ik.get_path_to(pol))
+	_zweite_versatz = griff_transform(sk, true).origin
+
+
+## Setzt das Ziel der linken Hand auf den Griffpunkt an der Waffe. Greift nur, wenn die Animation die linke Hand
+## ohnehin in die Nähe bringt (Zweihandschläge, Zielen); lässt sie die Waffe los, bleibt die Animation.
+class ZweiteHand extends SkeletonModifier3D:
+	var figur
+	const VOLL := 0.25    # m Abstand: IK ganz
+	const AUS := 0.45     # m Abstand: IK aus
+
+	func _process_modification() -> void:
+		var f = figur
+		var sk := get_skeleton()
+		if f._ik == null or f._zweite == null or not f._ik.active:
+			return
+		if not f._zweite.is_visible_in_tree():
+			f._ik.influence = 0.0
+			return
+		# Griffpunkt aus der aktuellen Pose der rechten Hand (der Halter der Waffe hinkt sonst ein Bild hinterher)
+		var waffe: Node3D = f._zweite.get_parent()
+		var griff: Node3D = waffe.get_parent()
+		var rechts := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("RightHand"))
+		var punkt: Vector3 = rechts * griff.transform * waffe.transform * f._zweite.position
+		var links := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("LeftHand"))
+		var flaeche: Vector3 = links * f._zweite_versatz
+		var d := flaeche.distance_to(punkt)
+		f._ik.influence = clampf((AUS - d) / (AUS - VOLL), 0.0, 1.0)
+		f._ik_ziel.global_position = punkt - links.basis.orthonormalized() * f._zweite_versatz

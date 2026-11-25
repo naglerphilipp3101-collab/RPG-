@@ -87,8 +87,8 @@ func _ready() -> void:
 			fig.an_hand(rechts, links_hand)
 			WeaponModels.build(waffe, rechts)
 			if waffe == "bow":
-				rechts.position = Spieler.BOGEN_HAND_POS
-				rechts.rotation_degrees = Spieler.BOGEN_HAND_ROT
+				rechts.position = SpielerAnimation.griff("bow")["pos"]
+				rechts.rotation_degrees = SpielerAnimation.griff("bow")["rot"]
 			if waffe == "sword":
 				var links := Node3D.new()
 				fig.an_hand(links, true)

@@ -7,6 +7,8 @@ extends Control
 const RUESTUNG := {"head": "leather_cap", "chest": "leather_jerkin", "legs": "leather_pants"}
 const SCHILD := "wooden_shield"
 
+signal werkstatt_gewuenscht
+
 var player = null
 var raster: GridContainer
 var hinweis: Label
@@ -28,8 +30,8 @@ func _ready() -> void:
 	panel.anchor_bottom = 0.5
 	panel.offset_left = -430
 	panel.offset_right = 430
-	panel.offset_top = -200
-	panel.offset_bottom = 200
+	panel.offset_top = -230
+	panel.offset_bottom = 230
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.08, 0.08, 0.1, 0.96)
 	style.border_color = Color(0.75, 0.62, 0.35)
@@ -70,6 +72,12 @@ func _ready() -> void:
 
 	hinweis = _label("", 15, Color(0.6, 0.9, 0.6))
 	root.add_child(hinweis)
+	var werkstatt := Button.new()
+	werkstatt.text = "Animations-Werkstatt: Griffe und Animationen der angelegten Waffe einstellen"
+	werkstatt.custom_minimum_size = Vector2(0, 44)
+	werkstatt.add_theme_font_size_override("font_size", 17)
+	werkstatt.pressed.connect(func() -> void: werkstatt_gewuenscht.emit())
+	root.add_child(werkstatt)
 
 
 func open(p) -> void:
