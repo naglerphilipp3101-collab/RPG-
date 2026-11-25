@@ -127,6 +127,11 @@ func _ready() -> void:
 		var fehler := 0
 		for typ in Game.weapons:
 			var name: String = player.ausruestung_anlegen(typ)
+			# Blocken und Zielen beim Gehen in alle Richtungen (auch ohne Mixamo-Dateien darf nichts fehlen)
+			for richtung in [Vector2(0, 2), Vector2(0, -2), Vector2(2, 0), Vector2(-2, 0)]:
+				for haltung in [[true, false], [false, true], [false, false]]:
+					player.anim_figur.bewegen(0.016, 2.0, true, true, haltung[0], player.shield_active(), haltung[1],
+						"magic" if typ.ends_with("magic") else "", richtung)
 			var ok: bool = name != "" and player.weapon_type == typ and player.equipment.has("chest") \
 				and int(player.masteries[typ]["level"]) == Game.MAX_MASTERY_LEVEL \
 				and (player.shield_active() or not Game.weapons[typ].get("allows_shield", false))
@@ -324,6 +329,7 @@ func _weapon_step() -> void:
 	player.cam_pitch = -0.12
 	player.model.rotation.y = player.cam_yaw
 	var step_name: String = weapon_steps.pop_front()
+	print("SCHRITT %d %s %s" % [Engine.get_frames_drawn(), player.weapon_type, step_name])
 	if step_name == "end":
 		_next_weapon()
 		return
@@ -1082,7 +1088,7 @@ func _physics_process(delta: float) -> void:
 				get_tree().current_scene.get_node("HUD").set_skill_tree_open(true)
 		"weapons":
 			if time >= next_action:
-				next_action = time + 0.25
+				next_action = time + (1.2 if OS.get_cmdline_user_args().has("--langsam") else 0.25)
 				_weapon_step()
 		"character_ui":
 			if time > 1.5:

@@ -2325,7 +2325,7 @@ func _faehigkeit_animation(template: String, skill: Dictionary) -> void:
 			anim_figur.ausweichen(Vector2(0.0, -1.0 if zurueck else 1.0), dauer + 0.2)
 		"shot":
 			if is_ranged():
-				anim_figur.schuss(is_magic(), 0.2)
+				anim_figur.schuss(is_magic(), 0.2, true)
 
 
 ## Zahrfluss (jede 4. Fähigkeit ohne Abklingzeit) und Arkane Resonanz (nach drei verschiedenen Fähigkeiten

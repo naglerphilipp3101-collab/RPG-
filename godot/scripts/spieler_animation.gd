@@ -39,8 +39,8 @@ const SAETZE := {
 		"ruhe": SS + "idle_4", "gehen": [SS + "walk", SS + "walk_2", SS + "strafe_2", SS + "strafe"],
 		"rennen": [SS + "run", SS + "run_2", SS + "strafe_3", SS + "strafe_4"], "block": SS + "block_idle",
 		"block_treffer": SS + "block", "schlaege": {"h_right": SS + "slash", "h_left": SS + "slash_3",
-			"overhead": SS + "attack_4", "big_overhead": SS + "slash_4", "thrust": SS + "slash_5"},
-		"treffer": SS + "impact", "tod": SS + "death", "buff": SS + "power_up", "dash": SS + "attack",
+			"overhead": SS + "attack_4", "big_overhead": SS + "slash", "thrust": SS + "slash_5"},
+		"treffer": SS + "impact", "tod": SS + "death", "buff": SS + "power_up", "dash": SS + "slash_5",
 		"spin": GS + "high_spin_attack",
 	},
 	"greatsword": {
@@ -49,7 +49,7 @@ const SAETZE := {
 		"schlaege": {"h_right": GS + "slash", "h_left": GS + "slash_3", "overhead": GS + "attack",
 			"big_overhead": GS + "slash", "diag": GS + "slash", "thrust": GS + "attack"},
 		"treffer": GS + "impact", "tod": "grossschwert/two_handed_sword_death", "buff": GS + "power_up",
-		"dash": GS + "slide_attack", "leap": GS + "jump_attack", "spin": GS + "high_spin_attack",
+		"dash": GS + "slash_5", "leap": GS + "attack", "spin": GS + "high_spin_attack",
 	},
 	"axe": {
 		"ruhe": AX + "idle", "gehen": [AX + "walk_forward", AX + "walk_back", AX + "walk_left", AX + "walk_right"],
@@ -58,7 +58,7 @@ const SAETZE := {
 			"h_right": AX + "melee_attack_horizontal", "h_left": AX + "melee_attack_backhand",
 			"overhead": AX + "melee_attack_downward", "big_overhead": AX + "melee_attack_downward"},
 		"treffer": AX + "react_large_gut", "buff": AX + "taunt_battlecry", "spin": AX + "melee_attack_360_high",
-		"leap": GS + "jump_attack", "dash": GS + "slide_attack",
+		"leap": AX + "melee_attack_downward", "dash": AX + "melee_attack_horizontal",
 	},
 	"rapier": {
 		"ruhe": "Sword_Idle", "gehen": [BW + "walking", "", BW + "left_strafe_walking", BW + "right_strafe_walking"],
@@ -70,7 +70,7 @@ const SAETZE := {
 		"ruhe": GW + "idle", "gehen": [GW + "walk_forward", GW + "walk_backward", GW + "walk_left", GW + "walk_right"],
 		"rennen": [GW + "run_forward", GW + "run_backward", GW + "run_left", GW + "run_right"],
 		"block": GS + "blocking_2", "schlaege": {"thrust": EZ + "bayonet_stab", "h_right": AX + "melee_attack_horizontal"},
-		"tod": GW + "death_from_the_front", "leap": GS + "jump_attack", "dash": EZ + "bayonet_stab",
+		"tod": GW + "death_from_the_front", "leap": GS + "attack", "dash": EZ + "bayonet_stab",
 	},
 	"knife": {
 		"gehen": [BW + "walking", "", BW + "left_strafe_walking", BW + "right_strafe_walking"],
@@ -88,14 +88,15 @@ const SAETZE := {
 		"ruhe": GW + "idle", "gehen": [GW + "walk_forward", GW + "walk_backward", GW + "walk_left", GW + "walk_right"],
 		"rennen": [GW + "run_forward", GW + "run_backward", GW + "run_left", GW + "run_right"],
 		"zielen": GW + "idle_aiming", "ziel_gehen": [GW + "walk_forward", GW + "walk_backward", GW + "walk_left", GW + "walk_right"],
+		"schuss": GW + "idle_aiming", "nachladen": GW + "idle_crouching",
 		"tod": GW + "death_from_the_front", "ausweichen": [BO + "dodge_forward", BO + "dodge_backward", BO + "dodge_left", BO + "dodge_right"],
 	},
 	"magic": {
 		"ruhe": MA + "idle", "gehen": [MA + "walk_forward", MA + "walk_back", MA + "walk_left", MA + "walk_right"],
 		"rennen": [MA + "run_forward", MA + "run_back", MA + "run_left", MA + "run_right"],
 		"zielen": MA + "idle", "ziel_gehen": [MA + "walk_forward", MA + "walk_back", MA + "walk_left", MA + "walk_right"],
-		"schuss": [MA + "1h_magic_attack_01", MA + "1h_magic_attack_02", MA + "1h_magic_attack_03"],
-		"zone": MA + "2h_magic_area_attack_01", "buff": MA + "2h_cast_spell_01", "beschwoeren": MA + "1h_cast_spell_01",
+		"schuss": [MA + "2h_magic_attack_04", MA + "2h_magic_attack_05", MA + "2h_magic_attack_03"],
+		"zone": MA + "2h_magic_area_attack_02", "buff": MA + "2h_cast_spell_01", "beschwoeren": MA + "1h_cast_spell_01",
 		"treffer": MA + "react_small_from_front", "tod": MA + "react_death_backward", "schlaege": {"overhead": MA + "2h_magic_attack_01"},
 	},
 }
@@ -150,7 +151,9 @@ func waffe_setzen(typ: String) -> void:
 					d[art] = v[art]
 			satz[k] = d
 		elif v is Array and v.size() == 4 and not (v[1] is float):
-			satz[k] = v.map(func(n): return n if _da(n) else "")
+			var liste: Array = v.map(func(n): return n if _da(n) else "")
+			if liste.any(func(n): return n != ""): # nur Richtungen behalten, von denen es Animationen gibt
+				satz[k] = liste
 		elif _da(v):
 			satz[k] = v
 
@@ -171,14 +174,17 @@ func _aus(schluessel: String, ersatz: String) -> String:
 
 ## Spielt eine Animation einmal. `dauer` > 0 streckt sie auf diese Länge, `halten` friert das Ende ein.
 ## `bis` (0–1) spielt nur bis zu diesem Anteil der Animation.
+## Schleifen (Haltungen wie Zielen oder Knien) laufen in normalem Tempo für `dauer` und werden weicher überblendet.
 func einmal(n: String, dauer := -1.0, halten := false, danach := "", bis := 1.0) -> void:
 	if not ap.has_animation(_voll(n)):
 		return
-	var laenge := ap.get_animation(_voll(n)).length * bis
-	var tempo := 1.0 if dauer <= 0.0 else clampf(laenge / dauer, 0.4, 3.0)
+	var anim := ap.get_animation(_voll(n))
+	var schleife := anim.loop_mode != Animation.LOOP_NONE and dauer > 0.0
+	var laenge := dauer if schleife else anim.length * bis
+	var tempo := 1.0 if dauer <= 0.0 or schleife else clampf(laenge / dauer, 0.4, 3.0)
 	ap.speed_scale = 1.0
 	var gleich := ap.assigned_animation == _voll(n)
-	ap.play(_voll(n), UEBERGANG * 0.6, tempo)
+	ap.play(_voll(n), UEBERGANG * (2.0 if schleife else 0.6), tempo)
 	if gleich:
 		ap.seek(0.0, true)
 	_einmal = n
@@ -215,13 +221,17 @@ func satz_einmal(schluessel: String, ersatz: String, dauer := -1.0, halten := fa
 
 
 ## Schuss mit Fernkampfwaffe oder Zauber (Magie wechselt zwischen mehreren Würfen ab).
-func schuss(magie: bool, dauer: float) -> void:
+## `aus_ruhe`: der Bogen war nicht gespannt (Fähigkeit), also erst kurz spannen.
+func schuss(magie: bool, dauer: float, aus_ruhe := false) -> void:
 	var v = satz.get("schuss", "")
 	if v is Array and not v.is_empty():
 		_schuss_nr += 1
 		v = v[_schuss_nr % v.size()] if _da(v[_schuss_nr % v.size()]) else v[0]
 	if v is String and v != "":
 		var a := ap.get_animation(_voll(v))
+		if aus_ruhe and not magie and _da(satz.get("spannen", "")):
+			einmal(satz["spannen"], 0.25, false, v)
+			return
 		var anteil := float(a.get_meta("treffer", 0.3)) if magie else 0.0
 		# Zauber: bis zum Wurf in `dauer`, danach mit gleichem Tempo weiter (Laufen bricht ab)
 		einmal(v, a.length * dauer / maxf(a.length * anteil, 0.05) if magie else dauer)
@@ -348,6 +358,8 @@ func _richtung(liste, lokal: Vector2, tempo: float) -> bool:
 		n = liste[0]
 		if lokal.y < -0.3: # kein Rückwärts: vorwärts gehen geht nicht, dann Quaternius
 			return false
+	if n == "" or not ap.has_animation(_voll(n)):
+		return false # fehlt die Mixamo-Animation, übernimmt die Quaternius-Bewegung
 	var weg: Vector3 = ap.get_animation(_voll(n)).get_meta("weg", Vector3(0, 0, GEH_TEMPO))
 	var eigen := Vector2(weg.x, weg.z).length()
 	_grund(n, clampf(tempo / maxf(eigen, 0.3), 0.6, 1.8))
