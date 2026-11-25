@@ -225,6 +225,7 @@ var _skill_resonance := false # gerade ausgelöste Fähigkeit ist durch Arkane R
 const FLY_SPEED := 12.0
 const FLY_SPRINT_FACTOR := 30.0
 var debug_fly := false
+var freie_kamera = null           # FreieKamera, solange F4 aktiv ist (sonst null)
 
 # Verbrauchsgüter
 const POTION_COOLDOWN := 15.0
@@ -286,6 +287,49 @@ func set_debug_fly(on: bool) -> void:
 	collision_mask = 0 if on else 1 | 4
 	velocity = Vector3.ZERO
 	message.emit("Debug-Flug AN  (Leertaste hoch · C runter · Strg ×30)" if on else "Debug-Flug AUS")
+
+
+## Freie Kamera (F4): löst die Kamera von der Figur, die stehen bleibt, aber weiter angreifen kann.
+func set_freie_kamera(on: bool) -> void:
+	if on == (freie_kamera != null):
+		return
+	if on:
+		freie_kamera = preload("res://scripts/freie_kamera.gd").new()
+		freie_kamera.name = "FreieKamera"
+		get_parent().add_child(freie_kamera)
+		freie_kamera.starten(camera)
+		velocity.x = 0.0
+		velocity.z = 0.0
+		message.emit("Freie Kamera AN: WASD, Leertaste/C, Mausrad Zoom, G Zeitlupe, V Standbild")
+	else:
+		freie_kamera.queue_free()
+		freie_kamera = null
+		camera.current = true
+		Engine.time_scale = 1.0
+		message.emit("Freie Kamera AUS")
+
+
+## Maus und Tasten der freien Kamera. Gibt true zurück, wenn das Ereignis verbraucht ist.
+func _freie_kamera_eingabe(event: InputEvent) -> bool:
+	if event is InputEventMouseMotion:
+		freie_kamera.drehen((event as InputEventMouseMotion).relative)
+		return true
+	if event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		freie_kamera.zoomen(1.0 if event.button_index == MOUSE_BUTTON_WHEEL_UP else -1.0)
+		return true
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.is_action("zeitlupe"):
+			freie_kamera.zeitlupe = (freie_kamera.zeitlupe + 1) % freie_kamera.ZEITLUPE.size()
+			freie_kamera.standbild = false
+		elif event.is_action("standbild"):
+			freie_kamera.standbild = not freie_kamera.standbild
+		else:
+			return false
+		Engine.time_scale = freie_kamera.zeitfaktor()
+		var f: float = freie_kamera.zeitfaktor()
+		message.emit("Standbild" if freie_kamera.standbild else ("Normale Geschwindigkeit" if f >= 1.0 else "Zeitlupe ×%s" % str(f)))
+		return true
+	return false
 
 
 ## Springt an eine Weltposition (x/z); die Höhe bestimmt der Aufrufer (z. B. Gelände + Abstand).
@@ -1521,6 +1565,8 @@ func _build_camera() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	if freie_kamera != null and captured and not ui_open and _freie_kamera_eingabe(event):
+		return
 	if event is InputEventMouseMotion and captured:
 		var motion := event as InputEventMouseMotion
 		var sens := MOUSE_SENSITIVITY * (0.6 if aiming else 1.0)
@@ -1556,11 +1602,13 @@ func _physics_process(delta: float) -> void:
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not ui_open
 	if captured and Input.is_action_just_pressed("debug_fly") and state != State.DEAD:
 		set_debug_fly(not debug_fly)
+	if captured and Input.is_action_just_pressed("freie_kamera"):
+		set_freie_kamera(freie_kamera == null)
 	if debug_fly:
 		_fly(delta, captured)
 		return
 	var input_dir := Vector2.ZERO
-	if not ui_open:
+	if not ui_open and freie_kamera == null: # mit freier Kamera steuert WASD die Kamera
 		input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var move_dir := Basis(Vector3.UP, cam_yaw) * Vector3(input_dir.x, 0.0, input_dir.y)
 
@@ -1683,7 +1731,7 @@ func _state_normal(delta: float, move_dir: Vector3, captured: bool) -> void:
 		speed = BLOCK_SPEED
 	elif aiming:
 		speed = AIM_SPEED
-	elif captured and Input.is_action_pressed("sprint") and moving and stamina > 0.0:
+	elif captured and freie_kamera == null and Input.is_action_pressed("sprint") and moving and stamina > 0.0:
 		speed = SPRINT_SPEED
 		_use_stamina(SPRINT_COST * delta, 0.3)
 		sprint_time += delta
@@ -1707,9 +1755,11 @@ func _state_normal(delta: float, move_dir: Vector3, captured: bool) -> void:
 
 	if not captured:
 		return
-	if Input.is_action_just_pressed("jump") and is_on_floor():
+	if freie_kamera != null: # Leertaste und Umschalt gehören dann der Kamera
+		pass
+	elif Input.is_action_just_pressed("jump") and is_on_floor():
 		velocity.y = JUMP_VELOCITY
-	if Input.is_action_just_pressed("dodge") and is_on_floor():
+	if freie_kamera == null and Input.is_action_just_pressed("dodge") and is_on_floor():
 		_start_dodge(move_dir)
 		return
 	for i in MAX_EQUIPPED_SKILLS:
@@ -1791,6 +1841,8 @@ func _start_interaction(target) -> void:
 func _wants_to_cancel(move_dir: Vector3, captured: bool) -> bool:
 	if move_dir.length() > 0.1:
 		return true
+	if freie_kamera != null:
+		return captured and Input.is_action_just_pressed("attack")
 	return captured and (Input.is_action_just_pressed("attack") or Input.is_action_just_pressed("dodge") \
 		or Input.is_action_just_pressed("jump"))
 
@@ -3027,9 +3079,10 @@ func _on_hit_landed() -> void:
 	combat_timer = 6.0
 	shake = maxf(shake, 0.12)
 	# Kurzer Hitstop für mehr Wucht
-	Engine.time_scale = 0.1
+	var normal: float = freie_kamera.zeitfaktor() if freie_kamera != null else 1.0
+	Engine.time_scale = 0.1 * normal
 	await get_tree().create_timer(0.05, true, false, true).timeout
-	Engine.time_scale = 1.0
+	Engine.time_scale = freie_kamera.zeitfaktor() if freie_kamera != null else 1.0
 
 
 # --- Animationen (Platzhalter per Tween) ---------------------------------

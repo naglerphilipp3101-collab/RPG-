@@ -144,6 +144,28 @@ func _ready() -> void:
 		player.cam_pitch = -0.35
 		phase = "character_ui"
 		get_tree().current_scene.get_node("HUD").open_station.call_deferred("schrank")
+	# Mit --freecam: freie Kamera (F4) an/aus, Zeitlupe, Standbild; mit --write-movie Nahbild eines Schlags in Zeitlupe
+	if OS.get_cmdline_user_args().has("--freecam"):
+		player.ausruestung_anlegen("greatsword")
+		player.global_position = Vector3(0, 0.5, 8)
+		player.set_freie_kamera(true)
+		_check("Freie Kamera ist aktiv", player.freie_kamera != null and player.freie_kamera.current)
+		player.freie_kamera.zeitlupe = 2
+		Engine.time_scale = player.freie_kamera.zeitfaktor()
+		_check("Zeitlupe ¼", is_equal_approx(Engine.time_scale, 0.25), str(Engine.time_scale))
+		player.freie_kamera.standbild = true
+		_check("Standbild", player.freie_kamera.zeitfaktor() == 0.0)
+		player.set_freie_kamera(false)
+		_check("Aus: Spielerkamera und normale Zeit", player.camera.current and Engine.time_scale == 1.0)
+		player.set_freie_kamera(true)
+		player.freie_kamera.zeitlupe = 2
+		Engine.time_scale = 0.25
+		player.freie_kamera.gier = PI * 0.5
+		player.freie_kamera.neigung = -0.1
+		player.freie_kamera.fov = 35.0
+		player.freie_kamera.global_position = player.global_position + Vector3(2.2, 1.3, 0.0)
+		player.anim_figur.schlag("big_overhead", 0.5)
+		phase = "character_ui"
 	# Mit --faerber: Färberfenster mit einem gefärbten Schwert (mit --write-movie Bild vom Fenster)
 	if OS.get_cmdline_user_args().has("--faerber"):
 		var schwert: Dictionary = Game.roll_gear("iron_sword", [])

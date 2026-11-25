@@ -29,6 +29,7 @@ T / Mausrad  Waffe wechseln
 K  Skillbaum    P  Charakter
 M  Karte    N  Minimap-Zoom    L  Tag/Nacht wechseln
 F3  Debug-Flug (Strg = ×30, Leertaste/C = hoch/runter)
+F4  Freie Kamera (Mausrad Zoom, G Zeitlupe, V Standbild)
 Tab oder I  Inventar
 B  Fehler melden (Ort, Bild, Kommentar)
 F1  Hilfe ein/aus    Esc  Pause / Speichern"""
