@@ -150,7 +150,9 @@ func waffe_setzen(typ: String) -> void:
 					d[art] = v[art]
 			satz[k] = d
 		elif v is Array and v.size() == 4 and not (v[1] is float):
-			satz[k] = v.map(func(n): return n if _da(n) else "")
+			var liste: Array = v.map(func(n): return n if _da(n) else "")
+			if liste.any(func(n): return n != ""): # nur Richtungen behalten, von denen es Animationen gibt
+				satz[k] = liste
 		elif _da(v):
 			satz[k] = v
 
@@ -348,6 +350,8 @@ func _richtung(liste, lokal: Vector2, tempo: float) -> bool:
 		n = liste[0]
 		if lokal.y < -0.3: # kein Rückwärts: vorwärts gehen geht nicht, dann Quaternius
 			return false
+	if n == "" or not ap.has_animation(_voll(n)):
+		return false # fehlt die Mixamo-Animation, übernimmt die Quaternius-Bewegung
 	var weg: Vector3 = ap.get_animation(_voll(n)).get_meta("weg", Vector3(0, 0, GEH_TEMPO))
 	var eigen := Vector2(weg.x, weg.z).length()
 	_grund(n, clampf(tempo / maxf(eigen, 0.3), 0.6, 1.8))

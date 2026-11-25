@@ -127,6 +127,11 @@ func _ready() -> void:
 		var fehler := 0
 		for typ in Game.weapons:
 			var name: String = player.ausruestung_anlegen(typ)
+			# Blocken und Zielen beim Gehen in alle Richtungen (auch ohne Mixamo-Dateien darf nichts fehlen)
+			for richtung in [Vector2(0, 2), Vector2(0, -2), Vector2(2, 0), Vector2(-2, 0)]:
+				for haltung in [[true, false], [false, true], [false, false]]:
+					player.anim_figur.bewegen(0.016, 2.0, true, true, haltung[0], player.shield_active(), haltung[1],
+						"magic" if typ.ends_with("magic") else "", richtung)
 			var ok: bool = name != "" and player.weapon_type == typ and player.equipment.has("chest") \
 				and int(player.masteries[typ]["level"]) == Game.MAX_MASTERY_LEVEL \
 				and (player.shield_active() or not Game.weapons[typ].get("allows_shield", false))
