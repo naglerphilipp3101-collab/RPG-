@@ -171,6 +171,37 @@ func _build_model() -> void:
 				holder.rotation_degrees = Vector3(90, 0, 0) # Klinge nach oben
 				add_child(holder)
 				WaffenModell.erzeugen(models[i], 1, holder)
+		"wandschrank":
+			# Hoher Schrank, offen zum Platz (-Z): Rückwand, Seiten, Boden, Deckel, offene Türen,
+			# drinnen Waffen der Stufe 1, vorn eine Leiste mit Messingknöpfen
+			MeshUtil.part(self, MeshUtil.box(Vector3(1.7, 2.2, 0.06)), dark_wood, Vector3(0, 1.1, 0.3))
+			for x: float in [-0.82, 0.82]:
+				MeshUtil.part(self, MeshUtil.box(Vector3(0.06, 2.2, 0.62)), dark_wood, Vector3(x, 1.1, 0.0))
+			for y: float in [0.03, 2.2]:
+				MeshUtil.part(self, MeshUtil.box(Vector3(1.7, 0.06, 0.62)), dark_wood, Vector3(0, y, 0.0))
+			for seite: float in [-1.0, 1.0]:
+				# Tür um ihr Scharnier an der Vorderkante aufgeschwenkt
+				var winkel := deg_to_rad(-110.0 * seite)
+				var scharnier := Vector3(seite * 0.85, 1.12, -0.31)
+				var mitte := scharnier + Basis(Vector3.UP, winkel) * Vector3(-seite * 0.41, 0, 0)
+				var tuer := MeshUtil.part(self, MeshUtil.box(Vector3(0.82, 2.0, 0.04)), wood, mitte)
+				tuer.rotation.y = winkel
+			var halter_modelle := ["schwert", "axt", "speer", "hammer", "grossschwert", "degen"]
+			for i in halter_modelle.size():
+				var halter := Node3D.new()
+				halter.position = Vector3(-0.62 + i * 0.25, 0.75, 0.18)
+				halter.rotation_degrees = Vector3(90, 0, 0)
+				add_child(halter)
+				WaffenModell.erzeugen(halter_modelle[i], 1, halter)
+			MeshUtil.part(self, MeshUtil.box(Vector3(1.6, 0.3, 0.12)), wood, Vector3(0, 0.55, -0.32))
+			var knopf := CylinderMesh.new()
+			knopf.top_radius = 0.045
+			knopf.bottom_radius = 0.05
+			knopf.height = 0.04
+			var messing := MeshUtil.mat(Color(0.85, 0.65, 0.25), 0.9, 0.3)
+			for i in 15:
+				var k := MeshUtil.part(self, knopf, messing, Vector3(-0.7 + (i % 8) * 0.2, 0.62 - (i / 8) * 0.13, -0.39))
+				k.rotation_degrees.x = 90.0
 		"dye":
 			# Drei Bottiche mit Farbe und ein Trockengestell mit Tüchern
 			var farben := [Color(0.7, 0.12, 0.1), Color(0.15, 0.3, 0.75), Color(0.85, 0.65, 0.1)]

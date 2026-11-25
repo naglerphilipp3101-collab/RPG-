@@ -594,6 +594,36 @@ func equip(uid: int) -> void:
 	inventory.changed.emit()
 
 
+## Ausrüstungsschrank im Dorf: legt die Waffe der Stufe 1 an (die alte kommt in die Tasche), dazu einen Schild,
+## wenn die Waffe einen erlaubt, und die Lederrüstung in freie Plätze. Die Meisterschaft geht auf die höchste Stufe,
+## damit sich alle Fähigkeiten im Skillbaum freischalten lassen. Gibt den Namen der Waffe zurück ("" = keine Stufe 1).
+func ausruestung_anlegen(typ: String) -> String:
+	var w: Dictionary = Game.weapons.get(typ, {})
+	var id := ""
+	for e in w.get("items", []):
+		if int(e.get("tier", 1)) == 1:
+			id = String(e["id"])
+			break
+	if id == "":
+		return ""
+	if equipment.has("weapon"):
+		inventory.gear.append(equipment["weapon"])
+	equipment["weapon"] = Game.roll_gear(id, [])
+	if w.get("allows_shield", false) and not equipment.has("shield"):
+		equipment["shield"] = Game.roll_gear("wooden_shield", [])
+	var ruestung := {"head": "leather_cap", "chest": "leather_jerkin", "legs": "leather_pants"}
+	for platz in ruestung:
+		if not equipment.has(platz):
+			equipment[platz] = Game.roll_gear(ruestung[platz], [])
+	var m := _mastery(typ)
+	if int(m["level"]) < Game.MAX_MASTERY_LEVEL:
+		m["level"] = Game.MAX_MASTERY_LEVEL
+		m["xp"] = 0.0
+	_recalc_stats()
+	inventory.changed.emit()
+	return Game.item_name(id)
+
+
 func unequip(key: String) -> void:
 	if not equipment.has(key):
 		return

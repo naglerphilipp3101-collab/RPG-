@@ -89,6 +89,7 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
 | `scripts/enemy.gd` | Gegner-KI, Beute, Häuten, Blutung, Debuffs |
 | `scripts/resource_node.gd` | Abbaubare Quellen des Spiels (LP pro Tier, Nachwachsen). Soll mit den Asset-Skripten zusammengeführt werden |
 | `scripts/crafting_station.gd`, `projectile.gd`, `zone.gd`, `loot_bag.gd` | Werkstätten, Geschosse, Flächenangriffe, Beute |
+| `scripts/ausruestung_ui.gd` | Ausrüstungsschrank im Dorf (Werkstatt `schrank`): ein Knopf je Waffe legt Stufe 1 + Schild + Lederrüstung an, Meisterschaft auf 20 (zum Ansehen der Animationen); Test `--autotest --schrank` |
 | `scripts/hud.gd`, `inventory_ui.gd`, `crafting_ui.gd`, `skill_tree_ui.gd`, `charakter_ui.gd`, `kompass.gd`, `pause_menu.gd` | Oberfläche (Charakterfenster P, Kompass mit Aufspüren und Uhrzeit) |
 | `scripts/fehler_melden.gd` | Taste B: Fehler mit Position, Blick, Biom, Bildschirmfoto und Kommentar nach `%APPDATA%\Godot\app_userdata\RPG\fehler\` (`fehler.json` + `fehler_NNN.jpg`); Start an einer Meldung mit `-- --fehler <nr>` |
 | `scripts/tageszeit.gd` | Tag/Nacht-Zyklus (Sonne, Mond, Himmel, Nebel; Uhrzeit in `Game.time_of_day`) |

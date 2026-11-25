@@ -11,5 +11,6 @@
 	"arcana": {"name": "Arkanes Sanktum", "profession": "arcana", "visual": "cauldron"},
 	"kitchen": {"name": "Küche", "profession": "cooking", "visual": "kitchen"},
 	"armory": {"name": "Übungswaffenständer", "profession": "weaponsmithing", "visual": "weapon_rack"},
-	"dyer": {"name": "Färber", "profession": "", "visual": "dye"}
+	"dyer": {"name": "Färber", "profession": "", "visual": "dye"},
+	"schrank": {"name": "Ausrüstungsschrank", "profession": "", "visual": "wandschrank"}
 }
