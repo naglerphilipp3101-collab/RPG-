@@ -1,0 +1,13 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/props/texturen/leder_farbe.jpg" id="1_mi2qf"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/leder_normal.jpg" id="2_mfd4y"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/leder_rauheit.jpg" id="3_4l8jk"]
+
+[resource]
+resource_name = "leder"
+albedo_texture = ExtResource("1_mi2qf")
+roughness_texture = ExtResource("3_4l8jk")
+normal_enabled = true
+normal_texture = ExtResource("2_mfd4y")
+texture_filter = 5

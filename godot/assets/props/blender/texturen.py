@@ -12,6 +12,7 @@ KACHEL = {
     "holz": (2.0, 0.5), "holz_alt": (2.0, 0.5), "holz_verkohlt": (1.0, 1.0), "eisen": (0.5, 0.5),
     "stoff": (1.0, 1.0), "seil": (0.25, 0.25), "stein": (1.0, 1.0), "putz": (1.5, 1.5),
     "schindeln": (1.0, 1.0), "dielen": (2.0, 2.0), "glut": (0.5, 0.5), "weide": (0.5, 0.5),
+    "ton": (0.5, 0.5), "stroh": (0.5, 0.5), "leder": (0.5, 0.5),
 }
 
 
@@ -190,6 +191,44 @@ def weide(rnd):
     return farbe, norm01(hoehe + 0.05 * fasern), np.clip(0.75 + 0.2 * (1 - hoehe), 0, 1), 3.0
 
 
+def ton(rnd):
+    """Gebrannter Ton mit dünner, ungleichmäßiger Glasur, Drehrillen entlang u (Umfang bei Krügen)."""
+    vv, uu = np.mgrid[0:N, 0:N] / N
+    rillen = np.sin(2 * np.pi * 60 * uu + 1.5 * rauschen(rnd, 40, 400)) * 0.5 + 0.5
+    grob = fbm(rnd, 200, 4)
+    glasur = np.clip(0.55 + 0.35 * fbm(rnd, 120, 4), 0, 1)
+    farbe = mischen([0.42, 0.22, 0.12], [0.62, 0.36, 0.20], np.clip(0.5 + 0.25 * grob + 0.1 * rillen, 0, 1))
+    farbe = mischen(farbe, [0.30, 0.20, 0.12], glasur * 0.45)
+    punkte = np.clip(-rauschen(rnd, 1.5) - 2.2, 0, 1)
+    farbe = mischen(farbe, [0.15, 0.1, 0.07], punkte)
+    return farbe, norm01(0.3 * rillen + 0.2 * grob), np.clip(0.75 - 0.4 * glasur + 0.1 * rillen, 0.25, 1), 1.5
+
+
+def stroh(rnd):
+    """Strohhalme, überwiegend entlang u, hell-goldgelb mit dunklen Lücken."""
+    halme = np.zeros((N, N)); farbe = np.zeros((N, N, 3)) + np.array([0.18, 0.13, 0.06])
+    for k in range(3):
+        r = rauschen(rnd, 1.0, 26 + 10 * k) + 0.3 * rauschen(rnd, 20, 200)
+        h = np.clip(r - 0.6 + 0.3 * k, 0, 1) ** 0.6
+        ton_k = np.array([0.74, 0.60, 0.30]) * (0.8 + 0.12 * k)
+        farbe = mischen(farbe, ton_k, h)
+        halme = np.maximum(halme, h)
+    farbe *= (0.85 + 0.15 * fbm(rnd, 150, 3))[..., None]
+    return farbe, norm01(halme), np.clip(0.95 - 0.15 * halme, 0, 1), 4.0
+
+
+def leder(rnd):
+    """Braunes Leder: Narbung (Voronoi), weiche Falten, abgewetzte helle Stellen."""
+    d1, d2, idx = voronoi(rnd, 260)
+    narben = np.clip((d2 - d1) / 4.0, 0, 1)
+    falten = fbm(rnd, 160, 4)
+    abrieb = np.clip(fbm(rnd, 220, 4) - 0.5, 0, 1)
+    farbe = mischen([0.20, 0.11, 0.06], [0.34, 0.20, 0.11], np.clip(0.5 + 0.3 * falten, 0, 1))
+    farbe = mischen(farbe, [0.48, 0.33, 0.20], abrieb * 0.7)
+    farbe *= (0.88 + 0.12 * narben)[..., None]
+    return farbe, norm01(0.5 * narben + 0.5 * falten), np.clip(0.65 + 0.15 * narben - 0.2 * abrieb, 0, 1), 2.0
+
+
 def stein(rnd):
     grob = fbm(rnd, 260, 6)
     koernung = rauschen(rnd, 2.0)
@@ -282,7 +321,7 @@ ERZEUGER = {
     "holz": lambda r: holz(r, [0.47, 0.32, 0.18], [0.23, 0.13, 0.06], alt=0.15),
     "holz_alt": lambda r: holz(r, [0.44, 0.39, 0.33], [0.22, 0.18, 0.15], alt=1.0),
     "holz_verkohlt": holz_verkohlt, "eisen": eisen, "stoff": stoff, "seil": seil, "stein": stein,
-    "putz": putz, "schindeln": schindeln, "dielen": dielen, "glut": glut, "weide": weide,
+    "putz": putz, "schindeln": schindeln, "dielen": dielen, "glut": glut, "weide": weide, "ton": ton, "stroh": stroh, "leder": leder,
 }
 
 

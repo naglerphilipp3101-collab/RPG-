@@ -25,6 +25,10 @@ vorratskiste (Dorf), versorgungswagen (Militärlager), grubenlore (Mine), fische
 palisade (2 m), zelt, lagerfeuer, karren, laterne (Ring zum Aufhängen 0,30 m über dem Boden), laternenpfahl,
 saeule, mauer (3 m), bogen.
 
+**Deko** (`blender/deko.py`), nicht interagierbar: stuhl_armlehne, stuhl_brett, tisch_rund, tisch_lang (2,4 m), krug, humpen, kochtopf
+(Kessel mit Pfännchen), buecher, wandfackel (Ursprung an der Wand, ragt nach -y), haengelampe (Ursprung am Deckenhaken, hängt 0,8 m),
+kerzen, kerzenstaender, grabstein, brunnen, trainingspuppe, zielscheibe, amboss, waffenstaender, ruestungsstaender.
+
 **Haus-Baukasten** (`blender/baukasten.py`). Regeln: 1-m-Raster (Stockwerkshöhe frei, Teile drehbar und überlappbar), alle Stoßflächen eben
 und genau im Raster (damit Blueprints einrasten und beim späteren Backen verdeckte Flächen entfernt werden können).
 
@@ -75,6 +79,7 @@ python blender/texturen.py                         # Texturen
 python blender/props.py   [-- <ziel> --nur kiste,fass --vorschau <ordner>]
 python blender/baukasten.py [-- <ziel> --nur wand --vorschau <ordner>]
 python blender/behaelter.py [-- <ziel> --nur grubenlore --vorschau <ordner>]
+python blender/deko.py    [-- <ziel> --nur amboss,brunnen --vorschau <ordner>]
 ```
 Ohne Ziel landen die Modelle in `modelle/`. `--vorschau` rendert jedes Modell mit Cycles als JPG.
 

@@ -5,7 +5,7 @@ extends SceneTree
 
 const ORDNER := "res://assets/props/"
 ## Kachelgröße in Metern (u, v) wie in blender/texturen.py: die Modell-UVs sind schon in Kacheln gerechnet
-const MIT_TEXTUR := ["holz", "holz_alt", "holz_verkohlt", "eisen", "stoff", "seil", "stein", "putz", "schindeln", "dielen", "glut", "weide"]
+const MIT_TEXTUR := ["holz", "holz_alt", "holz_verkohlt", "eisen", "stoff", "seil", "stein", "putz", "schindeln", "dielen", "glut", "weide", "ton", "stroh", "leder"]
 
 
 func _init() -> void:
@@ -48,6 +48,13 @@ func _init() -> void:
 	obst.albedo_color = Color(0.62, 0.1, 0.07)
 	obst.roughness = 0.45
 	_speichern(obst, "obst")
+	# Farbe auf der Zielscheibe (gemalte Ringe)
+	for paar in [["farbe_rot", Color(0.6, 0.08, 0.06)], ["farbe_weiss", Color(0.86, 0.83, 0.76)]]:
+		var f := StandardMaterial3D.new()
+		f.resource_name = paar[0]
+		f.albedo_color = paar[1]
+		f.roughness = 0.85
+		_speichern(f, paar[0])
 	# Baukasten: Holz mit Vorrang bei Überlappung (balken.gdshader), je für Balken (entlang x) und Strebe (schräg)
 	for name in ["holz", "holz_verkohlt"]:
 		for teil in ["balken", "strebe"]:
