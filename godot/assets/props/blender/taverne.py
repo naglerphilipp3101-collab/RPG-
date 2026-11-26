@@ -48,6 +48,34 @@ def decke(m, matrix, lx, ly, oben, seite, rnd, falten=0.012, mat="wolle_rot", lo
     m.teil(bm, mat, matrix)
 
 
+def decke_liegend(m, matrix, lx, ly, rnd, mat="wolle_rot", loch=None, hoch=0.07):
+    """Weich auf den Boden gefallene Decke: liegt flach auf, mit ein paar zusammengeschobenen Wülsten und Falten.
+    Die Ränder liegen am Boden, die Umrisse sind unregelmäßig (nicht mehr rechteckig)."""
+    from mathutils import noise
+    nx, ny = 22, 22
+    o = Vector([rnd.uniform(-50, 50) for _ in range(3)])
+    wuelste = [(rnd.uniform(-0.25, 0.25) * lx, rnd.uniform(-0.3, 0.3) * ly, rnd.uniform(0.6, 1.0)) for _ in range(3)]
+    g = []
+    for i in range(ny + 1):
+        zeile = []
+        for j in range(nx + 1):
+            x = -lx / 2 + lx * j / nx; y = -ly / 2 + ly * i / ny
+            z = 0.0
+            for (wx, wy, st) in wuelste:
+                d2 = ((x - wx) / (lx * 0.22)) ** 2 + ((y - wy) / (ly * 0.18)) ** 2
+                z += hoch * st * math.exp(-d2)
+            p = Vector((x * 2.2, y * 2.2, 0)) + o
+            z += 0.018 * (noise.noise(p) * 0.5 + 0.5) + 0.01 * max(0.0, math.sin(x * 14 + 3 * noise.noise(p * 0.7)))
+            rand = min(j, nx - j, i, ny - i) / 3.0
+            z *= min(1.0, rand)                       # Ränder liegen auf
+            # Stoff wird an den Wülsten zusammengezogen: Umriss wird unregelmäßig
+            zieh = 0.12 * noise.noise(p * 0.6 + Vector((7, 0, 0)))
+            zeile.append((x * (1 + zieh), y * (1 + 0.12 * noise.noise(p * 0.6 + Vector((0, 9, 0)))), 0.006 + z))
+        g.append(zeile)
+    bm = flaeche(g, 0.01, loch)
+    m.teil(bm, mat, matrix)
+
+
 def teller(m, matrix, r=0.11, mat="ton"):
     m.teil(drehkoerper([(0.0, 0.0), (r * 0.6, 0.0), (r, 0.02), (r * 0.97, 0.024), (r * 0.58, 0.006), (0.0, 0.006)], 20,
                        False, False), mat, matrix, uv="zylz", r=r)
@@ -165,11 +193,11 @@ def bett(m, kaputt):
     else:
         kissen(m, M((0.85, -0.6, 0.045), (0, 0, 30)), 0.6, 0.34, 0.09, platt=0.2)
         # Decke liegt zerknüllt vor dem Bett
-        decke(m, M((-0.95, -0.35, 0.0), (0, 0, 80)), 0.45, 0.9, 0.09, 0.0, m.rnd, falten=0.03)
+        decke_liegend(m, M((-1.0, -0.3, 0.0), (0, 0, 70)), 1.2, 1.1, m.rnd, hoch=0.04)
 
 
 def strohlager(m, kaputt):
-    """Strohsack auf dem Boden mit Wolldecke und Kissen (Schlafsaal, Stall)."""
+    """Strohsack auf dem Boden mit Kissen (Schlafsaal, Stall)."""
     lx, ly = 0.9, 1.9
     if not kaputt:
         bm = quader(lx, ly, 0.2, 6, 10, 2, fase=0.08)
@@ -182,10 +210,9 @@ def strohlager(m, kaputt):
             if abs(x) < lx / 2 - 0.05 and abs(y) < ly / 2 - 0.05:
                 x = math.copysign(lx / 2, x)
             m.teil(brocken(m.rnd, 0.06, 0.04, 0.02, rauh=0.4, unterteilung=1), "stroh", M((x, y, 0.02), (0, 0, m.rnd.uniform(0, 360))))
-        decke(m, M((0, -0.3, 0.0)), lx - 0.1, 1.1, 0.23, 0.05, m.rnd, falten=0.015)
         kissen(m, M((0, ly / 2 - 0.3, 0.28), (0, 0, -4)), 0.5, 0.3, 0.1, mat="stoff")
     else:
-        # zertrampelt: flach, Stroh zu Haufen zusammengeschoben und verstreut, Decke zerrissen
+        # zertrampelt: flach, Stroh zu Haufen zusammengeschoben und verstreut
         bm = quader(lx * 1.1, ly, 0.08, 6, 10, 2, fase=0.035)
         verbiegen(bm, m.rnd, 0.03, 0.2)
         m.teil(bm, "stroh", M((0, 0, 0.04), (0, 0, 4)))
@@ -193,13 +220,32 @@ def strohlager(m, kaputt):
             a = m.rnd.uniform(0, 2 * math.pi); d = m.rnd.uniform(0.6, 1.3)
             m.teil(brocken(m.rnd, m.rnd.uniform(0.06, 0.14), m.rnd.uniform(0.04, 0.1), 0.025, rauh=0.4, unterteilung=1), "stroh",
                    M((0.6 * d * math.cos(a), d * math.sin(a), 0.015), (0, 0, m.rnd.uniform(0, 360))))
-        decke(m, M((0.5, -0.5, 0.0), (0, 0, 30)), 0.5, 0.8, 0.1, 0.0, m.rnd, falten=0.03,
-              loch=lambda i, j: (i - 10) ** 2 + (j - 8) ** 2 < 10)
 
 
 def truhe(m, kaputt):
     """Truhe am Bettende: Bretterkiste mit Eisenbeschlägen und Schloss. Kaputt: aufgebrochen, Kleider hängen heraus."""
-    kistenkoerper(m, 0.9, 0.48, 0.45, deckel="zu" if not kaputt else "offen", griffe=True, riegel=True)
+    bx, by, h = 0.9, 0.48, 0.45
+    kistenkoerper(m, bx, by, h, deckel="weg", griffe=True, riegel=True)
+    # Deckel aus vier dicht gestoßenen Brettern, mit zwei Bändern am hinteren Rand angeschlagen
+    achse_y, achse_z = by / 2 + 0.012, h + 0.012
+    if not kaputt:
+        dm = M((0, 0, h + 0.012))
+    else:
+        dm = Matrix.Translation((0, achse_y, achse_z)) @ M(rot=(-100, 0, 0)) @ Matrix.Translation((0, -achse_y, -achse_z)) @ \
+            M((0, 0, h + 0.012))
+    nb = 4
+    bb = (by + 0.024) / nb
+    for i in range(nb):
+        y = -by / 2 - 0.012 + bb * (i + 0.5)
+        m.brett(bx + 0.02, bb - 0.0015, 0.022, dm @ M((0, y, 0)), "holz", biegen=0.001, fase=0.003)
+    for x in (-bx / 2 + 0.1, bx / 2 - 0.1):
+        m.brett(0.05, by - 0.06, 0.02, dm @ M((x, 0, -0.021)), "holz", nx=2, biegen=0)
+    m.teil(quader(0.04, 0.008, 0.09, fase=0.002), "eisen", dm @ M((0, -by / 2 - 0.016, -0.035)))
+    for x in (-0.25, 0.25):
+        # Band auf dem Deckel, Rolle auf der Drehachse, Lasche hinten an der Wand
+        m.teil(quader(0.035, 0.26, 0.005, fase=0.001), "eisen", dm @ M((x, by / 2 - 0.12, 0.0135)))
+        m.teil(rundholz(0.011, 0.05, 8), "eisen", M((x, achse_y, achse_z)), uv=None)
+        m.teil(quader(0.035, 0.005, 0.1, fase=0.001), "eisen", M((x, by / 2 + 0.014, h - 0.04)))
     # Schlossblech
     if not kaputt:
         m.teil(quader(0.09, 0.01, 0.1, fase=0.003), "eisen", M((0, -0.255, 0.33)))
@@ -352,8 +398,10 @@ def flaschen(m, kaputt):
         flasche(m, M((0.15, -0.05, 0.045), (0, 90, 30)) @ M((0, 0, -0.13)), 0.27, mat="glas")
         glasscherben(m, M((0.25, 0.1, 0.0)), 4, mat="glas", weite=0.1)
     # Tonflasche mit Henkel
-    prof = [(0.0, 0.0), (0.06, 0.0), (0.07, 0.1), (0.05, 0.17), (0.022, 0.2), (0.02, 0.24), (0.026, 0.25), (0.0, 0.25)]
-    m.teil(drehkoerper(prof, 16), "ton", M((-0.02, -0.14, 0.0)), uv="zylz", r=0.06)
+    # hohl: außen hoch, über die Lippe, innen wieder hinunter bis auf den Boden
+    prof = [(0.0, 0.0), (0.06, 0.0), (0.07, 0.1), (0.05, 0.17), (0.022, 0.2), (0.02, 0.24), (0.026, 0.25), (0.016, 0.252),
+            (0.012, 0.24), (0.013, 0.2), (0.04, 0.17), (0.061, 0.1), (0.052, 0.012), (0.0, 0.012)]
+    m.teil(drehkoerper(prof, 18, False, False), "ton", M((-0.02, -0.14, 0.0)), uv="zylz", r=0.06)
     m.seil([(-0.02, -0.14 + 0.02, 0.22), (-0.02, -0.14 + 0.07, 0.2), (-0.02, -0.14 + 0.065, 0.13)], 0.008, 5, "ton")
 
 
@@ -423,7 +471,7 @@ def feuerstelle(m, kaputt):
 def teppich(m, kaputt):
     """Geknüpfter Teppich 2 x 1,4 m mit Fransen an den Schmalseiten (Textur teppich = ganzes Bild)."""
     lx, ly = 2.0, 1.4
-    nx, ny = 24, 16
+    nx, ny = 60, 42
     g = []
     for i in range(ny + 1):
         y = -ly / 2 + ly * i / ny
@@ -440,7 +488,20 @@ def teppich(m, kaputt):
                 z += 0.02 * max(0.0, math.sin((x + 0.3) * 3)) * (y < -0.2) * 0.5
             zeile.append((x, y, z))
         g.append(zeile)
-    loch = (lambda i, j: (i - 10) ** 2 + (j - 6) ** 2 * 1.3 < 6 or (i - 3) ** 2 + (j - 20) ** 2 < 3) if kaputt else None
+    def loch(i, j):
+        # ausgefranste Löcher: Radius schwankt mit dem Winkel, am Rand fehlen einzelne Maschen
+        x = -lx / 2 + lx * (j + 0.5) / nx; y = -ly / 2 + ly * (i + 0.5) / ny
+        for (cx, cy, r, s) in ((-0.5, 0.17, 0.13, 1.0), (0.66, -0.44, 0.07, 2.0)):
+            dx, dy = x - cx, (y - cy) * 1.2
+            a = math.atan2(dy, dx)
+            reff = r * (1 + 0.3 * math.sin(3 * a + s) + 0.18 * math.sin(5 * a + 2 * s) + 0.1 * math.sin(9 * a))
+            d = math.hypot(dx, dy)
+            if d < reff:
+                return True
+            if d < reff + 0.035 and (i * 7 + j * 13 + int(s)) % 3 == 0:
+                return True
+        return False
+    loch = loch if kaputt else None
     bm = flaeche(g, 0.008, loch)
     m.teil(bm, "teppich", None, versatz=(0.5, 0.5))
     for s in (-1, 1):

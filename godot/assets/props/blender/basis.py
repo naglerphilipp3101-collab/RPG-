@@ -9,10 +9,10 @@ from texturen import KACHEL
 
 MATERIALIEN = ["holz", "holz_alt", "holz_verkohlt", "eisen", "stoff", "seil", "stein", "putz", "schindeln",
                "dielen", "glut", "glas", "asche", "weide", "obst", "ton", "stroh", "leder", "farbe_rot", "farbe_weiss",
-               "teppich", "wolle_rot", "knochen", "glas_gruen"]
+               "teppich", "wolle_rot", "knochen", "glas_gruen", "erde"]
 ## Kachelgrößen der Materialien ohne eigene Textur
 KACHEL_EXTRA = {"glas": (1.0, 1.0), "asche": (1.0, 1.0), "obst": (1.0, 1.0), "farbe_rot": (1.0, 1.0), "farbe_weiss": (1.0, 1.0),
-                "wolle_rot": (1.0, 1.0), "knochen": (1.0, 1.0), "glas_gruen": (1.0, 1.0)}
+                "wolle_rot": (1.0, 1.0), "knochen": (1.0, 1.0), "glas_gruen": (1.0, 1.0), "erde": (1.0, 1.0)}
 
 
 def kachel(mat):
@@ -434,7 +434,7 @@ class Modell:
 # ---------------------------------------------------------------- Materialien (Blender, für Vorschau und glTF-Namen)
 
 TEXTUR_ORDNER = None   # wird von den Erzeuger-Skripten gesetzt
-GRUNDFARBE = {"wolle_rot": (0.40, 0.11, 0.09), "knochen": (0.74, 0.68, 0.55), "glas_gruen": (0.22, 0.36, 0.18),
+GRUNDFARBE = {"erde": (0.20, 0.145, 0.10), "wolle_rot": (0.40, 0.11, 0.09), "knochen": (0.74, 0.68, 0.55), "glas_gruen": (0.22, 0.36, 0.18),
               "holz": (0.33, 0.21, 0.11), "holz_alt": (0.38, 0.34, 0.29), "holz_verkohlt": (0.03, 0.03, 0.03),
               "eisen": (0.13, 0.12, 0.12), "stoff": (0.58, 0.52, 0.39), "seil": (0.45, 0.37, 0.24),
               "stein": (0.47, 0.45, 0.41), "putz": (0.74, 0.70, 0.61), "schindeln": (0.32, 0.26, 0.20),

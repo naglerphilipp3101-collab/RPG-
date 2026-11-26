@@ -47,6 +47,14 @@ func _init() -> void:
 	asche.normal_texture = load(ORDNER + "texturen/holz_verkohlt_normal.jpg")
 	asche.roughness = 1.0
 	_speichern(asche, "asche")
+	# Erde für Grab- und Knochenhügel (krümelige Struktur über die Asche-Normalkarte)
+	var erde := StandardMaterial3D.new()
+	erde.resource_name = "erde"
+	erde.albedo_color = Color(0.2, 0.145, 0.1)
+	erde.normal_enabled = true
+	erde.normal_texture = load(ORDNER + "texturen/holz_verkohlt_normal.jpg")
+	erde.roughness = 1.0
+	_speichern(erde, "erde")
 	var obst := StandardMaterial3D.new()
 	obst.resource_name = "obst"
 	obst.albedo_color = Color(0.62, 0.1, 0.07)

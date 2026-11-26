@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bxpekxcrj4cpy"
-path="res://.godot/imported/schaedel_kaputt.glb-981fe432d55b5f73465108acc3435838.scn"
+uid="uid://dsnmdxbnibdce"
+path="res://.godot/imported/holzkreuz.glb-4eca24d428f04d652cc172a27a10cb86.scn"
 
 [deps]
 
-source_file="res://assets/props/modelle/schaedel_kaputt.glb"
-dest_files=["res://.godot/imported/schaedel_kaputt.glb-981fe432d55b5f73465108acc3435838.scn"]
+source_file="res://assets/props/modelle/holzkreuz.glb"
+dest_files=["res://.godot/imported/holzkreuz.glb-4eca24d428f04d652cc172a27a10cb86.scn"]
 
 [params]
 

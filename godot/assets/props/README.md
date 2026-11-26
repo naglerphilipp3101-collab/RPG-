@@ -32,8 +32,10 @@ kerzen, kerzenstaender, grabstein, brunnen, trainingspuppe, zielscheibe, amboss,
 **Taverne** (`blender/taverne.py`): bett (Kopfende +y), strohlager, truhe, schrank, regal (mit Geschirr), geschirr (Gedeck), flaschen,
 feuerstelle (mit Kesselgalgen), teppich (2 x 1,4 m, Textur `teppich` = ganzes Bild), zapffass (liegend auf dem Bock, Hahn bei +x).
 
-**Friedhof** (`blender/friedhof.py`): gruft (2,4 x 3 m), grabkreuz, eisenzaun (2 m, Pfosten bei x = -1 wie zaun), saeule_liegend,
-knochenhaufen, schaedel.
+**Friedhof** (`blender/friedhof.py`): gruft (2,4 x 3 m; kaputt = nur die Gittertür ausgeschlagen), holzkreuz (nur das Kreuz),
+grabkreuz (Kreuz mit Erdhügel; kaputt = aufgewühltes Loch mit Sargbrettern, als wäre jemand herausgekommen),
+eisenzaun (2 m, Pfosten bei x = -1 wie zaun), saeule_liegend, knochenhaufen, schaedel (nur heil: Modellfunktion mit `nur_heil = True`).
+Der Schädel ist ein Abstandsfeld (Marching Cubes) und braucht `pip install scikit-image`.
 
 **Haus-Baukasten** (`blender/baukasten.py`). Regeln: 1-m-Raster (Stockwerkshöhe frei, Teile drehbar und überlappbar), alle Stoßflächen eben
 und genau im Raster (damit Blueprints einrasten und beim späteren Backen verdeckte Flächen entfernt werden können).

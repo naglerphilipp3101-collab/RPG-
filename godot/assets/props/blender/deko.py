@@ -439,7 +439,7 @@ def grabstein(m, kaputt):
     for v in huegel.verts:
         v.co.y *= 2.6
     verbiegen(huegel, m.rnd, 0.02, 0.2)
-    m.teil(huegel, "asche", M((0, -0.95, -0.02)))
+    m.teil(huegel, "erde", M((0, -0.95, -0.02)))
 
 
 def brunnen(m, kaputt):

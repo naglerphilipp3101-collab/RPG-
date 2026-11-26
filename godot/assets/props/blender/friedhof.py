@@ -2,6 +2,7 @@
 Aufruf: python friedhof.py -- <zielordner/modelle> [--nur gruft,schaedel] [--vorschau <ordner>]
 Boden bei z = 0, Mitte im Ursprung, Vorderseite nach -y. eisenzaun: 2 m entlang x, Pfosten bei x = -1 (wie zaun)."""
 import bpy, bmesh, math, sys, os
+import numpy as np
 from mathutils import Vector, Matrix, noise
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import basis
@@ -20,84 +21,131 @@ def _ellipsoid(rx, ry, rz, unterteilung=2):
     return bm
 
 
-def schaedel(m, matrix, kaputt=False, kiefer=True):
-    """Menschenschädel (ca. 0,2 m lang), Gesicht nach -y, Ursprung am Boden unter dem Kiefer.
-    Hirnschale, Gesichtsteil, Jochbögen, Zähne und Unterkiefer; Augen- und Nasenhöhlen dunkel (Material asche)."""
-    unten = 0.106 if (kiefer and not kaputt) else 0.085
-    G = matrix @ M((0, 0, unten))
-    augen = [Vector((sx * 0.03, -0.083, 0.004)) for sx in (-1, 1)]
-    nase = Vector((0.0, -0.088, -0.03))
-    loch = Vector((-0.058, 0.015, 0.06))
+# ---------------------------------------------------------------- Schädel als Abstandsfeld (Marching Cubes, braucht scikit-image)
 
-    def hoehlen(bm):
-        for v in bm.verts:
-            for a in augen:
-                d = Vector(((v.co.x - a.x) / 0.024, (v.co.y - a.y) / 0.03, (v.co.z - a.z) / 0.021)).length
-                if d < 1:
-                    v.co.y += 0.022 * (1 - d * d)
-            d = Vector(((v.co.x - nase.x) / 0.011, (v.co.y - nase.y) / 0.03, (v.co.z - nase.z) / 0.017)).length
-            if d < 1:
-                v.co.y += 0.016 * (1 - d * d)
-            if kaputt:
-                d = (v.co - loch).length
-                if d < 0.03:
-                    v.co -= (v.co - Vector((0, 0.01, 0.02))).normalized() * 0.03 * (1 - (d / 0.03) ** 1.5)
-        bm.normal_update()
+def _sd_ell(P, c, r):
+    q = (P - np.array(c)) / np.array(r)
+    return (np.linalg.norm(q, axis=-1) - 1.0) * min(r)
 
-    # Hirnschale
-    hirn = _ellipsoid(0.07, 0.093, 0.078, 4)
-    for v in hirn.verts:
-        v.co += Vector((0, 0.012, 0.03))
-        if v.co.z < -0.035:                              # Schädelbasis flach
-            v.co.z = -0.035 - (v.co.z + 0.035) * 0.3
-        if v.co.y < -0.05:                               # Stirn steiler
-            v.co.y = -0.05 + (v.co.y + 0.05) * 0.75
-    hoehlen(hirn)
-    m.teil(hirn, "knochen", G, uv="box")
-    # Gesichtsteil (Oberkiefer), unten schmaler
-    ges = quader(0.084, 0.05, 0.062, 6, 4, 6, fase=0.022)
-    for v in ges.verts:
-        v.co.x *= 0.72 + 0.28 * (v.co.z + 0.031) / 0.062
-    ges.normal_update()
-    bmesh.ops.translate(ges, verts=ges.verts, vec=(0, -0.066, -0.043))
-    verbiegen(ges, m.rnd, 0.002, 0.03)
-    hoehlen(ges)
-    m.teil(ges, "knochen", G, uv="box")
-    # dunkle Höhlen
-    for a in augen:
-        m.teil(_ellipsoid(0.021, 0.008, 0.019, 2), "asche", G @ M(a + Vector((0, 0.016, 0))))
-    m.teil(_ellipsoid(0.009, 0.006, 0.015, 2), "asche", G @ M(nase + Vector((0, 0.012, 0))))
-    if kaputt:
-        m.teil(_ellipsoid(0.02, 0.02, 0.02, 2), "asche", G @ M(loch + Vector((0.022, 0.0, -0.015))))
-    # Jochbögen
+
+def _sd_kapsel(P, a, b, r):
+    a = np.array(a); b = np.array(b)
+    pa = P - a; ba = b - a
+    h = np.clip((pa @ ba) / (ba @ ba), 0, 1)
+    return np.linalg.norm(pa - h[..., None] * ba, axis=-1) - r
+
+
+def _sd_box(P, c, h, rund):
+    q = np.abs(P - np.array(c)) - (np.array(h) - rund)
+    return np.linalg.norm(np.maximum(q, 0), axis=-1) + np.minimum(q.max(axis=-1), 0) - rund
+
+
+def _smin(a, b, k):
+    h = np.clip(0.5 + 0.5 * (b - a) / k, 0, 1)
+    return b * (1 - h) + a * h - k * h * (1 - h)
+
+
+def _smax(a, b, k):
+    return -_smin(-a, -b, k)
+
+
+_SCHAEDEL_CACHE = {}
+
+
+def _schaedel_netz(kaputt, kiefer):
+    """Liefert (Punkte, Dreiecke) des Schädels; Gesicht nach -y, Unterkante bei z = 0."""
+    key = (kaputt, kiefer)
+    if key in _SCHAEDEL_CACHE:
+        return _SCHAEDEL_CACHE[key]
+    from skimage.measure import marching_cubes
+    raster = 0.0035
+    lo = np.array([-0.09, -0.13, -0.14]); hi = np.array([0.09, 0.12, 0.13])
+    achsen = [np.arange(lo[k], hi[k], raster) for k in range(3)]
+    P = np.stack(np.meshgrid(*achsen, indexing="ij"), axis=-1)
+    x, y, z = P[..., 0], P[..., 1], P[..., 2]
+    # Hirnschale (Länge 0,19, Breite 0,14), hinten etwas tiefer, Schläfen leicht eingezogen
+    d = _sd_ell(P, (0, 0.002, 0.025), (0.07, 0.095, 0.08))
+    d = _smin(d, _sd_ell(P, (0, 0.04, -0.015), (0.056, 0.05, 0.05)), 0.02)
     for sx in (-1, 1):
-        m.teil(rohr([G @ Vector(q) for q in ((sx * 0.04, -0.078, -0.012), (sx * 0.057, -0.05, -0.016), (sx * 0.06, -0.02, -0.022),
-                                         (sx * 0.056, 0.0, -0.026))], 0.0065, 6), "knochen", None, uv=None)
-    # obere Zahnreihe
-    for k in range(10):
-        if kaputt and k in (2, 3, 7):
-            continue
-        a = math.pi * (0.12 + 0.76 * k / 9)
-        q = Vector((0.026 * math.cos(a), -0.06 - 0.028 * math.sin(a), -0.077))
-        m.teil(quader(0.008, 0.007, 0.014, fase=0.002), "knochen", G @ M(q, (0, 0, math.degrees(a) - 90)))
-    if kiefer:
-        km = G if not kaputt else matrix @ M((0.16, -0.08, 0.0), (0, 0, 35)) @ M((0, 0, 0.107))
-        bahn = [(-0.056, -0.004, -0.032), (-0.056, -0.01, -0.082), (-0.045, -0.045, -0.092), (-0.026, -0.068, -0.095),
-                (0.0, -0.076, -0.097)]
-        bahn = bahn + [(-x, y, z) for (x, y, z) in reversed(bahn[:-1])]
-        unterkiefer = rohr(bahn, 0.0095, 8)
-        for v in unterkiefer.verts:                      # hochkant gequetscht
-            mz = -0.092
-            if v.co.z < -0.072:
-                v.co.z = mz + (v.co.z - mz) * 1.5
-        unterkiefer.normal_update()
-        m.teil(unterkiefer, "knochen", km, uv=None)
-        for k in range(10):
-            if kaputt and k in (0, 5):
+        d = _smax(d, -_sd_ell(P, (sx * 0.09, -0.035, -0.02), (0.018, 0.035, 0.03)), 0.01)
+    # Überaugenwulst und Gesicht (Stirnfuß bis Oberkiefer), unten schmaler
+    d = _smin(d, _sd_kapsel(P, (-0.038, -0.086, 0.006), (0.038, -0.086, 0.006), 0.01), 0.014)
+    gesicht = _sd_box(P, (0, -0.052, -0.034), (0.046, 0.042, 0.04), 0.016)
+    gesicht = gesicht + 0.3 * np.clip(-(z + 0.035), 0, None)
+    d = _smin(d, gesicht, 0.012)
+    for sx in (-1, 1):
+        d = _smin(d, _sd_ell(P, (sx * 0.054, -0.066, -0.038), (0.016, 0.022, 0.014)), 0.01)          # Jochbein
+        d = _smin(d, _sd_ell(P, (sx * 0.036, -0.045, -0.058), (0.024, 0.035, 0.026)), 0.012)        # Oberkiefer seitlich
+        d = _smin(d, _sd_kapsel(P, (sx * 0.06, -0.05, -0.042), (sx * 0.056, 0.022, -0.038), 0.0065), 0.012)  # Jochbogen bis ans Ohr
+    # Oberkiefer mit Zahnbogen
+    d = _smin(d, _sd_box(P, (0, -0.064, -0.074), (0.03, 0.024, 0.012), 0.009), 0.01)
+    # Unterseite hinter dem Gesicht flach (Schädelbasis)
+    d = _smax(d, np.where(y > -0.035, -(z + 0.058), -1.0), 0.01)
+    # Höhlen: Augen (groß, eckig-rund), Nase (umgekehrte Birne)
+    for sx in (-1, 1):
+        auge = _sd_box(P, (sx * 0.032, -0.098, -0.014), (0.021, 0.034, 0.019), 0.013)
+        d = _smax(d, -auge, 0.004)
+    nase = _sd_ell(P, (0, -0.096, -0.048), (0.011, 0.03, 0.014))
+    nase = _smin(nase, _sd_ell(P, (0, -0.096, -0.034), (0.005, 0.03, 0.012)), 0.006)
+    d = _smax(d, -nase, 0.003)
+    if kaputt:
+        d = _smax(d, -_sd_ell(P, (-0.062, 0.02, 0.06), (0.03, 0.035, 0.03)), 0.008)
+    # Zähne
+    reihen = [(-0.085, 0.0075, 0.031)] + ([(-0.094, 0.0065, 0.028)] if kiefer else [])
+    for zr, hz, rb in reihen:
+        for k in range(14):
+            if kaputt and k in (3, 4, 10):
                 continue
-            a = math.pi * (0.15 + 0.7 * k / 9)
-            q = Vector((0.024 * math.cos(a), -0.06 - 0.016 * math.sin(a), -0.085))
-            m.teil(quader(0.007, 0.006, 0.012, fase=0.002), "knochen", km @ M(q, (0, 0, math.degrees(a) - 90)))
+            a = math.pi * (0.1 + 0.8 * k / 13)
+            c = (rb * math.cos(a), -0.06 - 0.032 * math.sin(a), zr)
+            d = np.minimum(d, _sd_ell(P, c, (0.0045, 0.0042, hz)))
+    if kiefer:
+        # Unterkiefer: Körper als flache Spange, Kinn, aufsteigende Äste bis zum Gelenk unter dem Jochbogen
+        kd = _sd_box(P, (0, -0.064, -0.106), (0.03, 0.024, 0.012), 0.009)
+        for sx in (-1, 1):
+            for t in np.linspace(0, 1, 7):                 # Körper als Reihe flacher Ellipsoide (hochkant)
+                c = (sx * (0.024 + 0.032 * t), -0.075 + 0.07 * t, -0.11 + 0.004 * t)
+                kd = _smin(kd, _sd_ell(P, c, (0.008, 0.016, 0.015)), 0.008)
+            kd = _smin(kd, _sd_box(P, (sx * 0.056, -0.008, -0.08), (0.006, 0.017, 0.032), 0.005), 0.012)   # aufsteigender Ast
+        kd = _smin(kd, _sd_ell(P, (0, -0.088, -0.118), (0.017, 0.01, 0.01)), 0.008)
+        d = np.minimum(d, kd)
+    v, f, _, _ = marching_cubes(d, 0.0, spacing=(raster,) * 3)
+    v = v + lo
+    # mit Blender auf ein Viertel verringern (Prop, nicht Held)
+    me = bpy.data.meshes.new("schaedel_tmp")
+    me.from_pydata([tuple(p) for p in v], [], [tuple(t[::-1]) for t in f])
+    ob = bpy.data.objects.new("schaedel_tmp", me)
+    bpy.context.scene.collection.objects.link(ob)
+    mod = ob.modifiers.new("v", "DECIMATE"); mod.ratio = 0.22
+    deg = bpy.context.evaluated_depsgraph_get()
+    em = ob.evaluated_get(deg).to_mesh()
+    v = np.array([vv.co[:] for vv in em.vertices])
+    f = np.array([tuple(pp.vertices) for pp in em.polygons if len(pp.vertices) == 3])
+    ob.evaluated_get(deg).to_mesh_clear()
+    bpy.data.objects.remove(ob); bpy.data.meshes.remove(me)
+    versatz = -v[:, 2].min()
+    v[:, 2] += versatz
+    _SCHAEDEL_CACHE[key] = (v, f, versatz)
+    return _SCHAEDEL_CACHE[key]
+
+
+def schaedel(m, matrix, kaputt=False, kiefer=True):
+    """Menschenschädel (ca. 0,2 m lang) aus einem Abstandsfeld: Hirnschale, Überaugenwulst, Augen- und Nasenhöhlen,
+    Jochbeine und -bögen, Zahnreihen, Unterkiefer. Gesicht nach -y, Ursprung am Boden. kaputt: Loch in der Hirnschale."""
+    v, f, zv = _schaedel_netz(kaputt, kiefer)
+    bm = bmesh.new()
+    vs = [bm.verts.new((float(a), float(b), float(c))) for a, b, c in v]
+    for tri in f:
+        try:
+            bm.faces.new((vs[tri[0]], vs[tri[1]], vs[tri[2]]))
+        except ValueError:
+            pass
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    m.teil(bm, "knochen", matrix, uv="box")
+    # dunkle Tiefe hinten in den Augen- und Nasenhöhlen
+    for sx in (-1, 1):
+        m.teil(_ellipsoid(0.016, 0.006, 0.014, 2), "asche", matrix @ M((sx * 0.032, -0.066, zv - 0.016)))
+    m.teil(_ellipsoid(0.008, 0.005, 0.012, 2), "asche", matrix @ M((0, -0.07, zv - 0.044)))
 
 
 def langknochen(m, matrix, l=0.4, r=0.016, gebrochen=False):
@@ -121,8 +169,11 @@ def rippe(m, matrix, l=0.25):
 
 
 def schaedel_model(m, kaputt):
-    """Einzelner Schädel; kaputt: eingeschlagen, Kiefer liegt daneben."""
-    schaedel(m, M(), kaputt)
+    """Einzelner Schädel mit Unterkiefer (nur heil)."""
+    schaedel(m, M())
+
+
+schaedel_model.nur_heil = True
 
 
 def knochenhaufen(m, kaputt):
@@ -131,7 +182,7 @@ def knochenhaufen(m, kaputt):
         R, H = 0.55, 0.24
         huegel = drehkoerper([(0.0, H - 0.04), (R * 0.5, (H - 0.04) * 0.75), (R * 0.85, 0.05), (R, 0.0), (0.0, 0.0)], 18)
         verbiegen(huegel, m.rnd, 0.02, 0.2)
-        m.teil(huegel, "asche", None)
+        m.teil(huegel, "erde", None)
         hoehe = lambda x, y: max(0.0, H * (1 - (x * x + y * y) / (R * R)))
         for k in range(26):
             a = m.rnd.uniform(0, 2 * math.pi); d = R * math.sqrt(m.rnd.random()) * 0.9
@@ -170,14 +221,13 @@ def huegel(m, matrix, laenge=1.8, breite=0.9, hoch=0.12):
     for v in h.verts:
         v.co.x *= breite / 0.96; v.co.y *= laenge / 0.96
     verbiegen(h, m.rnd, 0.02, 0.2)
-    m.teil(h, "asche", matrix)
+    m.teil(h, "erde", matrix)
 
 
-def grabkreuz(m, kaputt):
-    """Holzkreuz mit Dächlein und Namensbrett, davor der Grabhügel."""
+def kreuz(m, matrix=None, kaputt=False):
+    """Holzkreuz mit Dächlein, Namensbrett und Kranz; steht 0,15 m tief im Boden. kaputt: Arm abgebrochen, Dach halb weg."""
     G0 = m.G
-    if kaputt:
-        m.G = M(rot=(-12, 16, 0))                     # schief eingesunken, kippt nach vorne rechts
+    m.G = (G0 @ matrix) if (G0 is not None and matrix is not None) else (matrix or G0)
     m.kantholz((0, 0, -0.15), (0, 0, 1.15), 0.09, 0.07, oben=(0, -1, 0), mat="holz_alt")
     if not kaputt:
         m.kantholz((-0.3, -0.07, 0.83), (0.3, -0.07, 0.83), 0.08, 0.06, oben=(0, -1, 0), mat="holz_alt")
@@ -190,19 +240,66 @@ def grabkreuz(m, kaputt):
     m.brett(0.24, 0.11, 0.015, M((0.0, -0.11, 0.66), (90, 0, 2)), "holz_alt")
     for x in (-0.09, 0.09):
         m.teil(drehkoerper([(0.0, 0.0), (0.007, 0.0), (0.006, 0.004), (0.0, 0.005)], 6), "eisen", M((x, -0.118, 0.66), (90, 0, 0)))
-    # Kranz aus trockenen Zweigen über dem Kreuzarm
-    if not kaputt:
+    if not kaputt:                                     # Kranz aus trockenen Zweigen über dem Kreuzarm
         ring = [(-0.17 + 0.07 * math.cos(2 * math.pi * k / 14), -0.11, 0.78 + 0.08 * math.sin(2 * math.pi * k / 14)) for k in range(15)]
         m.seil(ring, 0.012, 5, "stroh")
     m.G = G0
-    if kaputt:
-        # abgebrochener Arm liegt auf dem Hügel, Kranz daneben
-        m.kantholz((0.15, -0.55, 0.11), (0.4, -0.75, 0.08), 0.08, 0.06, mat="holz_alt", bruch=-1)
-        ring = [(0.4 + 0.07 * math.cos(2 * math.pi * k / 14), -1.1 + 0.08 * math.sin(2 * math.pi * k / 14), 0.012) for k in range(15)]
-        m.seil(ring, 0.012, 5, "stroh")
-        huegel(m, M((0, -0.95, 0.0), skal=(1, 1, 0.5)))
+
+
+def holzkreuz(m, kaputt):
+    """Einzelnes Holzkreuz (ohne Hügel, z. B. neben Grabsteinen). Kaputt: umgefallen, Arm abgebrochen."""
+    if not kaputt:
+        kreuz(m)
     else:
+        m.umfallen_start()
+        kreuz(m, kaputt=True)
+        m.umfallen_ende(250)
+        m.G = None
+        m.kantholz((0.25, -0.35, 0.03), (0.5, -0.5, 0.03), 0.08, 0.06, mat="holz_alt", bruch=-1)
+        ring = [(0.55 + 0.07 * math.cos(2 * math.pi * k / 14), -0.15 + 0.08 * math.sin(2 * math.pi * k / 14), 0.012) for k in range(15)]
+        m.seil(ring, 0.012, 5, "stroh")
+
+
+def grabkreuz(m, kaputt):
+    """Holzkreuz mit Grabhügel davor. Kaputt: aufgewühltes Grab mit einem Loch, als wäre jemand herausgekrochen."""
+    if not kaputt:
+        kreuz(m)
         huegel(m, M((0, -0.95, 0.0)))
+        return
+    kreuz(m, M(rot=(14, -10, 0)))                      # Kreuz nach hinten weggedrückt
+    # Hügel als Höhenfeld: aufgeworfener Wall um eine Grube, die bis auf den Boden reicht
+    cy = -0.95
+    # Gitter in elliptischen Polarkoordinaten: glatter Rand ohne Treppen
+    nr, na = 20, 56
+    g = []
+    for i in range(nr + 1):
+        u = 1.08 * i / nr
+        zeile = []
+        for j in range(na + 1):
+            a = 2 * math.pi * j / na
+            x = 0.6 * u * math.cos(a); y = 1.1 * u * math.sin(a)
+            e = u
+            h = 0.16 * max(0.0, 1 - e * e)
+            ec = math.hypot(x / 0.3, (y - 0.05) / 0.5)
+            wall = 0.12 * math.exp(-((ec - 1.05) / 0.3) ** 2)
+            h = (h + wall) * ec ** 2.5 if ec < 1 else h + wall
+            h += 0.015 * noise.noise(Vector((x * 6, y * 6, 3.0)))
+            if e > 0.9:
+                h *= max(0.0, (1.08 - e) / 0.18)          # Rand läuft am Boden aus
+            zeile.append((x, y + cy, max(0.003, h)))
+        g.append(zeile)
+    m.teil(flaeche(g, 0.02), "erde", None)
+    # dunkle Tiefe in der Grube und zerbrochene Sargbretter
+    m.teil(drehkoerper([(0.0, 0.004), (0.2, 0.002), (0.0, 0.006)], 16), "holz_verkohlt", M((0, cy + 0.05, 0.0), skal=(1, 1.6, 1)))
+    m.brett(0.6, 0.14, 0.02, M((0.1, cy + 0.15, 0.06), (0, -18, 70)), "holz_alt", bruch=1)
+    m.brett(0.45, 0.14, 0.02, M((-0.12, cy - 0.2, 0.08), (12, 25, -80)), "holz_alt", bruch=-1)
+    m.brett(0.5, 0.14, 0.02, M((0.55, cy - 0.7, 0.012), (0, 0, 35)), "holz_alt", bruch=1)
+    # herausgeworfene Erdklumpen
+    for k in range(16):
+        a = m.rnd.uniform(0, 2 * math.pi); d = m.rnd.uniform(0.65, 1.2)
+        gr = m.rnd.uniform(0.04, 0.09)
+        m.teil(brocken(m.rnd, gr, gr * 0.8, gr * 0.5, rauh=0.35, unterteilung=1), "erde",
+               M((d * 0.7 * math.cos(a), cy + d * 1.1 * math.sin(a), gr * 0.2), (0, 0, m.rnd.uniform(0, 360))))
 
 
 def eisenzaun(m, kaputt):
@@ -312,6 +409,8 @@ def saeule_liegend(m, kaputt):
 
 def gruft(m, kaputt):
     """Kleine Gruft 2,4 x 3 m aus Stein: Sockel, Stufe, Eckpfeiler, Satteldach, Gittertür, Inschrifttafel und Kreuz."""
+    # kaputt: nur die Gittertür ist ausgeschlagen und liegt vor der Gruft, der Bau selbst bleibt heil
+    tuer_kaputt, kaputt = kaputt, False
     bx, by = 2.4, 3.0
     sockel = 0.3
     wand_h = 2.2
@@ -385,23 +484,20 @@ def gruft(m, kaputt):
             x = 0.05 + (tb - 0.1) * k / 7
             m.stab(matrix @ Vector((x, 0, 0.02)), matrix @ Vector((x, 0, th - 0.02)), 0.01, "eisen", biegen=0)
         m.teil(quader(0.03, 0.03, th - 0.02), "eisen", matrix @ M((0.015, 0, th / 2)))
-    if not kaputt:
+    if not tuer_kaputt:
         gitter(M((-tb / 2, -by / 2 + 0.08, z0)))
     else:
-        # Tür liegt vor der Gruft auf Stufe und Boden
-        gitter(M((-0.6, -by / 2 - 0.5, 0.17), (-84, 0, 10)))
-        # Trümmer des Dachs und Gesims rechts neben der Gruft
-        for k, (x, y, g) in enumerate(((1.65, -0.6, 0.35), (1.7, 0.5, 0.3), (1.95, 0.0, 0.22), (1.55, 1.3, 0.28), (2.0, -1.2, 0.2))):
-            m.teil(klotz(m.rnd, g * 2.2, g * 1.6, g, 0.012, 0.006, 0.9), "stein", M((x, y, g / 2 - 0.02), (m.rnd.uniform(-8, 8), 0, m.rnd.uniform(0, 90))))
-        for k in range(14):
-            x = m.rnd.uniform(1.4, 2.4); y = m.rnd.uniform(-1.6, 1.6); g = m.rnd.uniform(0.05, 0.12)
-            m.teil(brocken(m.rnd, g, g * 0.8, g * 0.6, rauh=0.3), "stein", M((x, y, g * 0.35), (0, 0, m.rnd.uniform(0, 360))))
-        # schräg ins Innere gestürzte Dachplatte
-        m.teil(klotz(m.rnd, lang * 0.8, by * 0.6, 0.12, 0.012, 0.006, 0.9), "stein",
-               M((0.55, 0.2, z0 + 0.9), (0, -38, 6)))
+        # aus den Angeln gerissen: liegt nach vorne gekippt auf der Stufenkante und dem Boden
+        gitter(M((-tb / 2 + 0.1, -by / 2 - 0.12, 0.17), (94.5, 0, -6)))
+        for z in (0.35, th - 0.25):                       # abgerissene Angelkloben im Türrahmen
+            m.teil(quader(0.04, 0.05, 0.03), "eisen", M((-tb / 2 + 0.02, -by / 2 + 0.08, z0 + z)))
+        for k in range(6):                                # abgeplatzte Steinbrocken am Rahmen
+            g = m.rnd.uniform(0.03, 0.06)
+            m.teil(brocken(m.rnd, g, g * 0.8, g * 0.6, rauh=0.3), "stein",
+                   M((m.rnd.uniform(-0.8, 0.8), -by / 2 - m.rnd.uniform(0.6, 1.2), g * 0.35), (0, 0, m.rnd.uniform(0, 360))))
 
 
-MODELLE = {"gruft": gruft, "grabkreuz": grabkreuz, "eisenzaun": eisenzaun, "saeule_liegend": saeule_liegend,
+MODELLE = {"gruft": gruft, "grabkreuz": grabkreuz, "holzkreuz": holzkreuz, "eisenzaun": eisenzaun, "saeule_liegend": saeule_liegend,
            "knochenhaufen": knochenhaufen, "schaedel": schaedel_model}
 
 

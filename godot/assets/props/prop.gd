@@ -69,6 +69,8 @@ func _aufbauen() -> void:
 		_inhalt.queue_free()
 	_lichter.clear()
 	var pfad := ORDNER + "modelle/" + modell + ("_kaputt" if kaputt else "") + ".glb"
+	if kaputt and not ResourceLoader.exists(pfad):
+		pfad = ORDNER + "modelle/" + modell + ".glb"  # Modelle ohne kaputte Fassung (z. B. schaedel)
 	if not ResourceLoader.exists(pfad):
 		push_warning("Prop: Modell fehlt: " + pfad)
 		return
