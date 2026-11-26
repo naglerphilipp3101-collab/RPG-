@@ -95,7 +95,8 @@ const steuerung = new window.OrbitControls(kamera, leinwand);
 steuerung.target.set(2, 1.5, -2);
 steuerung.enableDamping = true;
 steuerung.mouseButtons = { LEFT: T.MOUSE.ROTATE, MIDDLE: T.MOUSE.DOLLY, RIGHT: T.MOUSE.PAN };
-steuerung.maxPolarAngle = Math.PI * 0.495;
+steuerung.maxPolarAngle = Math.PI - 0.01;   // fast 180°: auch von unten (Keller, Unterseiten)
+steuerung.enableZoom = false;                 // Mausrad fliegt selbst (siehe fliegen())
 steuerung.update();
 
 szene.add(new T.HemisphereLight(0xdfe8f0, 0x5b5040, 1.1));
@@ -453,6 +454,22 @@ window.addEventListener("wheel", (e) => {
   const sel = zustand.werkzeug === "bearbeiten" && ausgewaehlt();
   if (sel) verschieben(0, r, 0); else ebeneSetzen(zustand.ebene + r);
 }, { capture: true, passive: false });
+// Mausrad ohne Strg: in Blickrichtung fliegen (3D, nicht nur waagerecht). Der Drehpunkt bleibt liegen,
+// bis die Kamera ihm näher als PUNKT_MIN kommt; dann wird er mit nach vorne geschoben (man fliegt hindurch).
+const PUNKT_MIN = 2.0;
+function fliegen(meter) {
+  const blick = new T.Vector3(); kamera.getWorldDirection(blick);
+  kamera.position.addScaledVector(blick, meter);
+  const abstand = steuerung.target.clone().sub(kamera.position).dot(blick);
+  if (abstand < PUNKT_MIN) steuerung.target.copy(kamera.position).addScaledVector(blick, PUNKT_MIN);
+}
+leinwand.addEventListener("wheel", (e) => {
+  if (e.ctrlKey || e.metaKey) return;
+  e.preventDefault();
+  const r = kamera.position.distanceTo(steuerung.target);
+  const schritt = Math.max(0.4, Math.min(4, r * 0.15)) * Math.min(3, Math.abs(e.deltaY) / 100 || 1);
+  fliegen(e.deltaY < 0 ? schritt : -schritt);
+}, { passive: false });
 
 document.addEventListener("keydown", (e) => {
   if (e.target.closest && e.target.closest("input, textarea, select")) return;
@@ -847,6 +864,6 @@ function schleife() {
   geistAktualisieren();
   infoZeigen();
   speicher.start();
-  window.BAUKASTEN = { zustand, alsDaten, ausDaten, setzen: (x, y, z) => setzen(new T.Vector3(x, y, z)) };   // für Tests
+  window.BAUKASTEN = { zustand, alsDaten, ausDaten, kamera, steuerung, setzen: (x, y, z) => setzen(new T.Vector3(x, y, z)) };   // für Tests
 })();
 })();
