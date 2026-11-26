@@ -1378,6 +1378,66 @@ def bruestung_holz_15_1m(m, kaputt):
 
 BEFESTIGUNG = {"podest_stein": podest_stein, "podest_holz": podest_holz, "festung_stein_2m": festung_stein_2m, "festung_stein_1m": festung_stein_1m, "festung_holz_2m": festung_holz_2m, "festung_holz_1m": festung_holz_1m, "bruestung_stein_05_2m": bruestung_stein_05_2m, "bruestung_stein_05_1m": bruestung_stein_05_1m, "bruestung_stein_10_2m": bruestung_stein_10_2m, "bruestung_stein_10_1m": bruestung_stein_10_1m, "bruestung_stein_15_2m": bruestung_stein_15_2m, "bruestung_stein_15_1m": bruestung_stein_15_1m, "bruestung_holz_05_2m": bruestung_holz_05_2m, "bruestung_holz_05_1m": bruestung_holz_05_1m, "bruestung_holz_10_2m": bruestung_holz_10_2m, "bruestung_holz_10_1m": bruestung_holz_10_1m, "bruestung_holz_15_2m": bruestung_holz_15_2m, "bruestung_holz_15_1m": bruestung_holz_15_1m}
 
+
+# ================================================================ Holzgeländer (Philipp 26.11.)
+# Geländer und Pfosten getrennt. Das Geländer läuft 0,10 m innen von der Rasterlinie und endet 0,05 m vor den
+# Rasterpunkten (x 0,05..0,95, also an der Fläche einer Wand, die quer davor steht: kein Clipping, wirkt angeschraubt).
+# gelaender_pfosten: Eckpfosten 10 x 10 cm in der Ecke NEBEN dem Rasterpunkt (x, y 0,05..0,15); Drehen um den
+#   Rasterpunkt wählt die Ecke. Für Ecken und freie Enden: beide Geländer schließen bündig an seine Flächen an.
+# gelaender_pfosten_mitte: Pfosten mittig auf dem Rasterpunkt (x -0,05..0,05) für Stöße in geraden Läufen.
+# Unterkante auf dem Boden (0,1 m über dem Rasterpunkt), Handlauf 1 m über dem Boden.
+
+GEL_INNEN = 0.10              # Mittellinie von Geländer und Pfosten, gemessen von der Rasterlinie
+PFOSTEN_B = 0.10
+GEL_HOEHE = 1.0
+
+
+def gelaender_1m(m, kaputt):
+    y = GEL_INNEN; x0 = PFOSTEN_B / 2; x1 = 1.0 - x0
+    oben = BODEN_OBEN + GEL_HOEHE; unten = BODEN_OBEN + 0.08
+    hl_d = 0.045; ul_d = 0.04
+    if kaputt:   # Handlauf auf halber Länge abgebrochen und leicht abgesackt
+        m.kantholz((x0, y, oben - hl_d / 2), (x0 + 0.5, y, oben - hl_d / 2 - 0.03), 0.07, hl_d, "holz_alt",
+                   oben=(0, 0, 1), bruch=1)
+    else:
+        m.kantholz((x0, y, oben - hl_d / 2), (x1, y, oben - hl_d / 2), 0.07, hl_d, "holz", oben=(0, 0, 1), biegen=0.0)
+    m.kantholz((x0, y, unten + ul_d / 2), (x1, y, unten + ul_d / 2), 0.05, ul_d, "holz" if not kaputt else "holz_alt",
+               oben=(0, 0, 1), biegen=0.0)
+    n = 8; abst = (x1 - x0) / (n + 1)
+    for i in range(1, n + 1):
+        x = x0 + i * abst
+        z0 = unten + ul_d; z1 = oben - hl_d
+        if kaputt:
+            if i in (5, 8):
+                continue
+            if i == 7:          # abgebrochene Sprosse
+                m.kantholz((x, y, z0), (x, y, z0 + 0.38), 0.03, 0.03, "holz_verkohlt", oben=(0, 1, 0), bruch=1)
+                continue
+            if x > x0 + 0.5:    # Handlauf fehlt hier: Sprossen abgebrochen, unterschiedlich lang
+                m.kantholz((x, y, z0), (x, y, z0 + 0.35 + 0.3 * m.rnd.random()), 0.03, 0.03, "holz_alt",
+                           oben=(0, 1, 0), bruch=1)
+                continue
+        m.kantholz((x, y, z0), (x, y, z1), 0.03, 0.03, "holz", oben=(0, 1, 0), fase=0.004, biegen=0.0)
+
+
+def pfosten(m, kaputt, cx):
+    c = GEL_INNEN; h = GEL_HOEHE + 0.05 if not kaputt else 0.62
+    m.kantholz((cx, c, BODEN_OBEN), (cx, c, BODEN_OBEN + h), PFOSTEN_B, PFOSTEN_B, "holz" if not kaputt else "holz_alt",
+               oben=(0, 1, 0), biegen=0.0, bruch=1 if kaputt else 0)
+    if not kaputt:
+        m.brett(0.12, 0.12, 0.025, M((cx, c, BODEN_OBEN + h + 0.0125)), "holz", biegen=0.0, fase=0.008)
+
+
+def gelaender_pfosten(m, kaputt):
+    """Eckpfosten 10 x 10 cm in der Ecke neben dem Rasterpunkt (x, y 0,05..0,15), 1,05 m hoch mit Kappe."""
+    pfosten(m, kaputt, GEL_INNEN)
+
+
+def gelaender_pfosten_mitte(m, kaputt):
+    """Pfosten mittig auf dem Rasterpunkt (Stoß zweier Geländer in einer Linie)."""
+    pfosten(m, kaputt, 0.0)
+
+
 MODELLE = {"wand": wand, "wand_2x1": wand_2x1, "wand_1x1": wand_1x1, "balken_2m": balken_2m, "balken_1m": balken_1m,
            "strebe_2m": strebe_2m, "wand_tuer": wand_tuer, "tuer": tuer, "wand_fenster": wand_fenster,
            "wand_fenster_2x1": wand_fenster_2x1, "wand_fenster_1x1": wand_fenster_1x1, "wand_dreieck": wand_dreieck,
@@ -1391,6 +1451,8 @@ MODELLE = {"wand": wand, "wand_2x1": wand_2x1, "wand_1x1": wand_1x1, "balken_2m"
 
 MODELLE.update(VARIANTEN)
 MODELLE.update(BEFESTIGUNG)
+MODELLE.update({"gelaender_1m": gelaender_1m, "gelaender_pfosten": gelaender_pfosten,
+                "gelaender_pfosten_mitte": gelaender_pfosten_mitte})
 
 
 if __name__ == "__main__":

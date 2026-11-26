@@ -60,6 +60,9 @@ Anfangspunkt auf einem Rasterpunkt, von dort läuft es 1 oder 2 m entlang x; ged
 | `steinwand_tuer`, `steinwand_fenster` | Tür wie `wand_tuer` (Sturz aus einem langen Stein), vergittertes Kellerfenster 0,6 × 0,4 in einer 2 × 1-Wand |
 | `steinboden_2x2`, `_1x1` | Steinplatten, Oberkante 0,1 m wie der Dielenboden (Keller) |
 | `podest_stein` | Steinpodest 1 × 1 × 1 m (Oberkante 1,1 m = oberste Stufe/Sockelboden): Absatz vor der Tür, wenn die Treppe seitlich anliegt |
+| `gelaender_1m` | Holzgeländer 1 m (Handlauf 1 m über dem Boden), läuft 0,1 m innen von der Rasterlinie und endet 0,05 m vor den Rasterpunkten: stößt bündig an quer stehende Wände |
+| `gelaender_pfosten` | Eckpfosten 10 × 10 cm in der Ecke neben dem Rasterpunkt; Drehen um den Rasterpunkt wählt die Ecke (Ecken, freie Enden) |
+| `gelaender_pfosten_mitte` | Pfosten mittig auf dem Rasterpunkt, schließt den Stoß zweier Geländer in einer Linie |
 | `podest_holz` | Holzplattform 1 × 1 × 0,2 m, Oberkante 0,1 m über dem Rasterpunkt; auf Höhe 1 setzen, `balken_1m` hochkant als Stützen an die Ecken |
 
 Keller: Steinwände 2 × 2 eine Etage tiefer (y -2), Pfeiler an jeden Rasterpunkt, Steinboden, Holztreppe nach oben, im Erdgeschossboden ein Loch lassen. Sockel (z. B. am Fluss): Steinwände 2 × 1 mit Pfeilern 1 m, das Fachwerkhaus 1 m höher darauf. Beispiele: `verlassene_huette.json`, `haus_am_fluss.json`, `haus_mit_keller.json`.

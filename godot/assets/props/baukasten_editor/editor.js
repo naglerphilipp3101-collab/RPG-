@@ -63,6 +63,9 @@ const KATALOG = [
     ["bruestung_holz_15_2m", "Holzbrüstung", "2 m lang, 1,5 m spitz"],
     ["bruestung_holz_15_1m", "Holzbrüstung", "1 m lang, 1,5 m spitz"]]],
   ["Treppen", [["treppe_holz", "Holztreppe", "1 × 2, 1 m hoch"], ["treppe_stein", "Steintreppe", "1 × 2, 1 m hoch"]]],
+  ["Geländer", [["gelaender_1m", "Holzgeländer", "1 m, 1 m hoch, bündig an Wände"],
+    ["gelaender_pfosten", "Eckpfosten", "Ecke neben dem Rasterpunkt, F wählt die Ecke"],
+    ["gelaender_pfosten_mitte", "Pfosten Mitte", "auf dem Rasterpunkt, für Stöße"]]],
   ["Einrichtung", [
     ["kiste", "Kiste"], ["fass", "Fass"], ["tisch", "Tisch"], ["stuhl", "Stuhl"], ["hocker", "Hocker"], ["bank", "Bank"],
     ["laterne", "Laterne"], ["laternenpfahl", "Laternenpfahl"], ["lagerfeuer", "Lagerfeuer"], ["karren", "Karren"],
