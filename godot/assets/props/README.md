@@ -54,6 +54,9 @@ pfeilbuendel, ruestungsstapel, feldbett, kartentisch. Materialien fahne_* und pa
 **Mine und Strand** (`blender/mine_strand.py`): stuetzbalken (Türstock), schienen (2 m, Spur 0,6 m), erzhaufen, spitzhacke_fels,
 ruderboot, steg (Deck bei z = 0,6, Pfähle bis -1,5 m), hummerkorb, fischgestell. Materialien erz, fisch, fisch_trocken.
 
+**Burg und Kirche** (`blender/burg_kirche.py`): thron (auf Podest), wandteppich (Ursprung am Boden an der Wand, Textur teppich),
+kronleuchter (Ursprung = Deckenhaken, 1,2 m tief), altar, kirchenbank, weihwasserbecken, statue (stilisierte Heldin mit Schwert).
+
 **Haus-Baukasten** (`blender/baukasten.py`). Regeln: 1-m-Raster (Stockwerkshöhe frei, Teile drehbar und überlappbar), alle Stoßflächen eben
 und genau im Raster (damit Blueprints einrasten und beim späteren Backen verdeckte Flächen entfernt werden können).
 
@@ -112,6 +115,7 @@ python blender/werkstaetten.py [-- <ziel> --nur webstuhl --vorschau <ordner>]
 python blender/dorf.py [-- <ziel> --nur pranger --vorschau <ordner>]
 python blender/militaer.py [-- <ziel> --nur banner_rot --vorschau <ordner>]
 python blender/mine_strand.py [-- <ziel> --nur steg --vorschau <ordner>]
+python blender/burg_kirche.py [-- <ziel> --nur thron --vorschau <ordner>]
 ```
 Ohne Ziel landen die Modelle in `modelle/`. `--vorschau` rendert jedes Modell mit Cycles als JPG.
 
