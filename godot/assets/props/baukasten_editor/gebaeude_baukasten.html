@@ -69,6 +69,12 @@ aside { background: var(--panel); border-right: 1px solid var(--line); overflow-
 aside h2 { font-family: var(--font-display); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--muted); margin: 14px 2px 6px; }
 aside h2:first-child { margin-top: 2px; }
+aside h2 .klappe { all: unset; cursor: pointer; display: flex; align-items: center; gap: 6px; width: 100%; padding: 2px 0; }
+aside h2 .klappe:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+aside h2 .klappe small { margin-left: auto; font-family: var(--font-mono); font-weight: 400; color: var(--muted); }
+aside h2 .pfeil { display: inline-block; width: 10px; transition: transform 0.15s; }
+aside h2 .klappe[aria-expanded="false"] .pfeil { transform: rotate(-90deg); }
+.teile[hidden] { display: none; }
 .teile { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .teil { display: grid; grid-template-rows: 64px auto; gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: var(--r);
   background: var(--bg); text-align: left; min-width: 0; }
@@ -179,7 +185,7 @@ textarea { width: 100%; min-height: 220px; white-space: pre; overflow: auto; fon
     <span class="tasten"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> bewegen · <kbd>Q</kbd>/<kbd>E</kbd> Ansicht drehen ·
       <kbd>Rad</kbd> in Blickrichtung fliegen · <kbd>Strg</kbd>+<kbd>Rad</kbd> Ebene · <kbd>Klick</kbd> setzen · <kbd>Ziehen</kbd> drehen · <kbd>Rechts</kbd> schieben ·
       <kbd>F</kbd> Teil drehen · <kbd>T</kbd> hochkant · <kbd>G</kbd> kippen · <kbd>K</kbd> kaputt · <kbd>Z</kbd>/<kbd>Y</kbd> rückgängig/wiederholen ·
-      <kbd>Alt</kbd>+Klick Teil übernehmen · <kbd>Entf</kbd> löschen</span>
+      <kbd>Alt</kbd>+Klick Teil übernehmen · <kbd>Entf</kbd> löschen · Gruppentitel klappen (<kbd>Umschalt</kbd>+Klick: nur diese offen)</span>
   </footer>
 </div>
 
@@ -4558,12 +4564,33 @@ $("name").addEventListener("input", (e) => { zustand.name = e.target.value; zust
 const NAMEN = {};
 KATALOG.forEach(([, teile]) => teile.forEach(([id, name]) => { if (!NAMEN[id]) NAMEN[id] = name; }));
 function teilName(id) { return NAMEN[id] || id; }
+// Eingeklappte Gruppen merkt sich der Browser (nur Bequemlichkeit, darf fehlen)
+let zugeklappt = new Set();
+try { zugeklappt = new Set(JSON.parse(localStorage.getItem("baukasten_zugeklappt") || "[]")); } catch (e) {}
+function zugeklapptMerken() { try { localStorage.setItem("baukasten_zugeklappt", JSON.stringify([...zugeklappt])); } catch (e) {} }
+const klappen = new Map();
 function ablageBauen() {
   const ablage = $("ablage");
   ablage.textContent = "";
   KATALOG.forEach(([gruppe, teile]) => {
-    const h = document.createElement("h2"); h.textContent = gruppe; ablage.appendChild(h);
+    const h = document.createElement("h2");
+    const knopf = document.createElement("button"); knopf.type = "button"; knopf.className = "klappe";
+    knopf.innerHTML = '<span class="pfeil" aria-hidden="true">▾</span>';
+    knopf.append(document.createTextNode(gruppe));
+    const anzahl = document.createElement("small"); anzahl.textContent = teile.filter(([id]) => D.modelle[id]).length;
+    knopf.appendChild(anzahl);
+    h.appendChild(knopf); ablage.appendChild(h);
     const raster = document.createElement("div"); raster.className = "teile";
+    const setzeZu = (zu) => { raster.hidden = zu; knopf.setAttribute("aria-expanded", String(!zu)); };
+    setzeZu(zugeklappt.has(gruppe)); klappen.set(gruppe, setzeZu);
+    knopf.addEventListener("click", (e) => {
+      if (e.shiftKey) {   // Umschalt+Klick: alle anderen zu, diese auf
+        zugeklappt = new Set(KATALOG.map(([g]) => g).filter((g) => g !== gruppe));
+        zugeklapptMerken(); klappen.forEach((f, g) => f(zugeklappt.has(g))); return;
+      }
+      const zu = !raster.hidden; setzeZu(zu);
+      zu ? zugeklappt.add(gruppe) : zugeklappt.delete(gruppe); zugeklapptMerken();
+    });
     teile.forEach(([id, name, mass, dreh]) => {
       if (!D.modelle[id]) return;
       const b = document.createElement("button");

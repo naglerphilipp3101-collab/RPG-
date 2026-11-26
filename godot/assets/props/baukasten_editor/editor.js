@@ -538,12 +538,33 @@ $("name").addEventListener("input", (e) => { zustand.name = e.target.value; zust
 const NAMEN = {};
 KATALOG.forEach(([, teile]) => teile.forEach(([id, name]) => { if (!NAMEN[id]) NAMEN[id] = name; }));
 function teilName(id) { return NAMEN[id] || id; }
+// Eingeklappte Gruppen merkt sich der Browser (nur Bequemlichkeit, darf fehlen)
+let zugeklappt = new Set();
+try { zugeklappt = new Set(JSON.parse(localStorage.getItem("baukasten_zugeklappt") || "[]")); } catch (e) {}
+function zugeklapptMerken() { try { localStorage.setItem("baukasten_zugeklappt", JSON.stringify([...zugeklappt])); } catch (e) {} }
+const klappen = new Map();
 function ablageBauen() {
   const ablage = $("ablage");
   ablage.textContent = "";
   KATALOG.forEach(([gruppe, teile]) => {
-    const h = document.createElement("h2"); h.textContent = gruppe; ablage.appendChild(h);
+    const h = document.createElement("h2");
+    const knopf = document.createElement("button"); knopf.type = "button"; knopf.className = "klappe";
+    knopf.innerHTML = '<span class="pfeil" aria-hidden="true">▾</span>';
+    knopf.append(document.createTextNode(gruppe));
+    const anzahl = document.createElement("small"); anzahl.textContent = teile.filter(([id]) => D.modelle[id]).length;
+    knopf.appendChild(anzahl);
+    h.appendChild(knopf); ablage.appendChild(h);
     const raster = document.createElement("div"); raster.className = "teile";
+    const setzeZu = (zu) => { raster.hidden = zu; knopf.setAttribute("aria-expanded", String(!zu)); };
+    setzeZu(zugeklappt.has(gruppe)); klappen.set(gruppe, setzeZu);
+    knopf.addEventListener("click", (e) => {
+      if (e.shiftKey) {   // Umschalt+Klick: alle anderen zu, diese auf
+        zugeklappt = new Set(KATALOG.map(([g]) => g).filter((g) => g !== gruppe));
+        zugeklapptMerken(); klappen.forEach((f, g) => f(zugeklappt.has(g))); return;
+      }
+      const zu = !raster.hidden; setzeZu(zu);
+      zu ? zugeklappt.add(gruppe) : zugeklappt.delete(gruppe); zugeklapptMerken();
+    });
     teile.forEach(([id, name, mass, dreh]) => {
       if (!D.modelle[id]) return;
       const b = document.createElement("button");
