@@ -47,6 +47,10 @@ webstuhl (mit Bank), gerberrahmen (eingeschnürte Haut, Bottich), wassertrog. Ne
 **Dorf und Straße** (`blender/dorf.py`): marktstand (Plane, Ware), wegweiser, pranger (auf Podest), brennholzstapel (Rundhölzer),
 heuballen, schubkarre, huehnerkaefig, futtertrog.
 
+**Lager und Militär** (`blender/militaer.py`): banner_weiss|blau|schwarz|gruen|rot|gelb (Fraktionsbanner New Light, Eternal Wrath,
+Deaths Dance, Archo's Legacy, Sentinels, Obex mit einfachem Wappen; kaputt = Stange gebrochen, Banner zerrissen am Boden), spanische_reiter,
+pfeilbuendel, ruestungsstapel, feldbett, kartentisch. Materialien fahne_* und papier.
+
 **Haus-Baukasten** (`blender/baukasten.py`). Regeln: 1-m-Raster (Stockwerkshöhe frei, Teile drehbar und überlappbar), alle Stoßflächen eben
 und genau im Raster (damit Blueprints einrasten und beim späteren Backen verdeckte Flächen entfernt werden können).
 
@@ -103,6 +107,7 @@ python blender/friedhof.py [-- <ziel> --nur gruft --vorschau <ordner>]
 python blender/kueche.py [-- <ziel> --nur brotlaib --vorschau <ordner>]
 python blender/werkstaetten.py [-- <ziel> --nur webstuhl --vorschau <ordner>]
 python blender/dorf.py [-- <ziel> --nur pranger --vorschau <ordner>]
+python blender/militaer.py [-- <ziel> --nur banner_rot --vorschau <ordner>]
 ```
 Ohne Ziel landen die Modelle in `modelle/`. `--vorschau` rendert jedes Modell mit Cycles als JPG.
 
