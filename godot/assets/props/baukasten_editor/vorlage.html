@@ -147,13 +147,13 @@ textarea { width: 100%; min-height: 220px; white-space: pre; overflow: auto; fon
         <button class="knopf" data-werkzeug="loeschen" aria-pressed="false" title="3">Löschen</button>
       </div>
       <div class="gruppe">
-        <button class="knopf" id="k-drehen" title="R">Drehen ↻</button>
+        <button class="knopf" id="k-drehen" title="F">Drehen ↻</button>
         <button class="knopf" id="k-kippen" title="T">Hochkant</button>
-        <button class="knopf" id="k-zurueck" title="Strg+Z">Rückgängig</button>
+        <button class="knopf" id="k-zurueck" title="Z">Rückgängig</button>
       </div>
     </div>
     <div class="ebene">
-      <div class="zeile"><span>Höhe</span><span class="gruppe"><button class="knopf" id="k-runter" title="Q">−</button><b id="ebene-wert">0 m</b><button class="knopf" id="k-hoch" title="E">+</button></span></div>
+      <div class="zeile"><span>Höhe</span><span class="gruppe"><button class="knopf" id="k-runter" title="Strg+Mausrad">−</button><b id="ebene-wert">0 m</b><button class="knopf" id="k-hoch" title="Strg+Mausrad">+</button></span></div>
       <div class="zeile"><span>Raster</span>
         <select id="raster" aria-label="Raster">
           <option value="1">1 m</option><option value="0.5">0,5 m</option><option value="0.1">0,1 m</option>
@@ -168,9 +168,10 @@ textarea { width: 100%; min-height: 220px; white-space: pre; overflow: auto; fon
 
   <footer>
     <span id="info"></span>
-    <span class="tasten"><kbd>Klick</kbd> setzen · <kbd>Ziehen</kbd> Ansicht drehen · <kbd>Rechts</kbd> schieben · <kbd>Rad</kbd> Zoom ·
-      <kbd>R</kbd> drehen · <kbd>T</kbd> hochkant · <kbd>G</kbd> kippen · <kbd>Q</kbd>/<kbd>E</kbd> Höhe · <kbd>K</kbd> kaputt ·
-      <kbd>Alt</kbd>+Klick Teil übernehmen · <kbd>Entf</kbd> löschen · <kbd>Strg</kbd>+<kbd>Z</kbd>/<kbd>Y</kbd></span>
+    <span class="tasten"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> bewegen · <kbd>Q</kbd>/<kbd>E</kbd> Ansicht drehen ·
+      <kbd>Rad</kbd> Zoom · <kbd>Strg</kbd>+<kbd>Rad</kbd> Ebene · <kbd>Klick</kbd> setzen · <kbd>Ziehen</kbd> drehen · <kbd>Rechts</kbd> schieben ·
+      <kbd>F</kbd> Teil drehen · <kbd>T</kbd> hochkant · <kbd>G</kbd> kippen · <kbd>K</kbd> kaputt · <kbd>Z</kbd>/<kbd>Y</kbd> rückgängig/wiederholen ·
+      <kbd>Alt</kbd>+Klick Teil übernehmen · <kbd>Entf</kbd> löschen</span>
   </footer>
 </div>
 

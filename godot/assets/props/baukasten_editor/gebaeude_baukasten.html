@@ -155,13 +155,13 @@ textarea { width: 100%; min-height: 220px; white-space: pre; overflow: auto; fon
         <button class="knopf" data-werkzeug="loeschen" aria-pressed="false" title="3">Löschen</button>
       </div>
       <div class="gruppe">
-        <button class="knopf" id="k-drehen" title="R">Drehen ↻</button>
+        <button class="knopf" id="k-drehen" title="F">Drehen ↻</button>
         <button class="knopf" id="k-kippen" title="T">Hochkant</button>
-        <button class="knopf" id="k-zurueck" title="Strg+Z">Rückgängig</button>
+        <button class="knopf" id="k-zurueck" title="Z">Rückgängig</button>
       </div>
     </div>
     <div class="ebene">
-      <div class="zeile"><span>Höhe</span><span class="gruppe"><button class="knopf" id="k-runter" title="Q">−</button><b id="ebene-wert">0 m</b><button class="knopf" id="k-hoch" title="E">+</button></span></div>
+      <div class="zeile"><span>Höhe</span><span class="gruppe"><button class="knopf" id="k-runter" title="Strg+Mausrad">−</button><b id="ebene-wert">0 m</b><button class="knopf" id="k-hoch" title="Strg+Mausrad">+</button></span></div>
       <div class="zeile"><span>Raster</span>
         <select id="raster" aria-label="Raster">
           <option value="1">1 m</option><option value="0.5">0,5 m</option><option value="0.1">0,1 m</option>
@@ -176,9 +176,10 @@ textarea { width: 100%; min-height: 220px; white-space: pre; overflow: auto; fon
 
   <footer>
     <span id="info"></span>
-    <span class="tasten"><kbd>Klick</kbd> setzen · <kbd>Ziehen</kbd> Ansicht drehen · <kbd>Rechts</kbd> schieben · <kbd>Rad</kbd> Zoom ·
-      <kbd>R</kbd> drehen · <kbd>T</kbd> hochkant · <kbd>G</kbd> kippen · <kbd>Q</kbd>/<kbd>E</kbd> Höhe · <kbd>K</kbd> kaputt ·
-      <kbd>Alt</kbd>+Klick Teil übernehmen · <kbd>Entf</kbd> löschen · <kbd>Strg</kbd>+<kbd>Z</kbd>/<kbd>Y</kbd></span>
+    <span class="tasten"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> bewegen · <kbd>Q</kbd>/<kbd>E</kbd> Ansicht drehen ·
+      <kbd>Rad</kbd> Zoom · <kbd>Strg</kbd>+<kbd>Rad</kbd> Ebene · <kbd>Klick</kbd> setzen · <kbd>Ziehen</kbd> drehen · <kbd>Rechts</kbd> schieben ·
+      <kbd>F</kbd> Teil drehen · <kbd>T</kbd> hochkant · <kbd>G</kbd> kippen · <kbd>K</kbd> kaputt · <kbd>Z</kbd>/<kbd>Y</kbd> rückgängig/wiederholen ·
+      <kbd>Alt</kbd>+Klick Teil übernehmen · <kbd>Entf</kbd> löschen</span>
   </footer>
 </div>
 
@@ -4433,10 +4434,13 @@ function wiederherstellen() {
   abgleichen();
 }
 function ebeneSetzen(y) {
-  zustand.ebene = Math.max(0, runden(y));
+  zustand.ebene = Math.max(-10, Math.min(40, runden(y)));
   $("ebene-wert").textContent = String(zustand.ebene).replace(".", ",") + " m";
   ebeneGitter.position.y = zustand.ebene + 0.003;
-  ebeneGitter.visible = zustand.ebene > 0;
+  ebeneGitter.visible = zustand.ebene !== 0;
+  // Keller: unter Null wird der Boden durchsichtig, damit man hineinsieht
+  bodenMat.transparent = zustand.ebene < 0; bodenMat.opacity = zustand.ebene < 0 ? 0.25 : 1;
+  bodenMat.depthWrite = zustand.ebene >= 0; bodenMat.needsUpdate = true;
   sichtbarkeit();
 }
 function werkzeugWaehlen(w) {
@@ -4449,11 +4453,31 @@ function werkzeugWaehlen(w) {
 }
 
 // ------------------------------------------------------------------ Tasten und Knöpfe
+// Kamera mit der Tastatur: W/S vor/zurück, A/D seitlich, Q/E drehen (gehalten, siehe schleife)
+const gedrueckt = new Set();
+const KAMERA_TASTEN = ["w", "a", "s", "d", "q", "e"];
+document.addEventListener("keydown", (e) => {
+  if (e.target.closest && e.target.closest("input, textarea, select")) return;
+  const k = e.key.toLowerCase();
+  if (!(e.ctrlKey || e.metaKey || e.altKey) && KAMERA_TASTEN.includes(k)) gedrueckt.add(k);
+});
+document.addEventListener("keyup", (e) => gedrueckt.delete(e.key.toLowerCase()));
+window.addEventListener("blur", () => gedrueckt.clear());
+// Strg + Mausrad: Ebene wählen (bzw. ausgewähltes Teil hoch/runter); fängt das Rad vor dem Zoom ab
+window.addEventListener("wheel", (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.target !== leinwand) return;
+  e.preventDefault(); e.stopPropagation();
+  const r = e.deltaY < 0 ? 1 : -1;
+  const sel = zustand.werkzeug === "bearbeiten" && ausgewaehlt();
+  if (sel) verschieben(0, r, 0); else ebeneSetzen(zustand.ebene + r);
+}, { capture: true, passive: false });
+
 document.addEventListener("keydown", (e) => {
   if (e.target.closest && e.target.closest("input, textarea, select")) return;
   if (!$("fenster").hidden) { if (e.key === "Escape") fensterZu(); return; }
   const strg = e.ctrlKey || e.metaKey;
   const k = e.key.toLowerCase();
+  if (!strg && (k === "z" || k === "y")) { e.preventDefault(); k === "z" ? rueckgaengig() : wiederherstellen(); return; }
   if (strg && k === "z") { e.preventDefault(); e.shiftKey ? wiederherstellen() : rueckgaengig(); return; }
   if (strg && k === "y") { e.preventDefault(); wiederherstellen(); return; }
   if (strg && k === "s") { e.preventDefault(); speichern(); return; }
@@ -4466,15 +4490,16 @@ document.addEventListener("keydown", (e) => {
   const s = e.shiftKey ? -90 : 90;
   const sel = zustand.werkzeug === "bearbeiten" && ausgewaehlt();
   switch (k) {
-    case "r": drehen(1, s); break;
+    case "f": case "r": drehen(1, s); break;
     case "t": drehen(2, s); break;
     case "g": drehen(0, s); break;
     case "k":
       if (sel) { merken(); sel.kaputt = !sel.kaputt; abgleichen(); }
       else { zustand.kaputt = !zustand.kaputt; $("kaputt").checked = zustand.kaputt; geistAktualisieren(); }
       break;
-    case "q": case "pagedown": if (sel) verschieben(0, -1, 0); else ebeneSetzen(zustand.ebene - 1); break;
-    case "e": case "pageup": if (sel) verschieben(0, 1, 0); else ebeneSetzen(zustand.ebene + 1); break;
+    case "pagedown": if (sel) verschieben(0, -1, 0); else ebeneSetzen(zustand.ebene - 1); break;
+    case "pageup": if (sel) verschieben(0, 1, 0); else ebeneSetzen(zustand.ebene + 1); break;
+    case "w": case "a": case "s": case "d": case "q": case "e": break;   // Kamera, siehe gedrueckt/schleife
     case "1": werkzeugWaehlen("setzen"); break;
     case "2": werkzeugWaehlen("bearbeiten"); break;
     case "3": werkzeugWaehlen("loeschen"); break;
@@ -4796,7 +4821,30 @@ function groesse() {
   kamera.updateProjectionMatrix();
 }
 new ResizeObserver(groesse).observe(leinwand.parentElement);
+let letzteZeit = performance.now();
 function schleife() {
+  const jetzt = performance.now(), dt = Math.min(0.1, (jetzt - letzteZeit) / 1000);
+  letzteZeit = jetzt;
+  if (gedrueckt.size && $("fenster").hidden) {
+    const vor = new T.Vector3(); kamera.getWorldDirection(vor); vor.y = 0; vor.normalize();
+    const rechts = new T.Vector3(-vor.z, 0, vor.x);
+    const tempo = 6 * Math.max(0.6, kamera.position.distanceTo(steuerung.target) / 14) * dt;
+    const weg = new T.Vector3();
+    if (gedrueckt.has("w")) weg.add(vor);
+    if (gedrueckt.has("s")) weg.sub(vor);
+    if (gedrueckt.has("d")) weg.add(rechts);
+    if (gedrueckt.has("a")) weg.sub(rechts);
+    if (weg.lengthSq() > 0) {
+      weg.normalize().multiplyScalar(tempo);
+      kamera.position.add(weg); steuerung.target.add(weg);
+    }
+    const dreh = (gedrueckt.has("q") ? 1 : 0) - (gedrueckt.has("e") ? 1 : 0);
+    if (dreh) {
+      const rel = kamera.position.clone().sub(steuerung.target);
+      rel.applyAxisAngle(new T.Vector3(0, 1, 0), dreh * 1.6 * dt);
+      kamera.position.copy(steuerung.target).add(rel);
+    }
+  }
   steuerung.update();
   renderer.render(szene, kamera);
   requestAnimationFrame(schleife);
