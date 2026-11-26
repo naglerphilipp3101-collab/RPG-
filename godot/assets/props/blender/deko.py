@@ -679,6 +679,10 @@ def waffenstaender(m, kaputt):
         m.kantholz((s * l / 2, 0.08, 0.0), (s * l / 2, 0.08, 1.3), 0.07, 0.07)
     m.kantholz((-l / 2, 0.08, 1.25), (l / 2, 0.08, 1.25), 0.07, 0.05)
     m.kantholz((-l / 2, -0.05, 0.15), (l / 2, -0.05, 0.15), 0.12, 0.04, oben=(0, 0, 1))
+    # vordere Halteplanke auf 0,75 m (mit Abstandsklötzen an den Pfosten): die Waffen lehnen dahinter
+    m.kantholz((-l / 2 - 0.03, -0.045, 0.75), (l / 2 + 0.03, -0.045, 0.75), 0.12, 0.03, oben=(0, -1, 0), bruch=1 if kaputt else 0)
+    for sx in (-1, 1):
+        m.teil(quader(0.07, 0.08, 0.1), "holz", M((sx * l / 2, 0.005, 0.75)))
     # Latte oben mit Kerben angedeutet durch Halteklötze
     for k in range(6):
         x = -l / 2 + 0.15 + k * (l - 0.3) / 5
