@@ -140,11 +140,12 @@ def tisch_rund(m, kaputt):
         l = 2 * math.sqrt(max(0.0, r * r - y * y)) + 0.02
         if kaputt and i == n - 1:
             continue
-        bm = quader(l, 2 * r / n - 0.006, 0.035, 12, 1, 1)
+        # Brett in x und y fein unterteilt, dann jede Zeile auf die Kreisbreite gestreckt: Rand folgt genau dem Kreis
+        bm = quader(l, 2 * r / n - 0.006, 0.035, 16, 8, 1)
         for v in bm.verts:
             vy = y + v.co.y
             lim = math.sqrt(max(0.0, r * r - vy * vy))
-            v.co.x = max(-lim, min(lim, v.co.x))
+            v.co.x = v.co.x / (l / 2) * lim
         m.teil(bm, "holz", M((0, y, h - 0.018)))
     for k in range(2):
         m.kantholz((-r * 0.75, (k - 0.5) * 0.5, h - 0.05), (r * 0.75, (k - 0.5) * 0.5, h - 0.05), 0.06, 0.03, oben=(0, 0, 1))
@@ -177,7 +178,9 @@ def tisch_lang(m, kaputt):
         m.kantholz((x, -b / 2 + 0.05, h - 0.08), (x, b / 2 - 0.05, h - 0.08), 0.1, 0.07)
         for sy in (-1, 1):
             m.kantholz((x, sy * 0.06, h - 0.1), (x, sy * (b / 2 - 0.02), 0.0), 0.08, 0.06, oben=(1, 0, 0))
-    m.kantholz((-l / 2 + 0.35, 0, 0.3), (l / 2 - 0.35, 0, 0.3), 0.08, 0.06, bruch=1 if kaputt else 0)
+        # Querriegel zwischen den Bockbeinen (Bein bei z=0,3 auf y≈±0,23), trägt den Längsbalken
+        m.kantholz((x, -0.27, 0.3), (x, 0.27, 0.3), 0.07, 0.06)
+    m.kantholz((-l / 2 + 0.3, 0, 0.36), (l / 2 - 0.3, 0, 0.36), 0.08, 0.06, bruch=1 if kaputt else 0)
     m.G = None
     if kaputt:
         x = l / 2 - 0.35
@@ -292,12 +295,14 @@ def buecher(m, kaputt):
                M((0.25, 0.08, 0.0)))
     else:
         # umgestoßen: Bücher liegen verstreut, eins aufgeklappt mit dem Rücken nach oben
-        for k in range(4):
+        # Abstand der Mitten ≥ 0,34 m (größer als die Buchdiagonale): kein Buch steckt im anderen
+        for k, (x, y) in enumerate(((-0.18, -0.17), (0.17, -0.19), (-0.17, 0.18), (0.18, 0.17))):
             a = m.rnd.uniform(0, 360)
-            buch(m, M((-0.25 + 0.17 * k, m.rnd.uniform(-0.15, 0.15), 0.025), (0, 0, a)), 0.26 - 0.01 * k, 0.19, 0.045)
+            buch(m, M((x, y, 0.0225), (0, 0, a)), 0.26 - 0.01 * k, 0.19, 0.045)
+        # aufgeklapptes Buch, Rücken nach oben, wie ein Dach
         for s in (-1, 1):
-            m.teil(quader(0.12, 0.18, 0.004), "leder", M((0.3 + s * 0.05, 0.25, 0.04), (0, s * 35, 20)))
-        m.teil(rundholz(0.016, 0.06, 8), "putz", M((0.0, -0.3, 0.016), (0, 0, 30)), uv="zyl", r=0.016)
+            m.teil(quader(0.12, 0.18, 0.004), "leder", M((0.52 + s * 0.05, 0.0, 0.035), (0, s * 35, 20)))
+        m.teil(rundholz(0.016, 0.06, 8), "putz", M((0.0, -0.48, 0.016), (0, 0, 30)), uv="zyl", r=0.016)
 
 
 # ======================================================================== Licht
@@ -307,15 +312,23 @@ def wandfackel(m, kaputt):
     m.teil(quader(0.09, 0.012, 0.22, fase=0.003), "eisen", M((0, -0.006, 0)))
     for z in (-0.08, 0.08):
         m.teil(drehkoerper([(0.0, 0.0), (0.008, 0.0), (0.006, 0.006), (0.0, 0.008)], 6), "eisen", M((0, -0.012, z), (90, 0, 0)))
-    arm = [(0, -0.012, -0.05), (0, -0.08, -0.02), (0, -0.14, 0.02)]
-    m.seil(arm, 0.009, 5, "eisen")
-    ring = [(0.04 * math.cos(2 * math.pi * k / 12), -0.15 + 0.04 * math.sin(2 * math.pi * k / 12), 0.03) for k in range(13)]
-    m.seil(ring, 0.006, 5, "eisen")
-    if kaputt:
-        # Fackel ausgebrannt und heruntergefallen: nur verkohlter Stummel hängt schief im Ring
-        m.stab((0.0, -0.13, -0.08), (0.02, -0.17, 0.12), 0.022, "holz_verkohlt", r2=0.02)
-        return
+    # zwei Ringe genau um die schräge Fackelachse, jeder mit einem Arm fest an der Wandplatte
     oben = Vector((0.0, -0.3, 0.3)); unten = Vector((0.0, -0.12, -0.1))
+
+    def achse(z):
+        return unten + (oben - unten) * ((z - unten.z) / (oben.z - unten.z))
+
+    for z, rr in ((0.03, 0.03), (-0.06, 0.026)):
+        c = achse(z)
+        ring = [(rr * math.cos(2 * math.pi * k / 14), c.y + rr * math.sin(2 * math.pi * k / 14), z) for k in range(15)]
+        m.seil(ring, 0.006, 5, "eisen")
+        m.seil([(0, -0.01, z - 0.015), (0, (c.y + rr) / 2 - 0.005, z - 0.004), (0, c.y + rr - 0.002, z)], 0.008, 5, "eisen")
+    # Strebe unter dem oberen Ring
+    m.seil([(0, -0.01, -0.095), (0, -0.09, -0.03), (0, achse(0.03).y + 0.028, 0.024)], 0.006, 5, "eisen")
+    if kaputt:
+        # Fackel ausgebrannt: nur ein verkohlter Stummel steckt noch in beiden Ringen
+        m.stab(achse(-0.09) + Vector((0.004, 0, 0)), achse(0.09), 0.02, "holz_verkohlt", r2=0.018)
+        return
     m.stab(unten, oben, 0.018, "holz", r2=0.022)
     # umwickelter Kopf (Stoff, verkohlt) und Flamme
     kopf = drehkoerper([(0.0, 0.0), (0.026, 0.0), (0.033, 0.04), (0.03, 0.08), (0.0, 0.09)], 10)
@@ -369,18 +382,19 @@ def kerzenstaender(m, kaputt):
     """Schmiedeeiserner Standleuchter, 1,5 m, drei Arme mit Kerzen."""
     h = 1.45
     if kaputt:
-        boden_setzen(m, (0, 86, 20), (0, 0, 0))
-        m.G = Matrix.Translation((0, 0, 0.06)) @ m.G
+        # umgefallen nach -x: liegt auf den Füßen bei 120°/240° und den beiden Kerzentellern darüber
+        boden_setzen(m, (0, -90, 0), (0, 0, 0))
+        m.G = Matrix.Translation((0, 0, 0.15)) @ m.G
     for k in range(3):
         a = 2 * math.pi * k / 3
-        fuss = [(0.0, 0.0, 0.18), (0.08 * math.cos(a), 0.08 * math.sin(a), 0.06), (0.2 * math.cos(a), 0.2 * math.sin(a), 0.0),
-                (0.23 * math.cos(a), 0.23 * math.sin(a), 0.03)]
+        fuss = [(0.0, 0.0, 0.18), (0.08 * math.cos(a), 0.08 * math.sin(a), 0.06), (0.24 * math.cos(a), 0.24 * math.sin(a), 0.0),
+                (0.276 * math.cos(a), 0.276 * math.sin(a), 0.03)]
         m.seil(fuss, 0.012, 5, "eisen")
     m.stab((0, 0, 0.15), (0, 0, h), 0.014, "eisen", biegen=0)
     for z in (0.5, 0.95):
         m.teil(drehkoerper([(0.0, -0.03), (0.03, 0.0), (0.0, 0.03)], 10), "eisen", M((0, 0, z)))
     for k in range(3):
-        a = 2 * math.pi * k / 3 + 0.4
+        a = 2 * math.pi * k / 3          # Arme über den Füßen: liegend tragen zwei Füße und zwei Teller
         r = 0.0 if k == 0 else 0.2
         if k > 0:
             arm = [(0, 0, h - 0.15)] + [(r * t / 6 * math.cos(a), r * t / 6 * math.sin(a), h - 0.15 + 0.12 * math.sin(math.pi * t / 12))
