@@ -53,8 +53,9 @@ def rendern(objekte, pfad, breite=480, hoehe=480, blick=(-35, 24), abstand=1.0):
     pts = [ob.matrix_world @ Vector(c) for ob in objekte for c in ob.bound_box]
     lo = Vector([min(p[i] for p in pts) for i in range(3)]); hi = Vector([max(p[i] for p in pts) for i in range(3)])
     mitte = (lo + hi) * 0.5; radius = max((hi - lo).length * 0.5, 0.3)
-    # Böden und Decken liegen mit der Oberkante auf 0: dann den Vorschau-Boden darunter legen
-    bpy.data.objects["vorschau_boden"].location.z = lo.z - 0.002 if hi.z < 0.05 else 0.0
+    # Böden und Decken liegen mit der Oberkante auf 0, Wand- und Deckenteile ragen unter 0:
+    # dann den Vorschau-Boden unter das Modell legen
+    bpy.data.objects["vorschau_boden"].location.z = lo.z - 0.002 if (hi.z < 0.05 or lo.z < -0.02) else 0.0
     cam = sc.camera
     fov = cam.data.angle
     d = radius / math.sin(fov * 0.5) * 1.02 * abstand

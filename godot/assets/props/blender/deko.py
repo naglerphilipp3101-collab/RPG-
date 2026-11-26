@@ -309,11 +309,14 @@ def buecher(m, kaputt):
 
 def wandfackel(m, kaputt):
     """Eiserner Wandhalter mit Fackel. Ursprung auf der Wand (y = 0), das Modell ragt nach -y heraus."""
-    m.teil(quader(0.09, 0.012, 0.22, fase=0.003), "eisen", M((0, -0.006, 0)))
-    for z in (-0.08, 0.08):
+    # hohe Wandplatte (z -0,36 … 0,11): das untere Fackelende stützt sich unten auf ihr ab
+    m.teil(quader(0.09, 0.012, 0.47, fase=0.003), "eisen", M((0, -0.006, -0.125)))
+    for z in (-0.32, -0.12, 0.08):
         m.teil(drehkoerper([(0.0, 0.0), (0.008, 0.0), (0.006, 0.006), (0.0, 0.008)], 6), "eisen", M((0, -0.012, z), (90, 0, 0)))
     # zwei Ringe genau um die schräge Fackelachse, jeder mit einem Arm fest an der Wandplatte
+    # Fackelachse; das Holz reicht unten bis an die Wandplatte (y = -0,012) und lehnt dort an
     oben = Vector((0.0, -0.3, 0.3)); unten = Vector((0.0, -0.12, -0.1))
+    unten = unten + (unten - oben) * ((-0.03 - unten.y) / (unten.y - oben.y))
 
     def achse(z):
         return unten + (oben - unten) * ((z - unten.z) / (oben.z - unten.z))
