@@ -44,6 +44,9 @@ Neue einfarbige Materialien: brot, brot_innen, kaese, kaese_innen, wurst, kraut_
 **Werkstätten** (`blender/werkstaetten.py`): schleifstein (mit Wassertrog), werkbank (Hobelbank mit Werkzeug), holzstapel (mit Hackklotz und Axt),
 webstuhl (mit Bank), gerberrahmen (eingeschnürte Haut, Bottich), wassertrog. Neue Materialien haut, wasser (durchsichtig wie glas).
 
+**Dorf und Straße** (`blender/dorf.py`): marktstand (Plane, Ware), wegweiser, pranger (auf Podest), brennholzstapel (Rundhölzer),
+heuballen, schubkarre, huehnerkaefig, futtertrog.
+
 **Haus-Baukasten** (`blender/baukasten.py`). Regeln: 1-m-Raster (Stockwerkshöhe frei, Teile drehbar und überlappbar), alle Stoßflächen eben
 und genau im Raster (damit Blueprints einrasten und beim späteren Backen verdeckte Flächen entfernt werden können).
 
@@ -99,6 +102,7 @@ python blender/taverne.py [-- <ziel> --nur bett,regal --vorschau <ordner>]
 python blender/friedhof.py [-- <ziel> --nur gruft --vorschau <ordner>]
 python blender/kueche.py [-- <ziel> --nur brotlaib --vorschau <ordner>]
 python blender/werkstaetten.py [-- <ziel> --nur webstuhl --vorschau <ordner>]
+python blender/dorf.py [-- <ziel> --nur pranger --vorschau <ordner>]
 ```
 Ohne Ziel landen die Modelle in `modelle/`. `--vorschau` rendert jedes Modell mit Cycles als JPG.
 
