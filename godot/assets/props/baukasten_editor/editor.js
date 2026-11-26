@@ -37,12 +37,14 @@ const KATALOG = [
     ["bretter_tuer", "Bretterwand mit Tür", "2 × 2"], ["tuer_alt", "Türblatt alt", "für Tür-Wände"],
     ["bretter_fenster", "Bretterwand mit Fenster", "2 × 2"], ["bretter_dreieck", "Bretter-Giebel", "2 × 2"],
     ["bretter_dreieck_1x1", "Bretter-Giebel", "1 × 1"], ["dach_bretter_2x2", "Bretterdach", "2 × 2"],
-    ["dach_bretter_2x1", "Bretterdach", "2 × 1"], ["dach_bretter_1x2", "Bretterdach", "1 × 2"], ["dach_bretter_1x1", "Bretterdach", "1 × 1"]]],
+    ["dach_bretter_2x1", "Bretterdach", "2 × 1"], ["dach_bretter_1x2", "Bretterdach", "1 × 2"], ["dach_bretter_1x1", "Bretterdach", "1 × 1"],
+    ["podest_holz", "Holzplattform", "1 × 1 × 0,2, auf Höhe 1 setzen"]]],
   ["Stein (Keller, Sockel)", [
     ["steinwand_2x2", "Steinwand", "2 × 2"], ["steinwand_2x1", "Steinwand", "2 × 1"], ["steinwand_1x1", "Steinwand", "1 × 1"],
     ["steinwand_tuer", "Steinwand mit Tür", "2 × 2"], ["steinwand_fenster", "Kellerfenster", "2 × 1"],
     ["steinpfeiler_2m", "Steinpfeiler", "2 m, an jeden Rasterpunkt"], ["steinpfeiler_1m", "Steinpfeiler", "1 m"],
-    ["steinboden_2x2", "Steinboden", "2 × 2"], ["steinboden_1x1", "Steinboden", "1 × 1"]]],
+    ["steinboden_2x2", "Steinboden", "2 × 2"], ["steinboden_1x1", "Steinboden", "1 × 1"],
+    ["podest_stein", "Steinpodest", "1 × 1 × 1, Oberkante wie Treppe"]]],
   ["Befestigung", [
     ["festung_stein_2m", "Wehrmauer Stein", "2 × 1, 3 m hoch"],
     ["festung_stein_1m", "Wehrmauer Stein", "1 × 1 (Ecke), 3 m"],

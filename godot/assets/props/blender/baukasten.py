@@ -1185,9 +1185,8 @@ def platten(m, kaputt, x0, x1, y0, y1, oben, dicke=0.1, steht=None):
             m.teil(bm, "stein", M(((a + b) / 2, (c + d) / 2, oben - dicke / 2 - m.rnd.uniform(0, 0.005))))
 
 
-def festung_stein(m, kaputt, L):
+def festung_stein(m, kaputt, L, H=FESTUNG_H, D=FESTUNG_D):
     m.leicht = True
-    H, D = FESTUNG_H, FESTUNG_D
     saat = m.rnd.uniform(0, 50)
     grenze = lambda x: H * (0.62 + 0.18 * noise.noise(Vector((x * 1.3, saat, 0.5)))) + 0.2 * math.sin(x * 2.3 + saat)
     steht = (lambda x, z: z <= grenze(x)) if kaputt else None
@@ -1204,6 +1203,31 @@ def festung_stein(m, kaputt, L):
     m.teil(quader(L - 0.04, D - 0.06, max(0.2, top)), "stein", M((L / 2, D / 2, max(0.2, top) / 2)))
     if not kaputt:
         platten(m, kaputt, 0.0, L, 0.0, D, H)
+
+
+def podest_stein(m, kaputt):
+    """Steinpodest 1 x 1 (x 0..1, Tiefe nach -z wie ein Boden), Oberkante 1,1 m: bündig mit der obersten Stufe von
+    treppe_stein/treppe_holz und dem Boden eines 1 m hohen Sockels. Treppe seitlich anbauen, Podest vor die Tür."""
+    festung_stein(m, kaputt, 1.0, H=1.0 + BODEN_OBEN, D=1.0)
+
+
+def podest_holz(m, kaputt):
+    """Holzplattform 1 x 1 x 0,2 m: Rahmen aus Kanthölzern, Bohlen darauf, Oberkante 0,1 m über dem Rasterpunkt wie der
+    Boden (auf Höhe 1 gesetzt also 1,1 m, wie die oberste Stufe). Stützen: balken_1m hochkant an die Ecken."""
+    u, o = BODEN_OBEN - 0.2, BODEN_OBEN
+    rahmen_h = 0.2 - 0.04
+    for a, b in (((0.0, 0.05), (1.0, 0.05)), ((0.0, 0.95), (1.0, 0.95)), ((0.05, 0.1), (0.05, 0.9)), ((0.95, 0.1), (0.95, 0.9))):
+        zm = u + rahmen_h / 2
+        m.kantholz((a[0], a[1], zm), (b[0], b[1], zm), 0.1, rahmen_h, "holz" if not kaputt else "holz_alt",
+                   oben=(0, 0, 1), biegen=0.0, bruch=1 if kaputt and a == (0.95, 0.1) else 0)
+    m.kantholz((0.5, 0.1, u + rahmen_h / 2), (0.5, 0.9, u + rahmen_h / 2), 0.08, rahmen_h - 0.02, "holz",
+               oben=(0, 0, 1), biegen=0.0)
+    for i in range(5):
+        if kaputt and i in (1, 3):
+            if i == 3:
+                m.brett(0.45, 0.196, 0.04, M((0.225, 0.1 + i * 0.2, o - 0.02)), "holz_verkohlt", bruch=1, biegen=0.0)
+            continue
+        m.brett(1.0, 0.196, 0.04, M((0.5, 0.1 + i * 0.2, o - 0.02)), "holz", biegen=0.0, fase=0.004)
 
 
 def festung_stein_2m(m, kaputt):
@@ -1352,7 +1376,7 @@ def bruestung_holz_15_1m(m, kaputt):
     bruestung_holz(m, kaputt, 1.0, 1.5)
 
 
-BEFESTIGUNG = {"festung_stein_2m": festung_stein_2m, "festung_stein_1m": festung_stein_1m, "festung_holz_2m": festung_holz_2m, "festung_holz_1m": festung_holz_1m, "bruestung_stein_05_2m": bruestung_stein_05_2m, "bruestung_stein_05_1m": bruestung_stein_05_1m, "bruestung_stein_10_2m": bruestung_stein_10_2m, "bruestung_stein_10_1m": bruestung_stein_10_1m, "bruestung_stein_15_2m": bruestung_stein_15_2m, "bruestung_stein_15_1m": bruestung_stein_15_1m, "bruestung_holz_05_2m": bruestung_holz_05_2m, "bruestung_holz_05_1m": bruestung_holz_05_1m, "bruestung_holz_10_2m": bruestung_holz_10_2m, "bruestung_holz_10_1m": bruestung_holz_10_1m, "bruestung_holz_15_2m": bruestung_holz_15_2m, "bruestung_holz_15_1m": bruestung_holz_15_1m}
+BEFESTIGUNG = {"podest_stein": podest_stein, "podest_holz": podest_holz, "festung_stein_2m": festung_stein_2m, "festung_stein_1m": festung_stein_1m, "festung_holz_2m": festung_holz_2m, "festung_holz_1m": festung_holz_1m, "bruestung_stein_05_2m": bruestung_stein_05_2m, "bruestung_stein_05_1m": bruestung_stein_05_1m, "bruestung_stein_10_2m": bruestung_stein_10_2m, "bruestung_stein_10_1m": bruestung_stein_10_1m, "bruestung_stein_15_2m": bruestung_stein_15_2m, "bruestung_stein_15_1m": bruestung_stein_15_1m, "bruestung_holz_05_2m": bruestung_holz_05_2m, "bruestung_holz_05_1m": bruestung_holz_05_1m, "bruestung_holz_10_2m": bruestung_holz_10_2m, "bruestung_holz_10_1m": bruestung_holz_10_1m, "bruestung_holz_15_2m": bruestung_holz_15_2m, "bruestung_holz_15_1m": bruestung_holz_15_1m}
 
 MODELLE = {"wand": wand, "wand_2x1": wand_2x1, "wand_1x1": wand_1x1, "balken_2m": balken_2m, "balken_1m": balken_1m,
            "strebe_2m": strebe_2m, "wand_tuer": wand_tuer, "tuer": tuer, "wand_fenster": wand_fenster,

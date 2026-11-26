@@ -1615,12 +1615,12 @@
    ]
   },
   {
-   "modell": "treppe_stein",
+   "modell": "podest_stein",
    "kaputt": false,
    "pos": [
     2.5,
     0,
-    2.15
+    1.15
    ],
    "dreh": [
     0,
@@ -1629,10 +1629,24 @@
    ]
   },
   {
+   "modell": "treppe_stein",
+   "kaputt": false,
+   "pos": [
+    5.5,
+    0,
+    1.15
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
    "modell": "fass",
    "kaputt": false,
    "pos": [
-    5.4,
+    0.6,
     0,
     0.6
    ],

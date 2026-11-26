@@ -208,8 +208,9 @@ def main():
     h = Haus("Haus am Fluss")
     steinring(h, 6, 0, 1, fenster=(1, 4, 8))
     rechteckhaus(h, 6, [{"vorne": "FTF", "rechts": "FS", "hinten": "SFS", "links": "FS"}], oy=1)
-    h.t("treppe_stein", (2.5, 0, 2.15))                          # Außentreppe zur Tür (1 m hoch)
-    h.t("fass", (5.4, 0, 0.6)); h.t("kiste", (6.6, 0, -0.8), (0, 15, 0))
+    h.t("podest_stein", (2.5, 0, 1.15))                          # Podest vor der Tür (Sockel-Außenkante z 0,15)
+    h.t("treppe_stein", (5.5, 0, 1.15), (0, 90, 0))              # Treppe seitlich, steigt nach -x zum Podest
+    h.t("fass", (0.6, 0, 0.6)); h.t("kiste", (6.6, 0, -0.8), (0, 15, 0))
     h.speichern("haus_am_fluss.json")
 
     h = Haus("Haus mit Keller")
