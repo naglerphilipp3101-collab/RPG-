@@ -29,6 +29,12 @@ saeule, mauer (3 m), bogen.
 (Kessel mit Pfännchen), buecher, wandfackel (Ursprung an der Wand, ragt nach -y), haengelampe (Ursprung am Deckenhaken, hängt 0,8 m),
 kerzen, kerzenstaender, grabstein, brunnen, trainingspuppe, zielscheibe, amboss, waffenstaender, ruestungsstaender.
 
+**Taverne** (`blender/taverne.py`): bett (Kopfende +y), strohlager, truhe, schrank, regal (mit Geschirr), geschirr (Gedeck), flaschen,
+feuerstelle (mit Kesselgalgen), teppich (2 x 1,4 m, Textur `teppich` = ganzes Bild), zapffass (liegend auf dem Bock, Hahn bei +x).
+
+**Friedhof** (`blender/friedhof.py`): gruft (2,4 x 3 m), grabkreuz, eisenzaun (2 m, Pfosten bei x = -1 wie zaun), saeule_liegend,
+knochenhaufen, schaedel.
+
 **Haus-Baukasten** (`blender/baukasten.py`). Regeln: 1-m-Raster (Stockwerkshöhe frei, Teile drehbar und überlappbar), alle Stoßflächen eben
 und genau im Raster (damit Blueprints einrasten und beim späteren Backen verdeckte Flächen entfernt werden können).
 
@@ -80,6 +86,8 @@ python blender/props.py   [-- <ziel> --nur kiste,fass --vorschau <ordner>]
 python blender/baukasten.py [-- <ziel> --nur wand --vorschau <ordner>]
 python blender/behaelter.py [-- <ziel> --nur grubenlore --vorschau <ordner>]
 python blender/deko.py    [-- <ziel> --nur amboss,brunnen --vorschau <ordner>]
+python blender/taverne.py [-- <ziel> --nur bett,regal --vorschau <ordner>]
+python blender/friedhof.py [-- <ziel> --nur gruft --vorschau <ordner>]
 ```
 Ohne Ziel landen die Modelle in `modelle/`. `--vorschau` rendert jedes Modell mit Cycles als JPG.
 

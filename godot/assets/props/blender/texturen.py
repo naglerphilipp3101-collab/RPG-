@@ -13,6 +13,7 @@ KACHEL = {
     "stoff": (1.0, 1.0), "seil": (0.25, 0.25), "stein": (1.0, 1.0), "putz": (1.5, 1.5),
     "schindeln": (1.0, 1.0), "dielen": (2.0, 2.0), "glut": (0.5, 0.5), "weide": (0.5, 0.5),
     "ton": (0.5, 0.5), "stroh": (0.5, 0.5), "leder": (0.5, 0.5),
+    "teppich": (2.0, 1.4),        # ganzes Bild = ein Teppich 2 x 1,4 m (nicht gekachelt)
 }
 
 
@@ -317,11 +318,56 @@ def glut(rnd):
     return farbe, norm01(-riss), np.full((N, N), 0.9), 4.0
 
 
+
+def teppich(rnd):
+    """Geknüpfter Teppich als ganzes Bild (2 x 1,4 m): weinrotes Feld, blaue Bordüre mit Rauten, Mittelmedaillon."""
+    vv, uu = np.mgrid[0:N, 0:N] / N
+    x = (uu - 0.5) * 2.0; y = (vv - 0.5) * 1.4                # Meter, Mitte = 0
+    rot = np.array([0.42, 0.07, 0.06]); blau = np.array([0.07, 0.09, 0.22]); hell = np.array([0.78, 0.68, 0.48])
+    gold = np.array([0.66, 0.45, 0.16])
+    rand = np.minimum(1.0 - np.abs(x), 0.7 - np.abs(y))       # Abstand zum Rand in m
+    farbe = np.zeros((N, N, 3)) + rot
+    def setzen(maske, c):
+        nonlocal farbe
+        farbe = mischen(farbe, c, np.clip(maske, 0, 1))
+    bord = (rand > 0.1) & (rand < 0.24)
+    setzen(bord, blau)
+    # Rautenkette in der Bordüre: Position entlang des Randes
+    entlang = np.where(np.abs(x) - 1.0 > np.abs(y) - 0.7, y, x)
+    quer = rand - 0.17
+    raute = (np.abs(((entlang / 0.14) % 1.0) - 0.5) * 0.14 + np.abs(quer)) < 0.05
+    setzen(bord & raute, hell)
+    raute2 = (np.abs(((entlang / 0.14) % 1.0) - 0.5) * 0.14 + np.abs(quer)) < 0.025
+    setzen(bord & raute2, rot)
+    for d0 in (0.08, 0.255):                                   # schmale Linien außen und innen
+        setzen(np.abs(rand - d0) < 0.012, hell)
+    setzen(rand < 0.06, blau * 0.8)
+    # Mittelmedaillon und Eckviertel
+    def med(cx, cy, ax, ay):
+        return np.abs(x - cx) / ax + np.abs(y - cy) / ay
+    mm = med(0, 0, 0.5, 0.3)
+    setzen((mm < 1.0) & (mm > 0.92), hell)
+    setzen(mm < 0.92, blau)
+    setzen((mm < 0.62) & (mm > 0.55), gold)
+    setzen(mm < 0.55, rot)
+    setzen(med(0, 0, 0.12, 0.08) < 1.0, hell)
+    # kleine Streublumen im Feld
+    blume = (np.abs(((x / 0.2) % 1.0) - 0.5) + np.abs(((y / 0.2 + 0.5) % 1.0) - 0.5)) < 0.12
+    setzen(blume & (rand > 0.28) & (mm > 1.05), gold * 0.9)
+    # Wolle: Knoten, Farbschwankung, abgetretene Stellen
+    knoten = 0.5 + 0.25 * np.sin(2 * np.pi * uu * 420) * np.sin(2 * np.pi * vv * 300)
+    wolke = fbm(rnd, 120, 4)
+    abgetreten = np.clip(fbm(rnd, 260, 3) - 0.35, 0, 1)
+    farbe = farbe * (0.85 + 0.12 * wolke + 0.08 * knoten)[..., None]
+    farbe = mischen(farbe, np.array([0.52, 0.42, 0.33]), abgetreten * 0.45)
+    return farbe, norm01(0.6 * knoten + 0.4 * wolke), np.clip(0.95 - 0.05 * knoten, 0, 1), 1.5
+
 ERZEUGER = {
     "holz": lambda r: holz(r, [0.47, 0.32, 0.18], [0.23, 0.13, 0.06], alt=0.15),
     "holz_alt": lambda r: holz(r, [0.44, 0.39, 0.33], [0.22, 0.18, 0.15], alt=1.0),
     "holz_verkohlt": holz_verkohlt, "eisen": eisen, "stoff": stoff, "seil": seil, "stein": stein,
     "putz": putz, "schindeln": schindeln, "dielen": dielen, "glut": glut, "weide": weide, "ton": ton, "stroh": stroh, "leder": leder,
+    "teppich": teppich,
 }
 
 

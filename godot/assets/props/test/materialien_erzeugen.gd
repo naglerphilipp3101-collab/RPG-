@@ -5,7 +5,7 @@ extends SceneTree
 
 const ORDNER := "res://assets/props/"
 ## Kachelgröße in Metern (u, v) wie in blender/texturen.py: die Modell-UVs sind schon in Kacheln gerechnet
-const MIT_TEXTUR := ["holz", "holz_alt", "holz_verkohlt", "eisen", "stoff", "seil", "stein", "putz", "schindeln", "dielen", "glut", "weide", "ton", "stroh", "leder"]
+const MIT_TEXTUR := ["holz", "holz_alt", "holz_verkohlt", "eisen", "stoff", "seil", "stein", "putz", "schindeln", "dielen", "glut", "weide", "ton", "stroh", "leder", "teppich"]
 
 
 func _init() -> void:
@@ -36,6 +36,10 @@ func _init() -> void:
 	glas.metallic_specular = 0.7
 	glas.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_speichern(glas, "glas")
+	var gg: StandardMaterial3D = glas.duplicate()
+	gg.resource_name = "glas_gruen"
+	gg.albedo_color = Color(0.2, 0.38, 0.16, 0.45)
+	_speichern(gg, "glas_gruen")
 	var asche := StandardMaterial3D.new()
 	asche.resource_name = "asche"
 	asche.albedo_color = Color(0.24, 0.23, 0.22)
@@ -49,7 +53,8 @@ func _init() -> void:
 	obst.roughness = 0.45
 	_speichern(obst, "obst")
 	# Farbe auf der Zielscheibe (gemalte Ringe)
-	for paar in [["farbe_rot", Color(0.6, 0.08, 0.06)], ["farbe_weiss", Color(0.86, 0.83, 0.76)]]:
+	for paar in [["farbe_rot", Color(0.6, 0.08, 0.06)], ["farbe_weiss", Color(0.86, 0.83, 0.76)],
+			["wolle_rot", Color(0.4, 0.11, 0.09)], ["knochen", Color(0.76, 0.7, 0.57)]]:
 		var f := StandardMaterial3D.new()
 		f.resource_name = paar[0]
 		f.albedo_color = paar[1]
