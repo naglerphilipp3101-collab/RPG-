@@ -339,6 +339,51 @@ class Modell:
         self.bm.from_mesh(me)
         bpy.data.meshes.remove(me)
 
+    # Umfallen --------------------------------------------------------------
+    def umfallen_start(self):
+        """Merkt sich, ab welchem Punkt die Teile eines Modells gebaut werden, das gleich umfällt."""
+        self.G = None
+        self._fall_ab = len(self.bm.verts)
+
+    def umfallen_ende(self, azimut):
+        """Kippt alle Teile seit umfallen_start in Richtung azimut (Grad, 0 = +x, 90 = +y) so lange um die jeweils
+        vorderste Bodenkante, bis der Schwerpunkt über der Auflage liegt: es liegt dann auf dem, was zuerst den Boden berührt."""
+        self.bm.verts.ensure_lookup_table()
+        vs = [self.bm.verts[i] for i in range(self._fall_ab, len(self.bm.verts))]
+        d = Vector((math.cos(math.radians(azimut)), math.sin(math.radians(azimut)), 0.0))
+        achse = Vector((0, 0, 1)).cross(d)
+        pts = [v.co.copy() for v in vs]
+        zmin = min(p.z for p in pts)
+        boden = [p for p in pts if p.z < zmin + 0.002]
+        dreh = Matrix.Translation((0, 0, -zmin))
+        pivot = max(boden, key=lambda p: p.dot(d)); pivot = Vector((pivot.x, pivot.y, 0.0))
+        for runde in range(8):
+            akt = [dreh @ p for p in pts]
+            schwer = sum(akt, Vector()) / len(akt)
+            if runde > 0 and schwer.dot(d) <= pivot.dot(d) + 1e-4:   # die erste Kippung erzwingt der Stoß
+                break
+            # kleinster Drehwinkel, bei dem ein weiterer Punkt den Boden erreicht
+            bester, wahl = 7.0, None
+            for p in akt:
+                ds = (p - pivot).dot(d); dz = p.z
+                if ds <= 1e-4 or dz < 1e-5 and ds < 1e-4:
+                    continue
+                w = math.atan2(dz, ds)
+                if w > 1e-4 and w < bester:
+                    bester, wahl = w, p
+            if wahl is None:
+                break
+            dreh = Matrix.Translation(pivot) @ Matrix.Rotation(bester, 4, achse) @ Matrix.Translation(-pivot) @ dreh
+            # neue Auflagekante: der Punkt, der gerade aufgesetzt hat (in Fallrichtung am weitesten vorne)
+            akt = [dreh @ p for p in pts]
+            unten = [p for p in akt if p.z < 0.002]
+            pivot = max(unten, key=lambda p: p.dot(d)); pivot = Vector((pivot.x, pivot.y, 0.0))
+        for v, p in zip(vs, pts):
+            v.co = dreh @ p
+        z0 = min(v.co.z for v in vs)
+        for v in vs:
+            v.co.z -= z0
+
     # Kurzformen ------------------------------------------------------------
     def brett(self, l, b, d, matrix, mat="holz", nx=None, fase=0.006, biegen=0.006, bruch=0, bruch_tiefe=0.08):
         """Brett/Balken: Länge l entlang x, Breite b (y), Dicke d (z). bruch = +1/-1: Ende abgebrochen."""

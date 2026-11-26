@@ -382,9 +382,7 @@ def kerzenstaender(m, kaputt):
     """Schmiedeeiserner Standleuchter, 1,5 m, drei Arme mit Kerzen."""
     h = 1.45
     if kaputt:
-        # umgefallen nach -x: liegt auf den Füßen bei 120°/240° und den beiden Kerzentellern darüber
-        boden_setzen(m, (0, -90, 0), (0, 0, 0))
-        m.G = Matrix.Translation((0, 0, 0.15)) @ m.G
+        m.umfallen_start()
     for k in range(3):
         a = 2 * math.pi * k / 3
         fuss = [(0.0, 0.0, 0.18), (0.08 * math.cos(a), 0.08 * math.sin(a), 0.06), (0.24 * math.cos(a), 0.24 * math.sin(a), 0.0),
@@ -404,6 +402,8 @@ def kerzenstaender(m, kaputt):
         m.teil(drehkoerper([(0.0, 0.0), (0.045, 0.0), (0.05, 0.012), (0.04, 0.012), (0.02, 0.004), (0.0, 0.004)], 12), "eisen", M(p))
         if not kaputt:
             kerze(m, M(p + Vector((0, 0, 0.004))), 0.14 if k == 0 else 0.11, 0.018)
+    if kaputt:
+        m.umfallen_ende(180)         # nach -x: liegt auf zwei Füßen und den zwei Kerzentellern darüber
     m.G = None
     if kaputt:
         kerze(m, M((0.3, -0.35, 0.018), (90, 0, 40)), 0.1, 0.018, brennt=False)
@@ -672,8 +672,7 @@ def waffenstaender(m, kaputt):
     """Waffenständer: Gestell mit zwei Querlatten, Schwerter, Speere und Äxte lehnen darin."""
     l = 1.4
     if kaputt:
-        boden_setzen(m, (-75, 0, 0), (0, 0.15, 0))
-        m.G = Matrix.Translation((0, 0, 0.06)) @ m.G
+        m.umfallen_start()
     for s in (-1, 1):
         m.kantholz((s * l / 2, -0.15, 0.0), (s * l / 2, 0.15, 0.0), 0.07, 0.06)
         m.kantholz((s * l / 2, 0.08, 0.0), (s * l / 2, 0.08, 1.3), 0.07, 0.07)
@@ -698,6 +697,8 @@ def waffenstaender(m, kaputt):
                 speer(m, mx, 1.95)
             else:
                 axt(m, mx, 1.15)
+    if kaputt:
+        m.umfallen_ende(90)          # nach hinten: liegt auf den Füßen und der oberen Latte
     m.G = None
     if kaputt:
         schwert(m, M((-0.4, -0.7, 0.012), (-90, 0, 70)), 1.05)
@@ -707,8 +708,7 @@ def waffenstaender(m, kaputt):
 def ruestungsstaender(m, kaputt):
     """Rüstungsständer: Holzkreuz auf Fußkreuz, darauf Brustpanzer, Helm und Schild davor."""
     if kaputt:
-        boden_setzen(m, (82, 0, 20), (0, -0.25, 0))
-        m.G = Matrix.Translation((0, 0, 0.08)) @ m.G
+        m.umfallen_start()
     m.kantholz((-0.3, 0, 0.035), (0.3, 0, 0.035), 0.07, 0.07)
     m.kantholz((0, -0.3, 0.035), (0, 0.3, 0.035), 0.07, 0.07)
     m.kantholz((0, 0, 0.07), (0, 0, 1.55), 0.06, 0.06)
@@ -737,6 +737,8 @@ def ruestungsstaender(m, kaputt):
             v.co.y *= 1.12
         m.teil(helm, "eisen", M((0, 0, 1.45)), uv="zylz", r=0.12)
         m.teil(quader(0.012, 0.03, 0.14), "eisen", M((0, -0.13, 1.51)))
+    if kaputt:
+        m.umfallen_ende(225)         # schräg zwischen zwei Füße: liegt auf beiden und dem Querholz
     m.G = None
     # Rundschild lehnt vorne am Fuß
     sm = M((0.0, -0.42, 0.33), (72, 0, 0)) if not kaputt else M((0.55, -0.3, 0.02), (0, 0, 0))
@@ -746,7 +748,7 @@ def ruestungsstaender(m, kaputt):
     if kaputt:
         helm = drehkoerper([(0.0, 0.2), (0.07, 0.19), (0.115, 0.13), (0.12, 0.0), (0.112, 0.0), (0.108, 0.13), (0.065, 0.183),
                             (0.0, 0.193)], 18, False, False)
-        m.teil(helm, "eisen", M((-0.5, -0.55, 0.12), (110, 0, 40)), uv="zylz", r=0.12)
+        m.teil(helm, "eisen", M((0.3, -0.85, 0.12), (110, 0, 40)), uv="zylz", r=0.12)
 
 
 MODELLE = {"stuhl_armlehne": stuhl_armlehne, "stuhl_brett": stuhl_brett, "tisch_rund": tisch_rund, "tisch_lang": tisch_lang,
