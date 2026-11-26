@@ -1,0 +1,1997 @@
+{
+ "format": "rpg_gebaeude",
+ "version": 1,
+ "name": "Stadthaus 8",
+ "gruppe": "Dorf: heil",
+ "raster": 1.0,
+ "teile": [
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "strebe_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "wand_tuer",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "tuer",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    -2
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "wand_fenster",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "wand_fenster",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    -4
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "strebe_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    -4
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    -2
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "strebe_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    -2
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    -4
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    -4
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    -4
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "strebe_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    2,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "strebe_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "strebe_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "wand_fenster",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    -2
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    2,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "strebe_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "strebe_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    -2
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "strebe_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    -2
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "wand_fenster",
+   "kaputt": false,
+   "pos": [
+    0,
+    4,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "wand_fenster",
+   "kaputt": false,
+   "pos": [
+    2,
+    4,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    4,
+    4,
+    0
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    4,
+    4,
+    -2
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    4,
+    4,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "strebe_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    4,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    2,
+    4,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "wand_fenster",
+   "kaputt": false,
+   "pos": [
+    0,
+    4,
+    -4
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "wand",
+   "kaputt": false,
+   "pos": [
+    0,
+    4,
+    -2
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "strebe_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    4,
+    -2
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    4,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    4,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    4,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    4,
+    -4
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    4,
+    -4
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    4,
+    -4
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    4,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    4,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    90
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    -2
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    -4
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    -2
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    -2
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    -4
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    -2
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    4,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    4,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    4,
+    0
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    4,
+    -2
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    4,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    4,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    4,
+    -4
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    4,
+    -2
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    6,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    6,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    6,
+    0
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    6,
+    -2
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    6,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    6,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    6,
+    -4
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "balken_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    6,
+    -2
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    0,
+    2,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    2,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    0,
+    4,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    0,
+    4,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    2,
+    4,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    0,
+    6,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    0,
+    6,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    2,
+    6,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    2,
+    6,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "treppe_holz",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "treppe_holz",
+   "kaputt": false,
+   "pos": [
+    2,
+    1,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "treppe_holz",
+   "kaputt": false,
+   "pos": [
+    2,
+    2,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "treppe_holz",
+   "kaputt": false,
+   "pos": [
+    2,
+    3,
+    -2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "dach_grat_2x2",
+   "kaputt": false,
+   "pos": [
+    0,
+    6,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "dach_grat_traufe",
+   "kaputt": false,
+   "pos": [
+    0,
+    6,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "dach_grat_2x2",
+   "kaputt": false,
+   "pos": [
+    0,
+    6,
+    -4
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "dach_grat_traufe",
+   "kaputt": false,
+   "pos": [
+    0,
+    6,
+    -4
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "dach_grat_2x2",
+   "kaputt": false,
+   "pos": [
+    4,
+    6,
+    0
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "dach_grat_traufe",
+   "kaputt": false,
+   "pos": [
+    4,
+    6,
+    0
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "dach_grat_2x2",
+   "kaputt": false,
+   "pos": [
+    4,
+    6,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "dach_grat_traufe",
+   "kaputt": false,
+   "pos": [
+    4,
+    6,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "dach_traufe",
+   "kaputt": false,
+   "pos": [
+    0,
+    6,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "dach_traufe",
+   "kaputt": false,
+   "pos": [
+    2,
+    6,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "dach_traufe",
+   "kaputt": false,
+   "pos": [
+    4,
+    6,
+    0
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "dach_traufe",
+   "kaputt": false,
+   "pos": [
+    4,
+    6,
+    -2
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "dach_traufe",
+   "kaputt": false,
+   "pos": [
+    4,
+    6,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "dach_traufe",
+   "kaputt": false,
+   "pos": [
+    2,
+    6,
+    -4
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "dach_traufe",
+   "kaputt": false,
+   "pos": [
+    0,
+    6,
+    -4
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "dach_traufe",
+   "kaputt": false,
+   "pos": [
+    0,
+    6,
+    -2
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "boden_2x2",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "gelaender_pfosten",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "gelaender_pfosten",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    2
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "gelaender_1m_pfosten",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "gelaender_1m_pfosten",
+   "kaputt": false,
+   "pos": [
+    1,
+    0,
+    2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "gelaender_1m_pfosten",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "gelaender_pfosten_mitte",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "gelaender_1m_pfosten",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "gelaender_1m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    1
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "gelaender_1m_pfosten",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    2
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "gelaender_1m",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    1
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "hocker",
+   "kaputt": false,
+   "pos": [
+    4.7,
+    0,
+    -0.9
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "fass",
+   "kaputt": false,
+   "pos": [
+    4.7,
+    0,
+    -3.1
+   ],
+   "dreh": [
+    0,
+    15,
+    0
+   ]
+  },
+  {
+   "modell": "fass",
+   "kaputt": false,
+   "pos": [
+    0.8,
+    0,
+    -4.8
+   ],
+   "dreh": [
+    0,
+    200,
+    0
+   ]
+  },
+  {
+   "modell": "bank",
+   "kaputt": false,
+   "pos": [
+    -0.7,
+    0,
+    -3.0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  }
+ ]
+}

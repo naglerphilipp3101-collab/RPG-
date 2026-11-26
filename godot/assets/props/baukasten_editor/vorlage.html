@@ -67,6 +67,8 @@ aside h2 .klappe small { margin-left: auto; font-family: var(--font-mono); font-
 aside h2 .pfeil { display: inline-block; width: 10px; transition: transform 0.15s; }
 aside h2 .klappe[aria-expanded="false"] .pfeil { transform: rotate(-90deg); }
 .teile[hidden] { display: none; }
+details.vorlagen summary { cursor: pointer; font-weight: 600; font-size: 14px; margin: 10px 0 4px; }
+details.vorlagen .eintrag { margin-bottom: 6px; }
 .teile { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .teil { display: grid; grid-template-rows: 64px auto; gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: var(--r);
   background: var(--bg); text-align: left; min-width: 0; }

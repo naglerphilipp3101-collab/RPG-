@@ -13,6 +13,7 @@ D = 4
 class Haus:
     def __init__(self, name, saat=1, kaputt=0.0):
         self.name = name; self.teile = []; self.rnd = random.Random(saat); self.kaputt = kaputt
+        self.gruppe = "Beispiele"
 
     def t(self, modell, pos, dreh=(0, 0, 0), kaputt=None):
         if kaputt is None:
@@ -55,7 +56,8 @@ class Haus:
     def speichern(self, datei):
         self.abhaengige_entfernen()
         with open(os.path.join(ZIEL, datei), "w", encoding="utf-8") as f:
-            json.dump({"format": "rpg_gebaeude", "version": 1, "name": self.name, "raster": 1.0, "teile": self.teile},
+            json.dump({"format": "rpg_gebaeude", "version": 1, "name": self.name, "gruppe": self.gruppe, "raster": 1.0,
+                       "teile": self.teile},
                       f, ensure_ascii=False, indent=1)
         print(datei, len(self.teile), "Teile")
 

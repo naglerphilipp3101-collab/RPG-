@@ -2,6 +2,7 @@
  "format": "rpg_gebaeude",
  "version": 1,
  "name": "Verlassene Hütte",
+ "gruppe": "Beispiele",
  "raster": 1.0,
  "teile": [
   {

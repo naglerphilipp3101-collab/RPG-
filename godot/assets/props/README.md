@@ -83,6 +83,7 @@ Als Absturzsicherung an der Innenkante: Brüstung um 180° drehen und eine Zelle
 Tiefe läuft bei Boden, Dach und Treppe immer nach **-z** (von der Vorderseite einer ungedrehten Wand weg).
 
 Weitere Vorlagen (Bauernhaus, Stadthaus mit Treppe, Walmdachhaus, Gasthaus, Ruine) erzeugt `baukasten_editor/beispiele.py` nach `data/gebaeude/`; danach `bauen.py` laufen lassen, damit sie im Baukasten auftauchen.
+`baukasten_editor/dorf.py [heil alt ruine]` würfelt viele Dorfhäuser (Standard 14/10/10, feste Saat) nach `data/gebaeude/dorf_<heil|alt|ruine>_NN.json`: Fachwerk mit 1–3 Stockwerken, Sattel-/Walmdach, Steinsockel mit Podest und Seitentreppe, Keller, Holzterrasse mit Geländer; alte Häuser aus Brettern; Ruinen mit eingestürzten Dächern und Obergeschossen (schwebende Balken und Wände über kaputten Feldern werden entfernt). Das Feld `gruppe` sortiert die Vorlagen im Baukasten.
 
 Durch den Überstand reicht ein Balken an jedem Rasterpunkt genau so weit wie ein querliegender: Ecken sind ohne Stufe geschlossen.
 

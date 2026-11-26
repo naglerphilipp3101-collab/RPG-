@@ -782,10 +782,19 @@ function fensterGebaeude(hinweis) {
           el("button", { class: "knopf", on: { click: () => verwerfenFrage(() => { try { ausDaten(JSON.parse(g.json), g.id); fensterZu(); } catch (e) { meldung(e.message); } }) } }, "Laden"),
           loeschKnopf));
       });
-      liste.append(el("h3", { style: "font-size:14px;margin-top:8px" }, "Vorlagen"));
-      D.vorlagen.forEach((v) => liste.append(el("div", { class: "eintrag" },
-        el("div", { class: "t" }, el("b", {}, v.name), el("small", {}, v.teile.length + " Teile · aus dem Projekt")),
-        el("button", { class: "knopf", on: { click: () => verwerfenFrage(() => { ausDaten(v, null); fensterZu(); }) } }, "Laden"))));
+      // Vorlagen aus dem Projekt nach Gruppe ("Beispiele", "Dorf: heil", "Dorf: alt", "Dorf: Ruine"), einklappbar
+      const gruppen = new Map();
+      D.vorlagen.forEach((v) => { const g = v.gruppe || "Beispiele"; if (!gruppen.has(g)) gruppen.set(g, []); gruppen.get(g).push(v); });
+      const ORDNUNG = ["Beispiele", "Dorf: heil", "Dorf: alt", "Dorf: Ruine"];
+      [...gruppen.entries()].sort((a, b) => (ORDNUNG.indexOf(a[0]) + 99) % 99 - (ORDNUNG.indexOf(b[0]) + 99) % 99).forEach(([g, vs]) => {
+        const det = el("details", { class: "vorlagen" });
+        if (g === "Beispiele") det.open = true;
+        det.append(el("summary", {}, "Vorlagen: " + g + " (" + vs.length + ")"));
+        vs.forEach((v) => det.append(el("div", { class: "eintrag" },
+          el("div", { class: "t" }, el("b", {}, v.name), el("small", {}, v.teile.length + " Teile · aus dem Projekt")),
+          el("button", { class: "knopf", on: { click: () => verwerfenFrage(() => { ausDaten(v, null); fensterZu(); }) } }, "Laden"))));
+        liste.append(det);
+      });
     };
     speicher.beiAenderung = zeichnen;
     k.append(el("h3", {}, "Gebäude"));
