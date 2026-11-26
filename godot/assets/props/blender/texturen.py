@@ -11,7 +11,7 @@ N = 1024
 KACHEL = {
     "holz": (2.0, 0.5), "holz_alt": (2.0, 0.5), "holz_verkohlt": (1.0, 1.0), "eisen": (0.5, 0.5),
     "stoff": (1.0, 1.0), "seil": (0.25, 0.25), "stein": (1.0, 1.0), "putz": (1.5, 1.5),
-    "schindeln": (1.0, 1.0), "dielen": (2.0, 2.0), "glut": (0.5, 0.5),
+    "schindeln": (1.0, 1.0), "dielen": (2.0, 2.0), "glut": (0.5, 0.5), "weide": (0.5, 0.5),
 }
 
 
@@ -168,6 +168,28 @@ def seil(rnd):
     return farbe, norm01(litzen + 0.15 * fasern), np.full((N, N), 0.92), 4.0
 
 
+def weide(rnd):
+    """Korbgeflecht. Die Ruten laufen entlang v (bei Körben der Umfang, die UVs haben u = Höhe), liegen also in u
+    übereinander und gehen abwechselnd vor und hinter den Staken durch. Ruten wellig und unterschiedlich hell."""
+    vv, uu = np.mgrid[0:N, 0:N] / N                          # vv: Zeilen (v), uu: Spalten (u)
+    reihen, staken = 20, 6                                    # je Kachel (0,5 m): Ruten 2,5 cm, Staken alle 8 cm
+    us = uu * reihen + 0.15 * rauschen(rnd, 60, 260)          # wellige Ruten
+    zeile = np.floor(us)
+    t = us - zeile
+    rute = np.sqrt(np.clip(1 - (2 * t - 1) ** 2, 0, 1)) ** 0.6
+    phase = np.pi * staken * 2 * vv + np.pi * (zeile % 2)
+    welle = np.cos(phase)
+    hoehe = rute * (0.7 + 0.3 * welle)
+    ids = (zeile.astype(int) % reihen)
+    je_rute = rnd.uniform(-1, 1, reihen)[ids]
+    fasern = rauschen(rnd, 1.2, 40)
+    farbe = mischen([0.36, 0.25, 0.13], [0.66, 0.53, 0.33], np.clip(0.55 + 0.2 * je_rute + 0.1 * fasern, 0, 1))
+    farbe *= (0.45 + 0.55 * rute)[..., None] * (0.88 + 0.12 * welle)[..., None]
+    schmutz = np.clip(fbm(rnd, 150, 4) * 0.5, 0, 1)
+    farbe = mischen(farbe, [0.25, 0.22, 0.17], schmutz * 0.5)
+    return farbe, norm01(hoehe + 0.05 * fasern), np.clip(0.75 + 0.2 * (1 - hoehe), 0, 1), 3.0
+
+
 def stein(rnd):
     grob = fbm(rnd, 260, 6)
     koernung = rauschen(rnd, 2.0)
@@ -260,7 +282,7 @@ ERZEUGER = {
     "holz": lambda r: holz(r, [0.47, 0.32, 0.18], [0.23, 0.13, 0.06], alt=0.15),
     "holz_alt": lambda r: holz(r, [0.44, 0.39, 0.33], [0.22, 0.18, 0.15], alt=1.0),
     "holz_verkohlt": holz_verkohlt, "eisen": eisen, "stoff": stoff, "seil": seil, "stein": stein,
-    "putz": putz, "schindeln": schindeln, "dielen": dielen, "glut": glut,
+    "putz": putz, "schindeln": schindeln, "dielen": dielen, "glut": glut, "weide": weide,
 }
 
 

@@ -8,9 +8,9 @@ from mathutils import Vector, Matrix, Euler, noise
 from texturen import KACHEL
 
 MATERIALIEN = ["holz", "holz_alt", "holz_verkohlt", "eisen", "stoff", "seil", "stein", "putz", "schindeln",
-               "dielen", "glut", "glas", "asche"]
+               "dielen", "glut", "glas", "asche", "weide", "obst"]
 ## Kachelgrößen der Materialien ohne eigene Textur
-KACHEL_EXTRA = {"glas": (1.0, 1.0), "asche": (1.0, 1.0)}
+KACHEL_EXTRA = {"glas": (1.0, 1.0), "asche": (1.0, 1.0), "obst": (1.0, 1.0)}
 
 
 def kachel(mat):
@@ -391,7 +391,7 @@ GRUNDFARBE = {"holz": (0.33, 0.21, 0.11), "holz_alt": (0.38, 0.34, 0.29), "holz_
               "eisen": (0.13, 0.12, 0.12), "stoff": (0.58, 0.52, 0.39), "seil": (0.45, 0.37, 0.24),
               "stein": (0.47, 0.45, 0.41), "putz": (0.74, 0.70, 0.61), "schindeln": (0.32, 0.26, 0.20),
               "dielen": (0.38, 0.26, 0.15), "glut": (0.9, 0.3, 0.05), "glas": (0.75, 0.62, 0.38),
-              "asche": (0.22, 0.21, 0.20)}
+              "asche": (0.22, 0.21, 0.20), "weide": (0.55, 0.42, 0.25), "obst": (0.62, 0.12, 0.08)}
 
 
 def material(name):

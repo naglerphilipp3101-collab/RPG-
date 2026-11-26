@@ -17,6 +17,10 @@ Ansehen: `test/galerie.tscn` öffnen und mit **F6** starten (vorne heil, dahinte
 am Ende ein Fachwerk-Beispiel mit Außenecke; Pfeiltasten drehen/fahren, Mausrad Zoom, N Tag/Nacht).
 
 ## Inhalt
+**Vorratsbehälter** (`blender/behaelter.py`) stehen an den POIs und geben Vorräte und mit Glück Zusatzmaterialien.
+Hier heißt die `kaputt`-Fassung „geplündert“: offen und leer, nach einem Spieltag wird der Behälter wieder voll.
+vorratskiste (Dorf), versorgungswagen (Militärlager), grubenlore (Mine), fischerkorb (Strand), schatzkiste_klein (Burg).
+
 **Lager und Dorf** (`blender/props.py`): kiste, fass, stuhl, hocker, tisch, bank, zaun (2 m, Pfosten bei x = -1),
 palisade (2 m), zelt, lagerfeuer, karren, laterne (Ring zum Aufhängen 0,30 m über dem Boden), laternenpfahl,
 saeule, mauer (3 m), bogen.
@@ -59,7 +63,7 @@ von Hand ist nichts einzustellen. Was höher ist oder übersteht, sieht man ganz
 
 ## Materialien
 Die Modelle enthalten nur Material-Namen. `prop.gd` setzt dafür `materialien/<name>.tres` ein:
-holz, holz_alt, holz_verkohlt (für Balken/Strebe als `*_balken`/`*_strebe` mit Vorrang), eisen, stoff, seil, stein, putz, schindeln, dielen, glut, glas, asche.
+holz, holz_alt, holz_verkohlt (für Balken/Strebe als `*_balken`/`*_strebe` mit Vorrang), eisen, stoff, seil, stein, putz, schindeln, dielen, glut, glas, asche, weide (Korbgeflecht), obst.
 Die Texturen (`texturen/`, 1024², kachelbar) sind prozedural erzeugt (`blender/texturen.py`, numpy),
 die UVs der Modelle sind schon in Metern gerechnet. Ein Material im Inspector ändern = alle Props ändern sich mit.
 Neu anlegen: `Godot --headless --path godot -s res://assets/props/test/materialien_erzeugen.gd`.
@@ -70,6 +74,7 @@ Python 3.13 mit `pip install bpy==5.2.2` (oder in Blender 5.2):
 python blender/texturen.py                         # Texturen
 python blender/props.py   [-- <ziel> --nur kiste,fass --vorschau <ordner>]
 python blender/baukasten.py [-- <ziel> --nur wand --vorschau <ordner>]
+python blender/behaelter.py [-- <ziel> --nur grubenlore --vorschau <ordner>]
 ```
 Ohne Ziel landen die Modelle in `modelle/`. `--vorschau` rendert jedes Modell mit Cycles als JPG.
 

@@ -5,7 +5,7 @@ extends SceneTree
 
 const ORDNER := "res://assets/props/"
 ## Kachelgröße in Metern (u, v) wie in blender/texturen.py: die Modell-UVs sind schon in Kacheln gerechnet
-const MIT_TEXTUR := ["holz", "holz_alt", "holz_verkohlt", "eisen", "stoff", "seil", "stein", "putz", "schindeln", "dielen", "glut"]
+const MIT_TEXTUR := ["holz", "holz_alt", "holz_verkohlt", "eisen", "stoff", "seil", "stein", "putz", "schindeln", "dielen", "glut", "weide"]
 
 
 func _init() -> void:
@@ -43,6 +43,11 @@ func _init() -> void:
 	asche.normal_texture = load(ORDNER + "texturen/holz_verkohlt_normal.jpg")
 	asche.roughness = 1.0
 	_speichern(asche, "asche")
+	var obst := StandardMaterial3D.new()
+	obst.resource_name = "obst"
+	obst.albedo_color = Color(0.62, 0.1, 0.07)
+	obst.roughness = 0.45
+	_speichern(obst, "obst")
 	# Baukasten: Holz mit Vorrang bei Überlappung (balken.gdshader), je für Balken (entlang x) und Strebe (schräg)
 	for name in ["holz", "holz_verkohlt"]:
 		for teil in ["balken", "strebe"]:

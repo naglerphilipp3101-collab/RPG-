@@ -8,7 +8,7 @@ extends Node3D
 
 const ORDNER := "res://assets/props/"
 ## Kleine Props bekommen eine konvexe Hülle (schnell), alle anderen die genaue Form (Zelt, Bogen, Mauer ...)
-const KONVEX := ["kiste", "fass", "stuhl", "hocker", "tisch", "bank", "laterne"]
+const KONVEX := ["kiste", "fass", "stuhl", "hocker", "tisch", "bank", "laterne", "schatzkiste_klein", "fischerkorb"]
 ## Baukasten-Hölzer: bekommen Holz mit Vorrang bei Überlappung (materialien/balken.gdshader)
 const VORRANG := {"balken_2m": "_balken", "balken_1m": "_balken", "strebe_2m": "_strebe"}
 
