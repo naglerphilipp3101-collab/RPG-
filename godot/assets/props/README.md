@@ -102,8 +102,8 @@ Ohne Ziel landen die Modelle in `modelle/`. `--vorschau` rendert jedes Modell mi
 
 ## Gebäude-Baukasten (Browser) und Gebäude in Godot
 `baukasten_editor/gebaeude_baukasten.html` per Doppelklick im Browser öffnen (läuft ohne Internet, alles eingebettet).
-Teile links wählen, ins Raster klicken, **R** drehen, **T** hochkant, **G** kippen, **Q/E** Höhe, **K** kaputt, **Alt+Klick** Teil übernehmen,
-Werkzeuge Bearbeiten (Pfeile verschieben, Strg+D verdoppeln) und Löschen, Strg+Z/Y. Speichern im Browser, **Exportieren** gibt die JSON-Datei.
+Kamera: **W/A/S/D** bewegen, **Q/E** Ansicht drehen, Mausrad Zoom, **Strg+Mausrad** Ebene (auch unter 0 für Keller). Teile links wählen, ins Raster klicken, **F** drehen, **T** hochkant, **G** kippen, **K** kaputt, **Alt+Klick** Teil übernehmen,
+Werkzeuge Bearbeiten (Pfeile verschieben, Strg+Mausrad hoch/runter, Strg+D verdoppeln) und Löschen, **Z/Y** rückgängig/wiederholen. Speichern im Browser, **Exportieren** gibt die JSON-Datei.
 Dieselbe Seite liegt auch als claude.ai-Artifact; dort gespeicherte Gebäude kann Claude direkt ins Repository übernehmen.
 
 Gebäude liegen in `godot/data/gebaeude/*.json` (Format `rpg_gebaeude`, Version 1: `teile` mit `modell`, `kaputt`, `pos`, `dreh` in Godot-Koordinaten,
