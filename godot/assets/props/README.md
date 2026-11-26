@@ -46,6 +46,22 @@ Anfangspunkt auf einem Rasterpunkt, von dort läuft es 1 oder 2 m entlang x; ged
 
 | `treppe_holz`, `treppe_stein` | 1 m breit, 2 m Lauf nach -z, 1 m hoch (5 Stufen à 20 × 40 cm), von Boden zu Boden; stapelbar |
 
+### Variante Bretter (alt, windig) und Variante Stein (Keller, Sockel)
+
+| Modell | Beschreibung |
+|---|---|
+| `bretter_2x2`, `bretter_2x1`, `bretter_1x1` | Senkrechte, verwitterte Bretter mit Lücken außen, zwei Querlatten innen. Gleiche Lage wie die Putzwände (mittig, y ±0,05), also gegeneinander austauschbar |
+| `bretter_tuer` + `tuer_alt` | Türöffnung wie `wand_tuer` (passt auch `tuer`); `tuer_alt` ist das Türblatt aus altem Holz |
+| `bretter_fenster` | Fensterloch 0,8 × 0,8 wie `wand_fenster`, grober Rahmen, offener Fensterladen außen |
+| `bretter_dreieck`, `bretter_dreieck_1x1` | Giebel aus Brettern, Form wie `wand_dreieck` |
+| `dach_bretter_2x2`, `_2x1`, `_1x2`, `_1x1` | Bretterdach 45° mit Lücken und Latten, gleiche Lage wie `dach_*` |
+| `steinwand_2x2`, `_2x1`, `_1x1` | Bruchsteinmauer 0,30 m dick, mittig auf der Rasterlinie. Füllt nur das Feld **zwischen** zwei Rasterpunkten (x 0,15..b-0,15) |
+| `steinpfeiler_2m`, `_1m` | 0,3 × 0,3 an einem Rasterpunkt. **An jeden Rasterpunkt, an dem eine Steinwand endet, gehört ein Pfeiler** (wie die Ständer beim Fachwerk). Steinlagen (0,25 m) laufen mit der Wand durch, nichts überlappt |
+| `steinwand_tuer`, `steinwand_fenster` | Tür wie `wand_tuer` (Sturz aus einem langen Stein), vergittertes Kellerfenster 0,6 × 0,4 in einer 2 × 1-Wand |
+| `steinboden_2x2`, `_1x1` | Steinplatten, Oberkante 0,1 m wie der Dielenboden (Keller) |
+
+Keller: Steinwände 2 × 2 eine Etage tiefer (y -2), Pfeiler an jeden Rasterpunkt, Steinboden, Holztreppe nach oben, im Erdgeschossboden ein Loch lassen. Sockel (z. B. am Fluss): Steinwände 2 × 1 mit Pfeilern 1 m, das Fachwerkhaus 1 m höher darauf. Beispiele: `verlassene_huette.json`, `haus_am_fluss.json`, `haus_mit_keller.json`.
+
 Tiefe läuft bei Boden, Dach und Treppe immer nach **-z** (von der Vorderseite einer ungedrehten Wand weg).
 
 Weitere Vorlagen (Bauernhaus, Stadthaus mit Treppe, Walmdachhaus, Gasthaus, Ruine) erzeugt `baukasten_editor/beispiele.py` nach `data/gebaeude/`; danach `bauen.py` laufen lassen, damit sie im Baukasten auftauchen.

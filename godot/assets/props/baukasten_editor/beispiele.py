@@ -68,7 +68,13 @@ def felder(W):
             "links": [(0, -z, 270) for z in range(D, 0, -2)]}
 
 
-def wand_feld(h, art, x, y, z, r):
+def wand_feld(h, art, x, y, z, r, stil="putz"):
+    if stil == "bretter":
+        modell = {"T": "bretter_tuer", "F": "bretter_fenster"}.get(art, "bretter_2x2")
+        h.t(modell, (x, y, z), (0, r, 0))
+        if art == "T":
+            h.t("tuer_alt", (x, y, z), (0, r, 0))
+        return
     if art == "T":
         h.t("wand_tuer", (x, y, z), (0, r, 0)); h.t("tuer", (x, y, z), (0, r, 0))
     elif art == "F":
@@ -79,18 +85,21 @@ def wand_feld(h, art, x, y, z, r):
             h.t("strebe_2m", (x, y, z), (0, r, 0))
 
 
-def rechteckhaus(h, W, stockwerke, dach="sattel", treppe=True, ox=0, oz=0, ohne_dach=()):
-    """stockwerke: Liste je Stockwerk mit dict seite -> Buchstaben. ohne_dach: Dachteile, die fehlen (Ruine)."""
+def rechteckhaus(h, W, stockwerke, dach="sattel", treppe=True, ox=0, oz=0, ohne_dach=(), oy=0, stil="putz",
+                 loecher=()):
+    """stockwerke: Liste je Stockwerk mit dict seite -> Buchstaben. ohne_dach: Dachteile, die fehlen (Ruine).
+    oy: Höhe des Erdgeschossbodens (z. B. 1 auf einem Steinsockel). stil "bretter": Bretterwände und Bretterdach.
+    loecher: Bodenfelder (x, y, z), die frei bleiben (z. B. für eine Kellertreppe)."""
     n = len(stockwerke); H = 2 * n
     F = felder(W)
     ecken = [(x, 0) for x in range(0, W + 1, 2)] + [(x, -D) for x in range(0, W + 1, 2)] + [(0, -2), (W, -2)]
     def P(x, y, z):
-        return (x + ox, y, z + oz)
+        return (x + ox, y + oy, z + oz)
     for s, reihen in enumerate(stockwerke):
         y = 2 * s
         for seite, liste in F.items():
             for (x, z, r), art in zip(liste, reihen[seite]):
-                wand_feld(h, art, *P(x, y, z), r)
+                wand_feld(h, art, *P(x, y, z), r, stil)
         for x, z in ecken:
             h.t("balken_2m", P(x, y, z), (0, 0, 90))
     for y in range(0, H + 1, 2):
@@ -101,7 +110,7 @@ def rechteckhaus(h, W, stockwerke, dach="sattel", treppe=True, ox=0, oz=0, ohne_
     for y in range(0, H + 1, 2):
         for x in range(0, W, 2):
             for z in (0, -2):
-                if treppe and 0 < y < H and x == W - 2 and z == -2:
+                if treppe and 0 < y < H and x == W - 2 and z == -2 or (x, y, z) in loecher:
                     continue
                 h.t("boden_2x2", P(x, y, z))
     if treppe:
@@ -112,7 +121,14 @@ def rechteckhaus(h, W, stockwerke, dach="sattel", treppe=True, ox=0, oz=0, ohne_
         if (modell, pos) in ohne_dach:
             return
         h.t(modell, P(*pos), (0, r, 0))
-    if dach == "sattel":
+    if stil == "bretter":     # Bretterdach ohne Überstände, Giebel aus Brettern
+        for x in range(0, W, 2):
+            d("dach_bretter_2x2", (x, H, 0), 0); d("dach_bretter_2x2", (x + 2, H, -D), 180)
+            h.t("balken_2m", P(x, H + 2, -2)); d("dach_first", (x, H + 2, -2), 0)
+        for gx in (0, W):
+            h.t("bretter_dreieck", P(gx, H, 0), (0, 90, 0)); h.t("bretter_dreieck", P(gx, H, -D), (0, 270, 0))
+            h.t("balken_2m", P(gx, H, -2), (0, 0, 90))
+    elif dach == "sattel":
         for x in range(0, W, 2):
             d("dach_2x2", (x, H, 0), 0); d("dach_traufe", (x, H, 0), 0)
             d("dach_2x2", (x + 2, H, -D), 180); d("dach_traufe", (x + 2, H, -D), 180)
@@ -133,6 +149,23 @@ def rechteckhaus(h, W, stockwerke, dach="sattel", treppe=True, ox=0, oz=0, ohne_
         for liste in F.values():
             for x, z, r in liste:
                 d("dach_traufe", (x, H, z), r)
+
+
+def steinring(h, W, y, hoehe, fenster=(), ox=0, oz=0):
+    """Steinmauern rundum (Keller oder Sockel) mit Pfeilern an jedem Rasterpunkt. fenster: Indizes der Felder
+    (im Uhrzeigersinn ab vorne links) mit Kellerfenster (nur bei hoehe 1)."""
+    i = 0
+    for liste in felder(W).values():
+        for x, z, r in liste:
+            if hoehe == 1:
+                modell = "steinwand_fenster" if i in fenster else "steinwand_2x1"
+            else:
+                modell = "steinwand_2x2"
+            h.t(modell, (x + ox, y, z + oz), (0, r, 0))
+            i += 1
+    for x in range(0, W + 1, 2):
+        for z in (0, -D, -2) if x in (0, W) else (0, -D):
+            h.t("steinpfeiler_%dm" % hoehe, (x + ox, y, z + oz))
 
 
 def bauernhaus(h, **kw):
@@ -165,6 +198,30 @@ def main():
         h.t("tisch", (x, 0, z)); h.t("bank", (x, 0, z - 0.75)); h.t("bank", (x, 0, z + 0.75), (0, 180, 0))
     h.t("fass", (10.6, 0, -0.6)); h.t("fass", (10.7, 0, -1.4)); h.t("kiste", (10.6, 0, -2.4), (0, 10, 0))
     h.speichern("gasthaus.json")
+
+    h = Haus("Verlassene Hütte", saat=11, kaputt=0.35)
+    rechteckhaus(h, 4, [{"vorne": "TW", "rechts": "WF", "hinten": "WW", "links": "FW"}], stil="bretter")
+    h.t("fass", (4.5, 0, 0.5), kaputt=True); h.t("kiste", (-0.6, 0, -1.0), (0, 30, 0), kaputt=True)
+    h.t("karren", (6.0, 0, -2.5), (0, 120, 0), kaputt=True)
+    h.speichern("verlassene_huette.json")
+
+    h = Haus("Haus am Fluss")
+    steinring(h, 6, 0, 1, fenster=(1, 4, 8))
+    rechteckhaus(h, 6, [{"vorne": "FTF", "rechts": "FS", "hinten": "SFS", "links": "FS"}], oy=1)
+    h.t("treppe_stein", (2.5, 0, 2.15))                          # Außentreppe zur Tür (1 m hoch)
+    h.t("fass", (5.4, 0, 0.6)); h.t("kiste", (6.6, 0, -0.8), (0, 15, 0))
+    h.speichern("haus_am_fluss.json")
+
+    h = Haus("Haus mit Keller")
+    steinring(h, 6, -2, 2)
+    for x in range(0, 6, 2):
+        for z in (0, -2):
+            h.t("steinboden_2x2", (x, -2, z))
+    h.t("treppe_holz", (4, -2, 0)); h.t("treppe_holz", (4, -1, -2))   # Kellertreppe, darüber Loch im Boden
+    rechteckhaus(h, 6, [{"vorne": "FTF", "rechts": "SF", "hinten": "FSF", "links": "FS"}],
+                 loecher={(4, 0, 0), (4, 0, -2)})
+    h.t("fass", (0.6, -2, -0.6)); h.t("fass", (0.6, -2, -1.4)); h.t("kiste", (2.4, -2, -3.4), (0, 10, 0))
+    h.speichern("haus_mit_keller.json")
 
     h = Haus("Ruine", saat=7, kaputt=0.55)
     bauernhaus(h, ohne_dach={("dach_2x2", (2, 2, 0)), ("dach_traufe", (2, 2, 0)), ("dach_first", (2, 4, -2)),

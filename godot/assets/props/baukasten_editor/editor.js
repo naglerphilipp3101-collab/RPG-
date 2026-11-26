@@ -32,6 +32,17 @@ const KATALOG = [
     ["dach_kehle_2x2", "Kehle (Innenecke)", "2 × 2"], ["dach_kehle_1x1", "Kehle (Innenecke)", "1 × 1"],
     ["dach_grat_2x2", "Grat (Außenecke)", "2 × 2"], ["dach_grat_1x1", "Grat (Außenecke)", "1 × 1"],
     ["dach_grat_traufe", "Überstand Gratecke", "0,5 × 0,5"]]],
+  ["Bretter (alt, windig)", [
+    ["bretter_2x2", "Bretterwand", "2 × 2"], ["bretter_2x1", "Bretterwand", "2 × 1"], ["bretter_1x1", "Bretterwand", "1 × 1"],
+    ["bretter_tuer", "Bretterwand mit Tür", "2 × 2"], ["tuer_alt", "Türblatt alt", "für Tür-Wände"],
+    ["bretter_fenster", "Bretterwand mit Fenster", "2 × 2"], ["bretter_dreieck", "Bretter-Giebel", "2 × 2"],
+    ["bretter_dreieck_1x1", "Bretter-Giebel", "1 × 1"], ["dach_bretter_2x2", "Bretterdach", "2 × 2"],
+    ["dach_bretter_2x1", "Bretterdach", "2 × 1"], ["dach_bretter_1x2", "Bretterdach", "1 × 2"], ["dach_bretter_1x1", "Bretterdach", "1 × 1"]]],
+  ["Stein (Keller, Sockel)", [
+    ["steinwand_2x2", "Steinwand", "2 × 2"], ["steinwand_2x1", "Steinwand", "2 × 1"], ["steinwand_1x1", "Steinwand", "1 × 1"],
+    ["steinwand_tuer", "Steinwand mit Tür", "2 × 2"], ["steinwand_fenster", "Kellerfenster", "2 × 1"],
+    ["steinpfeiler_2m", "Steinpfeiler", "2 m, an jeden Rasterpunkt"], ["steinpfeiler_1m", "Steinpfeiler", "1 m"],
+    ["steinboden_2x2", "Steinboden", "2 × 2"], ["steinboden_1x1", "Steinboden", "1 × 1"]]],
   ["Treppen", [["treppe_holz", "Holztreppe", "1 × 2, 1 m hoch"], ["treppe_stein", "Steintreppe", "1 × 2, 1 m hoch"]]],
   ["Einrichtung", [
     ["kiste", "Kiste"], ["fass", "Fass"], ["tisch", "Tisch"], ["stuhl", "Stuhl"], ["hocker", "Hocker"], ["bank", "Bank"],
