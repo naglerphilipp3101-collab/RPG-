@@ -69,6 +69,9 @@ func _init() -> void:
 	for paar in [["farbe_rot", Color(0.6, 0.08, 0.06)], ["farbe_weiss", Color(0.86, 0.83, 0.76)],
 			["wolle_rot", Color(0.4, 0.11, 0.09)], ["knochen", Color(0.76, 0.7, 0.57)],
 			# Küche und Vorrat
+			["fisch_trocken", Color(0.52, 0.42, 0.28)],
+			["fisch", Color(0.58, 0.58, 0.55)],
+			["erz", Color(0.45, 0.27, 0.15)],
 			["papier", Color(0.82, 0.75, 0.58)],
 			["fahne_gold", Color(0.8, 0.62, 0.22)],
 			["fahne_gelb", Color(0.88, 0.68, 0.12)],

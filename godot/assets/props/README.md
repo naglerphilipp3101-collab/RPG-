@@ -51,6 +51,9 @@ heuballen, schubkarre, huehnerkaefig, futtertrog.
 Deaths Dance, Archo's Legacy, Sentinels, Obex mit einfachem Wappen; kaputt = Stange gebrochen, Banner zerrissen am Boden), spanische_reiter,
 pfeilbuendel, ruestungsstapel, feldbett, kartentisch. Materialien fahne_* und papier.
 
+**Mine und Strand** (`blender/mine_strand.py`): stuetzbalken (Türstock), schienen (2 m, Spur 0,6 m), erzhaufen, spitzhacke_fels,
+ruderboot, steg (Deck bei z = 0,6, Pfähle bis -1,5 m), hummerkorb, fischgestell. Materialien erz, fisch, fisch_trocken.
+
 **Haus-Baukasten** (`blender/baukasten.py`). Regeln: 1-m-Raster (Stockwerkshöhe frei, Teile drehbar und überlappbar), alle Stoßflächen eben
 und genau im Raster (damit Blueprints einrasten und beim späteren Backen verdeckte Flächen entfernt werden können).
 
@@ -108,6 +111,7 @@ python blender/kueche.py [-- <ziel> --nur brotlaib --vorschau <ordner>]
 python blender/werkstaetten.py [-- <ziel> --nur webstuhl --vorschau <ordner>]
 python blender/dorf.py [-- <ziel> --nur pranger --vorschau <ordner>]
 python blender/militaer.py [-- <ziel> --nur banner_rot --vorschau <ordner>]
+python blender/mine_strand.py [-- <ziel> --nur steg --vorschau <ordner>]
 ```
 Ohne Ziel landen die Modelle in `modelle/`. `--vorschau` rendert jedes Modell mit Cycles als JPG.
 
