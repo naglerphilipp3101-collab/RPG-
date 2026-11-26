@@ -62,7 +62,23 @@ func _init() -> void:
 	_speichern(obst, "obst")
 	# Farbe auf der Zielscheibe (gemalte Ringe)
 	for paar in [["farbe_rot", Color(0.6, 0.08, 0.06)], ["farbe_weiss", Color(0.86, 0.83, 0.76)],
-			["wolle_rot", Color(0.4, 0.11, 0.09)], ["knochen", Color(0.76, 0.7, 0.57)]]:
+			["wolle_rot", Color(0.4, 0.11, 0.09)], ["knochen", Color(0.76, 0.7, 0.57)],
+			# Küche und Vorrat
+			["brot", Color(0.56, 0.33, 0.13)],
+			["brot_innen", Color(0.86, 0.76, 0.56)],
+			["kaese", Color(0.8, 0.6, 0.22)],
+			["kaese_innen", Color(0.95, 0.83, 0.48)],
+			["wurst", Color(0.36, 0.11, 0.08)],
+			["kraut_trocken", Color(0.34, 0.4, 0.17)],
+			["kraut_welk", Color(0.36, 0.28, 0.15)],
+			["lavendel", Color(0.45, 0.38, 0.62)],
+			["knoblauch", Color(0.88, 0.84, 0.76)],
+			["mehl", Color(0.84, 0.82, 0.77)],
+			["karotte", Color(0.86, 0.4, 0.09)],
+			["kohl", Color(0.45, 0.62, 0.3)],
+			["zwiebel", Color(0.7, 0.47, 0.22)],
+			["faul", Color(0.22, 0.17, 0.09)],
+			["schimmel", Color(0.62, 0.68, 0.55)]]:
 		var f := StandardMaterial3D.new()
 		f.resource_name = paar[0]
 		f.albedo_color = paar[1]
