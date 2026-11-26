@@ -1393,6 +1393,42 @@ GEL_HOEHE = 1.0
 
 
 def gelaender_1m(m, kaputt):
+    """Endstück: Geländer ohne Pfosten (x 0,05..0,95)."""
+    gitter(m, kaputt)
+
+
+def gelaender_1m_pfosten(m, kaputt):
+    """Geländer mit Pfosten am Ende, der Pfosten halb über dem Rasterpunkt (x 0,95..1,05): beliebig oft aneinander."""
+    gitter(m, kaputt)
+    pfosten(m, kaputt, 1.0)
+
+
+def ring_sektor(m, r, b, z0, z1, a0, a1, mat, n=10):
+    """Gebogenes Kantholz: Kreisringstück um (0,0) mit Radius r (Mitte), Breite b, Höhe z0..z1, Winkel a0..a1 (Grad)."""
+    bm = bmesh.new(); reihen = []
+    for i in range(n + 1):
+        a = math.radians(a0 + (a1 - a0) * i / n); c, s_ = math.cos(a), math.sin(a)
+        reihen.append([bm.verts.new((rr * c, rr * s_, z)) for rr, z in
+                       ((r - b / 2, z0), (r + b / 2, z0), (r + b / 2, z1), (r - b / 2, z1))])
+    for i in range(n):
+        for k in range(4):
+            a, b2 = reihen[i][k], reihen[i][(k + 1) % 4]
+            bm.faces.new((a, b2, reihen[i + 1][(k + 1) % 4], reihen[i + 1][k]))
+    bm.faces.new(reihen[0][::-1]); bm.faces.new(reihen[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    m.teil(bm, mat)
+
+
+def gelaender_ecke_rund(m, kaputt):
+    """Runde Außenecke ohne Pfosten um den Rasterpunkt: verbindet den Pfosten bei (0 | 0,1) mit dem bei (0,1 | 0)
+    (Handlauf und unterer Riegel als Viertelkreis mit Radius 0,1 durch das Feld +x/+y)."""
+    oben = BODEN_OBEN + GEL_HOEHE; unten = BODEN_OBEN + 0.08
+    if not kaputt:
+        ring_sektor(m, GEL_INNEN, 0.07, oben - 0.045, oben, 0, 90, "holz")
+    ring_sektor(m, GEL_INNEN, 0.05, unten, unten + 0.04, 0, 90, "holz" if not kaputt else "holz_alt")
+
+
+def gitter(m, kaputt):
     y = GEL_INNEN; x0 = PFOSTEN_B / 2; x1 = 1.0 - x0
     oben = BODEN_OBEN + GEL_HOEHE; unten = BODEN_OBEN + 0.08
     hl_d = 0.045; ul_d = 0.04
@@ -1451,7 +1487,8 @@ MODELLE = {"wand": wand, "wand_2x1": wand_2x1, "wand_1x1": wand_1x1, "balken_2m"
 
 MODELLE.update(VARIANTEN)
 MODELLE.update(BEFESTIGUNG)
-MODELLE.update({"gelaender_1m": gelaender_1m, "gelaender_pfosten": gelaender_pfosten,
+MODELLE.update({"gelaender_1m": gelaender_1m, "gelaender_1m_pfosten": gelaender_1m_pfosten,
+                "gelaender_ecke_rund": gelaender_ecke_rund, "gelaender_pfosten": gelaender_pfosten,
                 "gelaender_pfosten_mitte": gelaender_pfosten_mitte})
 
 
