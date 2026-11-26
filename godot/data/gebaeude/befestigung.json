@@ -1,0 +1,526 @@
+{
+ "format": "rpg_gebaeude",
+ "version": 1,
+ "name": "Befestigung",
+ "raster": 1.0,
+ "teile": [
+  {
+   "modell": "festung_stein_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_stein_15_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    3,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "festung_stein_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_stein_15_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    3,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "festung_stein_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_stein_15_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    3,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "festung_stein_2m",
+   "kaputt": false,
+   "pos": [
+    6,
+    0,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_stein_15_2m",
+   "kaputt": false,
+   "pos": [
+    6,
+    3,
+    0
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "festung_holz_2m",
+   "kaputt": false,
+   "pos": [
+    8,
+    0,
+    -1
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_holz_15_2m",
+   "kaputt": false,
+   "pos": [
+    8,
+    3,
+    -1
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "festung_holz_2m",
+   "kaputt": false,
+   "pos": [
+    8,
+    0,
+    -3
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_holz_15_2m",
+   "kaputt": false,
+   "pos": [
+    8,
+    3,
+    -3
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "festung_holz_2m",
+   "kaputt": false,
+   "pos": [
+    8,
+    0,
+    -5
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_holz_15_2m",
+   "kaputt": false,
+   "pos": [
+    8,
+    3,
+    -5
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "festung_holz_2m",
+   "kaputt": false,
+   "pos": [
+    8,
+    0,
+    -8
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_holz_15_2m",
+   "kaputt": false,
+   "pos": [
+    8,
+    3,
+    -8
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "festung_holz_2m",
+   "kaputt": false,
+   "pos": [
+    6,
+    0,
+    -8
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_holz_15_2m",
+   "kaputt": false,
+   "pos": [
+    6,
+    3,
+    -8
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "festung_holz_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    0,
+    -8
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_holz_15_2m",
+   "kaputt": false,
+   "pos": [
+    4,
+    3,
+    -8
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "festung_holz_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    0,
+    -8
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_holz_15_2m",
+   "kaputt": false,
+   "pos": [
+    2,
+    3,
+    -8
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "festung_stein_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    -7
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_stein_15_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    3,
+    -7
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "festung_stein_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    -5
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_stein_15_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    3,
+    -5
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "festung_stein_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    0,
+    -3
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_stein_15_2m",
+   "kaputt": false,
+   "pos": [
+    0,
+    3,
+    -3
+   ],
+   "dreh": [
+    0,
+    270,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_holz_10_2m",
+   "kaputt": false,
+   "pos": [
+    3,
+    3,
+    -1
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_holz_10_2m",
+   "kaputt": false,
+   "pos": [
+    5,
+    3,
+    -1
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "bruestung_holz_10_2m",
+   "kaputt": false,
+   "pos": [
+    7,
+    3,
+    -1
+   ],
+   "dreh": [
+    0,
+    180,
+    0
+   ]
+  },
+  {
+   "modell": "treppe_holz",
+   "kaputt": false,
+   "pos": [
+    7,
+    0,
+    -5
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "treppe_holz",
+   "kaputt": false,
+   "pos": [
+    5,
+    1,
+    -5
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "treppe_holz",
+   "kaputt": false,
+   "pos": [
+    3,
+    2,
+    -5
+   ],
+   "dreh": [
+    0,
+    90,
+    0
+   ]
+  },
+  {
+   "modell": "fass",
+   "kaputt": false,
+   "pos": [
+    6.4,
+    0,
+    -6.4
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "modell": "kiste",
+   "kaputt": false,
+   "pos": [
+    5.6,
+    0,
+    -6.5
+   ],
+   "dreh": [
+    0,
+    15,
+    0
+   ]
+  },
+  {
+   "modell": "lagerfeuer",
+   "kaputt": false,
+   "pos": [
+    4.0,
+    0,
+    -3.2
+   ],
+   "dreh": [
+    0,
+    0,
+    0
+   ]
+  }
+ ]
+}

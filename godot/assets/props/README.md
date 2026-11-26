@@ -62,6 +62,17 @@ Anfangspunkt auf einem Rasterpunkt, von dort läuft es 1 oder 2 m entlang x; ged
 
 Keller: Steinwände 2 × 2 eine Etage tiefer (y -2), Pfeiler an jeden Rasterpunkt, Steinboden, Holztreppe nach oben, im Erdgeschossboden ein Loch lassen. Sockel (z. B. am Fluss): Steinwände 2 × 1 mit Pfeilern 1 m, das Fachwerkhaus 1 m höher darauf. Beispiele: `verlassene_huette.json`, `haus_am_fluss.json`, `haus_mit_keller.json`.
 
+### Befestigung
+
+| Modell | Beschreibung |
+|---|---|
+| `festung_stein_2m`, `festung_stein_1m` | Wehrmauer aus Bruchstein, 3 m hoch, 1 m dick: belegt eine Rasterreihe wie ein Boden (x 0..L, Tiefe nach -z), Außenseite bei z 0. Oben Steinplatten als Wehrgang (Oberkante 3 m). Alle Seiten verkleidet; an Ecken füllt ein 1-m-Stück die Eckzelle |
+| `festung_holz_2m`, `festung_holz_1m` | Gleiche Maße als Holz-Erde-Mauer: Stämme außen und innen, Bohlen als Wehrgang |
+| `bruestung_stein_05/10/15_2m/1m` | Steinbrüstung 0,3 m dick an der Außenkante, 0,5 / 1 / 1,5 m hoch (1,5 m mit Zinnen im 1-m-Takt), mit Abdeckplatten. Auf die Mauer setzen (y 3, gleicher Ursprung und gleiche Drehung wie die Mauer) |
+| `bruestung_holz_05/10/15_2m/1m` | Holzbrüstung aus Stämmen mit Riegel innen, 1,5 m angespitzt wie eine Palisade |
+
+Als Absturzsicherung an der Innenkante: Brüstung um 180° drehen und eine Zelle weiter setzen (Ursprung am anderen Ende der Innenkante). Beispiel: `befestigung.json`.
+
 Tiefe läuft bei Boden, Dach und Treppe immer nach **-z** (von der Vorderseite einer ungedrehten Wand weg).
 
 Weitere Vorlagen (Bauernhaus, Stadthaus mit Treppe, Walmdachhaus, Gasthaus, Ruine) erzeugt `baukasten_editor/beispiele.py` nach `data/gebaeude/`; danach `bauen.py` laufen lassen, damit sie im Baukasten auftauchen.

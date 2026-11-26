@@ -24,7 +24,7 @@ import bpy, bmesh, math, sys, os
 from mathutils import Vector, Matrix, noise
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import basis
-from basis import Modell, M, quader, flaeche, bruchkante, klotz
+from basis import Modell, M, quader, flaeche, bruchkante, klotz, drehkoerper, verbiegen
 import props
 
 RASTER = 2.0
@@ -985,15 +985,25 @@ def kaputt_hoehe(m, x, hoehe, saat):
     return hoehe * (0.55 + 0.25 * noise.noise(Vector((x * 1.4, saat, 0.5)))) + 0.15 * math.sin(x * 2.1 + saat)
 
 
-def stein(m, x0, x1, z0, z1, kaputt, tiefe=STEIN_D, teilen=True):
+def block(m, lx, ly, lz, fase, rauh, abgeschlagen):
+    """Steinblock; mit m.leicht (Befestigung, lange Mauern) ohne Unterteilung: etwa ein Viertel der Dreiecke."""
+    if getattr(m, "leicht", False):
+        bm = quader(lx, ly, lz, fase=fase)
+        verbiegen(bm, m.rnd, rauh, 0.25)
+        bm.normal_update()
+        return bm
+    return klotz(m.rnd, lx, ly, lz, fase, rauh, abgeschlagen)
+
+
+def stein(m, x0, x1, z0, z1, kaputt, tiefe=STEIN_D, teilen=True, yc=0.0):
     """Bruchstein: unregelmäßig behauen, manchmal zwei flache Steine übereinander (kein Ziegel-Look)."""
     if teilen and z1 - z0 > 0.2 and x1 - x0 < 0.45 and m.rnd.random() < 0.3:
         zm = z0 + (z1 - z0) * m.rnd.uniform(0.4, 0.6)
-        stein(m, x0, x1, z0, zm, kaputt, tiefe, False); stein(m, x0, x1, zm, z1, kaputt, tiefe, False)
+        stein(m, x0, x1, z0, zm, kaputt, tiefe, False, yc); stein(m, x0, x1, zm, z1, kaputt, tiefe, False, yc)
         return
-    bm = klotz(m.rnd, x1 - x0 - FUGE, tiefe - m.rnd.uniform(0.0, 0.03), z1 - z0 - FUGE, 0.03, 0.018,
+    bm = block(m, x1 - x0 - FUGE, tiefe - m.rnd.uniform(0.0, 0.03), z1 - z0 - FUGE, 0.03, 0.018,
                0.8 if kaputt else 0.45)
-    m.teil(bm, "stein", M(((x0 + x1) / 2, m.rnd.uniform(-0.008, 0.008), (z0 + z1) / 2),
+    m.teil(bm, "stein", M(((x0 + x1) / 2, yc + m.rnd.uniform(-0.008, 0.008), (z0 + z1) / 2),
                           (m.rnd.uniform(-1.5, 1.5), 0, m.rnd.uniform(-1, 1))))
 
 
@@ -1133,6 +1143,217 @@ VARIANTEN = {"bretter_2x2": bretter_2x2, "bretter_2x1": bretter_2x1, "bretter_1x
              "steinboden_2x2": steinboden_2x2, "steinboden_1x1": steinboden_1x1}
 
 
+
+# ================================================================ Befestigung: Wehrmauern 3 m hoch, 1 m dick, Brüstungen
+# Wehrmauer: belegt eine ganze Rasterreihe wie ein Boden: x 0..L, Tiefe y 0..1 (in Godot z 0..-1), z 0..3.
+# Vorderseite (außen) bei y 0 – in Godot zeigt sie wie bei den Wänden nach +z. Oben ein begehbarer Wehrgang (Oberkante 3 m).
+# Ecken: ein 1-m-Stück füllt die Eckzelle; alle Seiten sind verkleidet, Stücke stoßen nur aneinander.
+# Brüstung: steht oben auf der Mauer an der Außenkante (y 0..0,3), 0,5 / 1 / 1,5 m hoch, 2 oder 1 m lang.
+# Innen als Absturzsicherung: um 180° gedreht und eine Zelle weiter setzen (wie beim Boden).
+
+FESTUNG_H = 3.0
+FESTUNG_D = 1.0
+SCHALE = 0.35          # Tiefe der Mauersteine außen und innen
+BRUESTUNG_D = 0.3
+
+
+def lage_steine(m, kaputt, xa, xb, z0, z1, j, tiefe, yc, steht=None):
+    """Eine Steinlage von xa bis xb mit versetzten Fugen."""
+    kanten = [xa]
+    x = xa + (m.rnd.uniform(0.15, 0.3) if j % 2 else m.rnd.uniform(0.3, 0.5))
+    while x < xb - 0.18:
+        kanten.append(x); x += m.rnd.uniform(0.25, 0.6)
+    kanten.append(xb)
+    for s0, s1 in zip(kanten, kanten[1:]):
+        if steht and not steht((s0 + s1) / 2, z1):
+            continue
+        stein(m, s0, s1, z0, z1, kaputt, tiefe, True, yc)
+
+
+def platten(m, kaputt, x0, x1, y0, y1, oben, dicke=0.1, steht=None):
+    """Abdeckplatten (Wehrgang, Mauerkrone) mit Oberkante oben."""
+    nx = max(1, round((x1 - x0) / 0.5)); ny = max(1, round((y1 - y0) / 0.5))
+    for i in range(ny):
+        for k in range(nx):
+            a = x0 + (x1 - x0) * k / nx; b = x0 + (x1 - x0) * (k + 1) / nx
+            if i % 2 and nx > 1:
+                a = max(x0, a - 0.25 * (x1 - x0) / nx); b = min(x1, b - 0.25 * (x1 - x0) / nx) if k < nx - 1 else x1
+            c = y0 + (y1 - y0) * i / ny; d = y0 + (y1 - y0) * (i + 1) / ny
+            if steht and not steht((a + b) / 2, oben):
+                continue
+            bm = block(m, b - a - 0.012, d - c - 0.012, dicke, 0.012, 0.005, 0.6 if kaputt else 0.1)
+            m.teil(bm, "stein", M(((a + b) / 2, (c + d) / 2, oben - dicke / 2 - m.rnd.uniform(0, 0.005))))
+
+
+def festung_stein(m, kaputt, L):
+    m.leicht = True
+    H, D = FESTUNG_H, FESTUNG_D
+    saat = m.rnd.uniform(0, 50)
+    grenze = lambda x: H * (0.62 + 0.18 * noise.noise(Vector((x * 1.3, saat, 0.5)))) + 0.2 * math.sin(x * 2.3 + saat)
+    steht = (lambda x, z: z <= grenze(x)) if kaputt else None
+    lagen = lagen_grenzen(H - 0.1)
+    for j, (z0, z1) in enumerate(zip(lagen, lagen[1:])):
+        for yc in (SCHALE / 2, D - SCHALE / 2):                     # Außen- und Innenschale
+            lage_steine(m, kaputt, 0.0, L, z0, z1, j + (1 if yc > 0.5 else 0), SCHALE, yc, steht)
+        for xa, xb in ((0.0, 0.3), (L - 0.3, L)):                    # Stirnseiten (Ecken, offene Enden)
+            if steht and not steht((xa + xb) / 2, z1):
+                continue
+            bm = block(m, D - 2 * SCHALE - FUGE, xb - xa - FUGE, z1 - z0 - FUGE, 0.03, 0.018, 0.8 if kaputt else 0.45)
+            m.teil(bm, "stein", M(((xa + xb) / 2, D / 2, (z0 + z1) / 2), (0, 0, 90)))
+    top = H - 0.12 if not kaputt else min(grenze(x / 10 * L) for x in range(11)) - 0.3
+    m.teil(quader(L - 0.04, D - 0.06, max(0.2, top)), "stein", M((L / 2, D / 2, max(0.2, top) / 2)))
+    if not kaputt:
+        platten(m, kaputt, 0.0, L, 0.0, D, H)
+
+
+def festung_stein_2m(m, kaputt):
+    festung_stein(m, kaputt, 2.0)
+
+
+def festung_stein_1m(m, kaputt):
+    festung_stein(m, kaputt, 1.0)
+
+
+def stamm(m, x, y, h, r, mat="holz_alt", spitz=False, kaputt=False):
+    """Senkrechter Stamm bei (x, y) von 0 bis h, oben gerade abgesägt oder angespitzt."""
+    if kaputt:
+        h *= m.rnd.uniform(0.35, 0.75); spitz = False
+    prof = [(r, 0.0), (r * 1.01, h * 0.5)]
+    prof += [(r * 0.97, h - 0.35), (r * 0.45, h - 0.15), (0.012, h)] if spitz else [(r * 0.98, h)]
+    bm = drehkoerper(prof, 10, True, True)
+    if kaputt:
+        oben = max(v.co.z for v in bm.verts)
+        for v in bm.verts:
+            if abs(v.co.z - oben) < 1e-4:
+                v.co.z += m.rnd.uniform(-0.1, 0.12)
+    verbiegen(bm, m.rnd, 0.008, 0.5)
+    m.teil(bm, mat, M((x, y, 0), (m.rnd.uniform(-0.8, 0.8), m.rnd.uniform(-0.8, 0.8), m.rnd.uniform(0, 360))),
+           uv="zylz", r=r)
+
+
+def festung_holz(m, kaputt, L):
+    """Holz-Erde-Mauer: Stämme außen und innen (je 0,25 m), Stirnseiten aus Stämmen, oben Bohlen als Wehrgang."""
+    H, D, r = FESTUNG_H, FESTUNG_D, 0.125
+    def mat():
+        return "holz_verkohlt" if kaputt and m.rnd.random() < 0.25 else "holz_alt"
+    n = round(L / (2 * r))
+    for i in range(n):
+        x = r + i * 2 * r
+        for y in (r, D - r):
+            if kaputt and m.rnd.random() < 0.12:
+                continue
+            stamm(m, x, y, H - 0.06, r * m.rnd.uniform(0.94, 1.0), mat(), kaputt=kaputt and m.rnd.random() < 0.4)
+    for x in (r, L - r):
+        for y in (3 * r, 5 * r):
+            stamm(m, x, y, H - 0.06, r * 0.98, mat(), kaputt=kaputt and m.rnd.random() < 0.4)
+    # Füllung (Erde/Steine), unsichtbar zwischen den Stämmen
+    m.teil(quader(L - 2 * r, D - 4 * r, H - 0.3), "stein", M((L / 2, D / 2, (H - 0.3) / 2)))
+    # Wehrgang: Bohlen quer
+    k = round(L / 0.2)
+    for i in range(k):
+        if kaputt and m.rnd.random() < 0.45:
+            continue
+        x = 0.1 + i * 0.2
+        m.brett(D, 0.196, 0.05, M((x, D / 2, H - 0.025), (0, 0, 90)), "holz" if not kaputt else mat(), biegen=0.0,
+                fase=0.004)
+
+
+def festung_holz_2m(m, kaputt):
+    festung_holz(m, kaputt, 2.0)
+
+
+def festung_holz_1m(m, kaputt):
+    festung_holz(m, kaputt, 1.0)
+
+
+def bruestung_stein(m, kaputt, L, h):
+    """Steinbrüstung 0,3 m dick an der Außenkante (y 0..0,3) mit Abdeckplatten. 1,5 m: unten 1 m geschlossen, darüber
+    Zinnen (0,6 m breit, 0,4 m Lücke, im 1-m-Takt: setzen sich über die Stöße fort)."""
+    m.leicht = True
+    saat = m.rnd.uniform(0, 50)
+    steht = (lambda x, z: z <= h * (0.55 + 0.3 * noise.noise(Vector((x * 1.7, saat, 0.2))))) if kaputt else None
+    voll = h if h < 1.2 else 1.0
+    lagen = lagen_grenzen(voll - 0.08)
+    for j, (z0, z1) in enumerate(zip(lagen, lagen[1:])):
+        lage_steine(m, kaputt, 0.0, L, z0, z1, j, BRUESTUNG_D, BRUESTUNG_D / 2, steht)
+    m.teil(quader(L - 0.04, BRUESTUNG_D - 0.06, voll - 0.12), "stein", M((L / 2, BRUESTUNG_D / 2, (voll - 0.12) / 2)))
+    if h < 1.2:
+        platten(m, kaputt, 0.0, L, -0.02, BRUESTUNG_D + 0.02, h, 0.08, steht)
+        return
+    platten(m, kaputt, 0.0, L, -0.02, BRUESTUNG_D + 0.02, voll, 0.08, steht)
+    for k in range(int(L)):
+        a, b = k, k + 0.6
+        if steht and not steht(a + 0.3, h):
+            continue
+        for j, (z0, z1) in enumerate(((voll, voll + 0.21), (voll + 0.21, h - 0.08))):
+            lage_steine(m, kaputt, a, b, z0, z1, j, BRUESTUNG_D, BRUESTUNG_D / 2)
+        platten(m, kaputt, a, b, -0.02, BRUESTUNG_D + 0.02, h, 0.08)
+
+
+def bruestung_holz(m, kaputt, L, h):
+    """Holzbrüstung: Stämme 0,2 m an der Außenkante, innen ein Riegel. 1,5 m: angespitzt wie eine Palisade."""
+    r = 0.1
+    for i in range(round(L / (2 * r))):
+        if kaputt and m.rnd.random() < 0.2:
+            continue
+        stamm(m, r + i * 2 * r, r, h + (m.rnd.uniform(-0.04, 0.04) if h > 1.2 else 0.0), r * m.rnd.uniform(0.92, 1.0),
+              "holz_verkohlt" if kaputt and m.rnd.random() < 0.3 else "holz_alt", spitz=h > 1.2,
+              kaputt=kaputt and m.rnd.random() < 0.4)
+    for z in ((h * 0.5,) if h < 0.8 else (0.3, min(h, 1.0) - 0.2)):
+        x1 = L if not (kaputt and m.rnd.random() < 0.5) else L * m.rnd.uniform(0.3, 0.6)
+        m.stab((0.02, 2 * r + 0.045, z), (x1 - 0.02, 2 * r + 0.045, z), 0.045, "holz_alt", biegen=0.004)
+
+
+def bruestung_stein_05_2m(m, kaputt):
+    bruestung_stein(m, kaputt, 2.0, 0.5)
+
+
+def bruestung_stein_05_1m(m, kaputt):
+    bruestung_stein(m, kaputt, 1.0, 0.5)
+
+
+def bruestung_stein_10_2m(m, kaputt):
+    bruestung_stein(m, kaputt, 2.0, 1.0)
+
+
+def bruestung_stein_10_1m(m, kaputt):
+    bruestung_stein(m, kaputt, 1.0, 1.0)
+
+
+def bruestung_stein_15_2m(m, kaputt):
+    bruestung_stein(m, kaputt, 2.0, 1.5)
+
+
+def bruestung_stein_15_1m(m, kaputt):
+    bruestung_stein(m, kaputt, 1.0, 1.5)
+
+
+def bruestung_holz_05_2m(m, kaputt):
+    bruestung_holz(m, kaputt, 2.0, 0.5)
+
+
+def bruestung_holz_05_1m(m, kaputt):
+    bruestung_holz(m, kaputt, 1.0, 0.5)
+
+
+def bruestung_holz_10_2m(m, kaputt):
+    bruestung_holz(m, kaputt, 2.0, 1.0)
+
+
+def bruestung_holz_10_1m(m, kaputt):
+    bruestung_holz(m, kaputt, 1.0, 1.0)
+
+
+def bruestung_holz_15_2m(m, kaputt):
+    bruestung_holz(m, kaputt, 2.0, 1.5)
+
+
+def bruestung_holz_15_1m(m, kaputt):
+    bruestung_holz(m, kaputt, 1.0, 1.5)
+
+
+BEFESTIGUNG = {"festung_stein_2m": festung_stein_2m, "festung_stein_1m": festung_stein_1m, "festung_holz_2m": festung_holz_2m, "festung_holz_1m": festung_holz_1m, "bruestung_stein_05_2m": bruestung_stein_05_2m, "bruestung_stein_05_1m": bruestung_stein_05_1m, "bruestung_stein_10_2m": bruestung_stein_10_2m, "bruestung_stein_10_1m": bruestung_stein_10_1m, "bruestung_stein_15_2m": bruestung_stein_15_2m, "bruestung_stein_15_1m": bruestung_stein_15_1m, "bruestung_holz_05_2m": bruestung_holz_05_2m, "bruestung_holz_05_1m": bruestung_holz_05_1m, "bruestung_holz_10_2m": bruestung_holz_10_2m, "bruestung_holz_10_1m": bruestung_holz_10_1m, "bruestung_holz_15_2m": bruestung_holz_15_2m, "bruestung_holz_15_1m": bruestung_holz_15_1m}
+
 MODELLE = {"wand": wand, "wand_2x1": wand_2x1, "wand_1x1": wand_1x1, "balken_2m": balken_2m, "balken_1m": balken_1m,
            "strebe_2m": strebe_2m, "wand_tuer": wand_tuer, "tuer": tuer, "wand_fenster": wand_fenster,
            "wand_fenster_2x1": wand_fenster_2x1, "wand_fenster_1x1": wand_fenster_1x1, "wand_dreieck": wand_dreieck,
@@ -1145,6 +1366,7 @@ MODELLE = {"wand": wand, "wand_2x1": wand_2x1, "wand_1x1": wand_1x1, "balken_2m"
            "dach_grat_1x1": dach_grat_1x1, "dach_grat_traufe": dach_grat_traufe, "treppe_holz": treppe_holz, "treppe_stein": treppe_stein}
 
 MODELLE.update(VARIANTEN)
+MODELLE.update(BEFESTIGUNG)
 
 
 if __name__ == "__main__":

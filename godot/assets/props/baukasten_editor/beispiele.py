@@ -223,6 +223,23 @@ def main():
     h.t("fass", (0.6, -2, -0.6)); h.t("fass", (0.6, -2, -1.4)); h.t("kiste", (2.4, -2, -3.4), (0, 10, 0))
     h.speichern("haus_mit_keller.json")
 
+    h = Haus("Befestigung")
+    # Hof 8 x 8 m: Mauern als 1 m breiter Ring, vorne/links Stein mit Zinnen, hinten/rechts Holz mit Palisade
+    seiten = [("stein", [(x, 0, 0) for x in (0, 2, 4, 6)], 0),
+              ("holz", [(8, 0, z) for z in (-1, -3, -5)], 90),
+              ("holz", [(x, 0, -8) for x in (8, 6, 4, 2)], 180),
+              ("stein", [(0, 0, z) for z in (-7, -5, -3)], 270)]
+    for art, stuecke, r in seiten:
+        for x, y, z in stuecke:
+            h.t("festung_%s_2m" % art, (x, y, z), (0, r, 0))
+            h.t("bruestung_%s_15_2m" % art, (x, 3, z), (0, r, 0))
+    for x in (3, 5, 7):                                         # Absturzsicherung innen am vorderen Wehrgang
+        h.t("bruestung_holz_10_2m", (x, 3, -1), (0, 180, 0))
+    for k in range(3):                                          # Treppe im Hof hinauf zum linken Wehrgang
+        h.t("treppe_holz", (7 - 2 * k, k, -5), (0, 90, 0))
+    h.t("fass", (6.4, 0, -6.4)); h.t("kiste", (5.6, 0, -6.5), (0, 15, 0)); h.t("lagerfeuer", (4.0, 0, -3.2))
+    h.speichern("befestigung.json")
+
     h = Haus("Ruine", saat=7, kaputt=0.55)
     bauernhaus(h, ohne_dach={("dach_2x2", (2, 2, 0)), ("dach_traufe", (2, 2, 0)), ("dach_first", (2, 4, -2)),
                              ("dach_2x2", (6, 2, -4)), ("dach_first", (4, 4, -2))})
