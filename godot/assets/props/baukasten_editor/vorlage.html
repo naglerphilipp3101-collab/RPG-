@@ -61,6 +61,14 @@ aside { background: var(--panel); border-right: 1px solid var(--line); overflow-
 aside h2 { font-family: var(--font-display); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--muted); margin: 14px 2px 6px; }
 aside h2:first-child { margin-top: 2px; }
+aside h2 .klappe { all: unset; cursor: pointer; display: flex; align-items: center; gap: 6px; width: 100%; padding: 2px 0; }
+aside h2 .klappe:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+aside h2 .klappe small { margin-left: auto; font-family: var(--font-mono); font-weight: 400; color: var(--muted); }
+aside h2 .pfeil { display: inline-block; width: 10px; transition: transform 0.15s; }
+aside h2 .klappe[aria-expanded="false"] .pfeil { transform: rotate(-90deg); }
+.teile[hidden] { display: none; }
+details.vorlagen summary { cursor: pointer; font-weight: 600; font-size: 14px; margin: 10px 0 4px; }
+details.vorlagen .eintrag { margin-bottom: 6px; }
 .teile { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .teil { display: grid; grid-template-rows: 64px auto; gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: var(--r);
   background: var(--bg); text-align: left; min-width: 0; }
@@ -147,13 +155,13 @@ textarea { width: 100%; min-height: 220px; white-space: pre; overflow: auto; fon
         <button class="knopf" data-werkzeug="loeschen" aria-pressed="false" title="3">Löschen</button>
       </div>
       <div class="gruppe">
-        <button class="knopf" id="k-drehen" title="R">Drehen ↻</button>
+        <button class="knopf" id="k-drehen" title="F">Drehen ↻</button>
         <button class="knopf" id="k-kippen" title="T">Hochkant</button>
-        <button class="knopf" id="k-zurueck" title="Strg+Z">Rückgängig</button>
+        <button class="knopf" id="k-zurueck" title="Z">Rückgängig</button>
       </div>
     </div>
     <div class="ebene">
-      <div class="zeile"><span>Höhe</span><span class="gruppe"><button class="knopf" id="k-runter" title="Q">−</button><b id="ebene-wert">0 m</b><button class="knopf" id="k-hoch" title="E">+</button></span></div>
+      <div class="zeile"><span>Höhe</span><span class="gruppe"><button class="knopf" id="k-runter" title="Strg+Mausrad">−</button><b id="ebene-wert">0 m</b><button class="knopf" id="k-hoch" title="Strg+Mausrad">+</button></span></div>
       <div class="zeile"><span>Raster</span>
         <select id="raster" aria-label="Raster">
           <option value="1">1 m</option><option value="0.5">0,5 m</option><option value="0.1">0,1 m</option>
@@ -168,9 +176,10 @@ textarea { width: 100%; min-height: 220px; white-space: pre; overflow: auto; fon
 
   <footer>
     <span id="info"></span>
-    <span class="tasten"><kbd>Klick</kbd> setzen · <kbd>Ziehen</kbd> Ansicht drehen · <kbd>Rechts</kbd> schieben · <kbd>Rad</kbd> Zoom ·
-      <kbd>R</kbd> drehen · <kbd>T</kbd> hochkant · <kbd>G</kbd> kippen · <kbd>Q</kbd>/<kbd>E</kbd> Höhe · <kbd>K</kbd> kaputt ·
-      <kbd>Alt</kbd>+Klick Teil übernehmen · <kbd>Entf</kbd> löschen · <kbd>Strg</kbd>+<kbd>Z</kbd>/<kbd>Y</kbd></span>
+    <span class="tasten"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> bewegen · <kbd>Q</kbd>/<kbd>E</kbd> Ansicht drehen ·
+      <kbd>Rad</kbd> in Blickrichtung fliegen · <kbd>Strg</kbd>+<kbd>Rad</kbd> Ebene · <kbd>Klick</kbd> setzen · <kbd>Ziehen</kbd> drehen · <kbd>Rechts</kbd> schieben ·
+      <kbd>F</kbd> Teil drehen · <kbd>T</kbd> hochkant · <kbd>G</kbd> kippen · <kbd>K</kbd> kaputt · <kbd>Z</kbd>/<kbd>Y</kbd> rückgängig/wiederholen ·
+      <kbd>Alt</kbd>+Klick Teil übernehmen · <kbd>Entf</kbd> löschen · Gruppentitel klappen (<kbd>Umschalt</kbd>+Klick: nur diese offen)</span>
   </footer>
 </div>
 

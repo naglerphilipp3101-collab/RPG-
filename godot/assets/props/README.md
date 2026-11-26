@@ -46,9 +46,44 @@ Anfangspunkt auf einem Rasterpunkt, von dort läuft es 1 oder 2 m entlang x; ged
 
 | `treppe_holz`, `treppe_stein` | 1 m breit, 2 m Lauf nach -z, 1 m hoch (5 Stufen à 20 × 40 cm), von Boden zu Boden; stapelbar |
 
+### Variante Bretter (alt, windig) und Variante Stein (Keller, Sockel)
+
+| Modell | Beschreibung |
+|---|---|
+| `bretter_2x2`, `bretter_2x1`, `bretter_1x1` | Senkrechte, verwitterte Bretter mit Lücken außen, zwei Querlatten innen. Gleiche Lage wie die Putzwände (mittig, y ±0,05), also gegeneinander austauschbar |
+| `bretter_tuer` + `tuer_alt` | Türöffnung wie `wand_tuer` (passt auch `tuer`); `tuer_alt` ist das Türblatt aus altem Holz |
+| `bretter_fenster` | Fensterloch 0,8 × 0,8 wie `wand_fenster`, grober Rahmen, offener Fensterladen außen |
+| `bretter_dreieck`, `bretter_dreieck_1x1` | Giebel aus Brettern, Form wie `wand_dreieck` |
+| `dach_bretter_2x2`, `_2x1`, `_1x2`, `_1x1` | Bretterdach 45° mit Lücken und Latten, gleiche Lage wie `dach_*` |
+| `steinwand_2x2`, `_2x1`, `_1x1` | Bruchsteinmauer 0,30 m dick, mittig auf der Rasterlinie. Füllt nur das Feld **zwischen** zwei Rasterpunkten (x 0,15..b-0,15) |
+| `steinpfeiler_2m`, `_1m` | 0,3 × 0,3 an einem Rasterpunkt. **An jeden Rasterpunkt, an dem eine Steinwand endet, gehört ein Pfeiler** (wie die Ständer beim Fachwerk). Steinlagen (0,25 m) laufen mit der Wand durch, nichts überlappt |
+| `steinwand_tuer`, `steinwand_fenster` | Tür wie `wand_tuer` (Sturz aus einem langen Stein), vergittertes Kellerfenster 0,6 × 0,4 in einer 2 × 1-Wand |
+| `steinboden_2x2`, `_1x1` | Steinplatten, Oberkante 0,1 m wie der Dielenboden (Keller) |
+| `podest_stein` | Steinpodest 1 × 1 × 1 m (Oberkante 1,1 m = oberste Stufe/Sockelboden): Absatz vor der Tür, wenn die Treppe seitlich anliegt |
+| `gelaender_1m_pfosten` | Holzgeländer 1 m (Handlauf 1 m über dem Boden, 0,1 m innen von der Rasterlinie) mit Pfosten am Ende, der halb über dem Rasterpunkt steht: beliebig oft aneinander |
+| `gelaender_1m` | Endstück ohne Pfosten (x 0,05..0,95): stößt bündig an quer stehende Wände |
+| `gelaender_ecke_rund` | Runde Außenecke ohne Pfosten um den Rasterpunkt, zwischen zwei Pfosten (Geländer läuft dann durch drei Rasterfelder) |
+| `gelaender_pfosten` | Eckpfosten innen, 10 × 10 cm in der Ecke neben dem Rasterpunkt; Drehen um den Rasterpunkt wählt die Ecke |
+| `gelaender_pfosten_mitte` | Pfosten auf dem Rasterpunkt: Anfang einer Reihe oder zweiter Pfosten einer Außenecke |
+| `podest_holz` | Holzplattform 1 × 1 × 0,2 m, Oberkante 0,1 m über dem Rasterpunkt; auf Höhe 1 setzen, `balken_1m` hochkant als Stützen an die Ecken |
+
+Keller: Steinwände 2 × 2 eine Etage tiefer (y -2), Pfeiler an jeden Rasterpunkt, Steinboden, Holztreppe nach oben, im Erdgeschossboden ein Loch lassen. Sockel (z. B. am Fluss): Steinwände 2 × 1 mit Pfeilern 1 m, das Fachwerkhaus 1 m höher darauf. Beispiele: `verlassene_huette.json`, `haus_am_fluss.json`, `haus_mit_keller.json`.
+
+### Befestigung
+
+| Modell | Beschreibung |
+|---|---|
+| `festung_stein_2m`, `festung_stein_1m` | Wehrmauer aus Bruchstein, 3 m hoch, 1 m dick: belegt eine Rasterreihe wie ein Boden (x 0..L, Tiefe nach -z), Außenseite bei z 0. Oben Steinplatten als Wehrgang (Oberkante 3 m). Alle Seiten verkleidet; an Ecken füllt ein 1-m-Stück die Eckzelle |
+| `festung_holz_2m`, `festung_holz_1m` | Gleiche Maße als Holz-Erde-Mauer: Stämme außen und innen, Bohlen als Wehrgang |
+| `bruestung_stein_05/10/15_2m/1m` | Steinbrüstung 0,3 m dick an der Außenkante, 0,5 / 1 / 1,5 m hoch (1,5 m mit Zinnen im 1-m-Takt), mit Abdeckplatten. Auf die Mauer setzen (y 3, gleicher Ursprung und gleiche Drehung wie die Mauer) |
+| `bruestung_holz_05/10/15_2m/1m` | Holzbrüstung aus Stämmen mit Riegel innen, 1,5 m angespitzt wie eine Palisade |
+
+Als Absturzsicherung an der Innenkante: Brüstung um 180° drehen und eine Zelle weiter setzen (Ursprung am anderen Ende der Innenkante). Beispiel: `befestigung.json`.
+
 Tiefe läuft bei Boden, Dach und Treppe immer nach **-z** (von der Vorderseite einer ungedrehten Wand weg).
 
 Weitere Vorlagen (Bauernhaus, Stadthaus mit Treppe, Walmdachhaus, Gasthaus, Ruine) erzeugt `baukasten_editor/beispiele.py` nach `data/gebaeude/`; danach `bauen.py` laufen lassen, damit sie im Baukasten auftauchen.
+`baukasten_editor/dorf.py [heil alt ruine]` würfelt viele Dorfhäuser (Standard 14/10/10, feste Saat) nach `data/gebaeude/dorf_<heil|alt|ruine>_NN.json`: Fachwerk mit 1–3 Stockwerken, Sattel-/Walmdach, Steinsockel mit Podest und Seitentreppe, Keller, Holzterrasse mit Geländer; alte Häuser aus Brettern; Ruinen mit eingestürzten Dächern und Obergeschossen (schwebende Balken und Wände über kaputten Feldern werden entfernt). Das Feld `gruppe` sortiert die Vorlagen im Baukasten.
 
 Durch den Überstand reicht ein Balken an jedem Rasterpunkt genau so weit wie ein querliegender: Ecken sind ohne Stufe geschlossen.
 
@@ -75,8 +110,8 @@ Ohne Ziel landen die Modelle in `modelle/`. `--vorschau` rendert jedes Modell mi
 
 ## Gebäude-Baukasten (Browser) und Gebäude in Godot
 `baukasten_editor/gebaeude_baukasten.html` per Doppelklick im Browser öffnen (läuft ohne Internet, alles eingebettet).
-Teile links wählen, ins Raster klicken, **R** drehen, **T** hochkant, **G** kippen, **Q/E** Höhe, **K** kaputt, **Alt+Klick** Teil übernehmen,
-Werkzeuge Bearbeiten (Pfeile verschieben, Strg+D verdoppeln) und Löschen, Strg+Z/Y. Speichern im Browser, **Exportieren** gibt die JSON-Datei.
+Kamera: **W/A/S/D** bewegen, **Q/E** Ansicht drehen, Mausrad fliegt in Blickrichtung (auch durch Wände und in den Keller, Drehpunkt wandert mit), Kamera bis 180° neigbar (auch von unten), **Strg+Mausrad** Ebene (auch unter 0 für Keller). Teile links wählen (Gruppen per Klick auf den Titel einklappbar, Umschalt+Klick lässt nur diese Gruppe offen), ins Raster klicken, **F** drehen, **T** hochkant, **G** kippen, **K** kaputt, **Alt+Klick** Teil übernehmen,
+Werkzeuge Bearbeiten (Pfeile verschieben, Strg+Mausrad hoch/runter, Strg+D verdoppeln) und Löschen, **Z/Y** rückgängig/wiederholen. Speichern im Browser, **Exportieren** gibt die JSON-Datei.
 Dieselbe Seite liegt auch als claude.ai-Artifact; dort gespeicherte Gebäude kann Claude direkt ins Repository übernehmen.
 
 Gebäude liegen in `godot/data/gebaeude/*.json` (Format `rpg_gebaeude`, Version 1: `teile` mit `modell`, `kaputt`, `pos`, `dreh` in Godot-Koordinaten,

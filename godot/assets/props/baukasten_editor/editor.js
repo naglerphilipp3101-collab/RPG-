@@ -32,7 +32,42 @@ const KATALOG = [
     ["dach_kehle_2x2", "Kehle (Innenecke)", "2 × 2"], ["dach_kehle_1x1", "Kehle (Innenecke)", "1 × 1"],
     ["dach_grat_2x2", "Grat (Außenecke)", "2 × 2"], ["dach_grat_1x1", "Grat (Außenecke)", "1 × 1"],
     ["dach_grat_traufe", "Überstand Gratecke", "0,5 × 0,5"]]],
+  ["Bretter (alt, windig)", [
+    ["bretter_2x2", "Bretterwand", "2 × 2"], ["bretter_2x1", "Bretterwand", "2 × 1"], ["bretter_1x1", "Bretterwand", "1 × 1"],
+    ["bretter_tuer", "Bretterwand mit Tür", "2 × 2"], ["tuer_alt", "Türblatt alt", "für Tür-Wände"],
+    ["bretter_fenster", "Bretterwand mit Fenster", "2 × 2"], ["bretter_dreieck", "Bretter-Giebel", "2 × 2"],
+    ["bretter_dreieck_1x1", "Bretter-Giebel", "1 × 1"], ["dach_bretter_2x2", "Bretterdach", "2 × 2"],
+    ["dach_bretter_2x1", "Bretterdach", "2 × 1"], ["dach_bretter_1x2", "Bretterdach", "1 × 2"], ["dach_bretter_1x1", "Bretterdach", "1 × 1"],
+    ["podest_holz", "Holzplattform", "1 × 1 × 0,2, auf Höhe 1 setzen"]]],
+  ["Stein (Keller, Sockel)", [
+    ["steinwand_2x2", "Steinwand", "2 × 2"], ["steinwand_2x1", "Steinwand", "2 × 1"], ["steinwand_1x1", "Steinwand", "1 × 1"],
+    ["steinwand_tuer", "Steinwand mit Tür", "2 × 2"], ["steinwand_fenster", "Kellerfenster", "2 × 1"],
+    ["steinpfeiler_2m", "Steinpfeiler", "2 m, an jeden Rasterpunkt"], ["steinpfeiler_1m", "Steinpfeiler", "1 m"],
+    ["steinboden_2x2", "Steinboden", "2 × 2"], ["steinboden_1x1", "Steinboden", "1 × 1"],
+    ["podest_stein", "Steinpodest", "1 × 1 × 1, Oberkante wie Treppe"]]],
+  ["Befestigung", [
+    ["festung_stein_2m", "Wehrmauer Stein", "2 × 1, 3 m hoch"],
+    ["festung_stein_1m", "Wehrmauer Stein", "1 × 1 (Ecke), 3 m"],
+    ["festung_holz_2m", "Wehrmauer Holz", "2 × 1, 3 m hoch"],
+    ["festung_holz_1m", "Wehrmauer Holz", "1 × 1 (Ecke), 3 m"],
+    ["bruestung_stein_05_2m", "Steinbrüstung", "2 m lang, 0,5 m"],
+    ["bruestung_stein_05_1m", "Steinbrüstung", "1 m lang, 0,5 m"],
+    ["bruestung_stein_10_2m", "Steinbrüstung", "2 m lang, 1 m"],
+    ["bruestung_stein_10_1m", "Steinbrüstung", "1 m lang, 1 m"],
+    ["bruestung_stein_15_2m", "Steinbrüstung", "2 m lang, 1,5 m Zinnen"],
+    ["bruestung_stein_15_1m", "Steinbrüstung", "1 m lang, 1,5 m Zinnen"],
+    ["bruestung_holz_05_2m", "Holzbrüstung", "2 m lang, 0,5 m"],
+    ["bruestung_holz_05_1m", "Holzbrüstung", "1 m lang, 0,5 m"],
+    ["bruestung_holz_10_2m", "Holzbrüstung", "2 m lang, 1 m"],
+    ["bruestung_holz_10_1m", "Holzbrüstung", "1 m lang, 1 m"],
+    ["bruestung_holz_15_2m", "Holzbrüstung", "2 m lang, 1,5 m spitz"],
+    ["bruestung_holz_15_1m", "Holzbrüstung", "1 m lang, 1,5 m spitz"]]],
   ["Treppen", [["treppe_holz", "Holztreppe", "1 × 2, 1 m hoch"], ["treppe_stein", "Steintreppe", "1 × 2, 1 m hoch"]]],
+  ["Geländer", [["gelaender_1m_pfosten", "Geländer + Pfosten", "1 m, Pfosten halb über dem Rasterpunkt: beliebig oft aneinander"],
+    ["gelaender_1m", "Geländer-Endstück", "1 m ohne Pfosten, z. B. an eine Wand"],
+    ["gelaender_pfosten_mitte", "Pfosten", "auf dem Rasterpunkt: Anfang oder Außenecke"],
+    ["gelaender_ecke_rund", "Eckstück rund", "Außenecke ohne Pfosten, zwischen zwei Pfosten"],
+    ["gelaender_pfosten", "Eckpfosten innen", "Ecke neben dem Rasterpunkt, F wählt die Ecke"]]],
   ["Einrichtung", [
     ["kiste", "Kiste"], ["fass", "Fass"], ["tisch", "Tisch"], ["stuhl", "Stuhl"], ["hocker", "Hocker"], ["bank", "Bank"],
     ["laterne", "Laterne"], ["laternenpfahl", "Laternenpfahl"], ["lagerfeuer", "Lagerfeuer"], ["karren", "Karren"],
@@ -65,7 +100,8 @@ const steuerung = new window.OrbitControls(kamera, leinwand);
 steuerung.target.set(2, 1.5, -2);
 steuerung.enableDamping = true;
 steuerung.mouseButtons = { LEFT: T.MOUSE.ROTATE, MIDDLE: T.MOUSE.DOLLY, RIGHT: T.MOUSE.PAN };
-steuerung.maxPolarAngle = Math.PI * 0.495;
+steuerung.maxPolarAngle = Math.PI - 0.01;   // fast 180°: auch von unten (Keller, Unterseiten)
+steuerung.enableZoom = false;                 // Mausrad fliegt selbst (siehe fliegen())
 steuerung.update();
 
 szene.add(new T.HemisphereLight(0xdfe8f0, 0x5b5040, 1.1));
@@ -386,10 +422,13 @@ function wiederherstellen() {
   abgleichen();
 }
 function ebeneSetzen(y) {
-  zustand.ebene = Math.max(0, runden(y));
+  zustand.ebene = Math.max(-10, Math.min(40, runden(y)));
   $("ebene-wert").textContent = String(zustand.ebene).replace(".", ",") + " m";
   ebeneGitter.position.y = zustand.ebene + 0.003;
-  ebeneGitter.visible = zustand.ebene > 0;
+  ebeneGitter.visible = zustand.ebene !== 0;
+  // Keller: unter Null wird der Boden durchsichtig, damit man hineinsieht
+  bodenMat.transparent = zustand.ebene < 0; bodenMat.opacity = zustand.ebene < 0 ? 0.25 : 1;
+  bodenMat.depthWrite = zustand.ebene >= 0; bodenMat.needsUpdate = true;
   sichtbarkeit();
 }
 function werkzeugWaehlen(w) {
@@ -402,11 +441,47 @@ function werkzeugWaehlen(w) {
 }
 
 // ------------------------------------------------------------------ Tasten und Knöpfe
+// Kamera mit der Tastatur: W/S vor/zurück, A/D seitlich, Q/E drehen (gehalten, siehe schleife)
+const gedrueckt = new Set();
+const KAMERA_TASTEN = ["w", "a", "s", "d", "q", "e"];
+document.addEventListener("keydown", (e) => {
+  if (e.target.closest && e.target.closest("input, textarea, select")) return;
+  const k = e.key.toLowerCase();
+  if (!(e.ctrlKey || e.metaKey || e.altKey) && KAMERA_TASTEN.includes(k)) gedrueckt.add(k);
+});
+document.addEventListener("keyup", (e) => gedrueckt.delete(e.key.toLowerCase()));
+window.addEventListener("blur", () => gedrueckt.clear());
+// Strg + Mausrad: Ebene wählen (bzw. ausgewähltes Teil hoch/runter); fängt das Rad vor dem Zoom ab
+window.addEventListener("wheel", (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.target !== leinwand) return;
+  e.preventDefault(); e.stopPropagation();
+  const r = e.deltaY < 0 ? 1 : -1;
+  const sel = zustand.werkzeug === "bearbeiten" && ausgewaehlt();
+  if (sel) verschieben(0, r, 0); else ebeneSetzen(zustand.ebene + r);
+}, { capture: true, passive: false });
+// Mausrad ohne Strg: in Blickrichtung fliegen (3D, nicht nur waagerecht). Der Drehpunkt bleibt liegen,
+// bis die Kamera ihm näher als PUNKT_MIN kommt; dann wird er mit nach vorne geschoben (man fliegt hindurch).
+const PUNKT_MIN = 2.0;
+function fliegen(meter) {
+  const blick = new T.Vector3(); kamera.getWorldDirection(blick);
+  kamera.position.addScaledVector(blick, meter);
+  const abstand = steuerung.target.clone().sub(kamera.position).dot(blick);
+  if (abstand < PUNKT_MIN) steuerung.target.copy(kamera.position).addScaledVector(blick, PUNKT_MIN);
+}
+leinwand.addEventListener("wheel", (e) => {
+  if (e.ctrlKey || e.metaKey) return;
+  e.preventDefault();
+  const r = kamera.position.distanceTo(steuerung.target);
+  const schritt = Math.max(0.4, Math.min(4, r * 0.15)) * Math.min(3, Math.abs(e.deltaY) / 100 || 1);
+  fliegen(e.deltaY < 0 ? schritt : -schritt);
+}, { passive: false });
+
 document.addEventListener("keydown", (e) => {
   if (e.target.closest && e.target.closest("input, textarea, select")) return;
   if (!$("fenster").hidden) { if (e.key === "Escape") fensterZu(); return; }
   const strg = e.ctrlKey || e.metaKey;
   const k = e.key.toLowerCase();
+  if (!strg && (k === "z" || k === "y")) { e.preventDefault(); k === "z" ? rueckgaengig() : wiederherstellen(); return; }
   if (strg && k === "z") { e.preventDefault(); e.shiftKey ? wiederherstellen() : rueckgaengig(); return; }
   if (strg && k === "y") { e.preventDefault(); wiederherstellen(); return; }
   if (strg && k === "s") { e.preventDefault(); speichern(); return; }
@@ -419,15 +494,16 @@ document.addEventListener("keydown", (e) => {
   const s = e.shiftKey ? -90 : 90;
   const sel = zustand.werkzeug === "bearbeiten" && ausgewaehlt();
   switch (k) {
-    case "r": drehen(1, s); break;
+    case "f": case "r": drehen(1, s); break;
     case "t": drehen(2, s); break;
     case "g": drehen(0, s); break;
     case "k":
       if (sel) { merken(); sel.kaputt = !sel.kaputt; abgleichen(); }
       else { zustand.kaputt = !zustand.kaputt; $("kaputt").checked = zustand.kaputt; geistAktualisieren(); }
       break;
-    case "q": case "pagedown": if (sel) verschieben(0, -1, 0); else ebeneSetzen(zustand.ebene - 1); break;
-    case "e": case "pageup": if (sel) verschieben(0, 1, 0); else ebeneSetzen(zustand.ebene + 1); break;
+    case "pagedown": if (sel) verschieben(0, -1, 0); else ebeneSetzen(zustand.ebene - 1); break;
+    case "pageup": if (sel) verschieben(0, 1, 0); else ebeneSetzen(zustand.ebene + 1); break;
+    case "w": case "a": case "s": case "d": case "q": case "e": break;   // Kamera, siehe gedrueckt/schleife
     case "1": werkzeugWaehlen("setzen"); break;
     case "2": werkzeugWaehlen("bearbeiten"); break;
     case "3": werkzeugWaehlen("loeschen"); break;
@@ -462,12 +538,33 @@ $("name").addEventListener("input", (e) => { zustand.name = e.target.value; zust
 const NAMEN = {};
 KATALOG.forEach(([, teile]) => teile.forEach(([id, name]) => { if (!NAMEN[id]) NAMEN[id] = name; }));
 function teilName(id) { return NAMEN[id] || id; }
+// Eingeklappte Gruppen merkt sich der Browser (nur Bequemlichkeit, darf fehlen)
+let zugeklappt = new Set();
+try { zugeklappt = new Set(JSON.parse(localStorage.getItem("baukasten_zugeklappt") || "[]")); } catch (e) {}
+function zugeklapptMerken() { try { localStorage.setItem("baukasten_zugeklappt", JSON.stringify([...zugeklappt])); } catch (e) {} }
+const klappen = new Map();
 function ablageBauen() {
   const ablage = $("ablage");
   ablage.textContent = "";
   KATALOG.forEach(([gruppe, teile]) => {
-    const h = document.createElement("h2"); h.textContent = gruppe; ablage.appendChild(h);
+    const h = document.createElement("h2");
+    const knopf = document.createElement("button"); knopf.type = "button"; knopf.className = "klappe";
+    knopf.innerHTML = '<span class="pfeil" aria-hidden="true">▾</span>';
+    knopf.append(document.createTextNode(gruppe));
+    const anzahl = document.createElement("small"); anzahl.textContent = teile.filter(([id]) => D.modelle[id]).length;
+    knopf.appendChild(anzahl);
+    h.appendChild(knopf); ablage.appendChild(h);
     const raster = document.createElement("div"); raster.className = "teile";
+    const setzeZu = (zu) => { raster.hidden = zu; knopf.setAttribute("aria-expanded", String(!zu)); };
+    setzeZu(zugeklappt.has(gruppe)); klappen.set(gruppe, setzeZu);
+    knopf.addEventListener("click", (e) => {
+      if (e.shiftKey) {   // Umschalt+Klick: alle anderen zu, diese auf
+        zugeklappt = new Set(KATALOG.map(([g]) => g).filter((g) => g !== gruppe));
+        zugeklapptMerken(); klappen.forEach((f, g) => f(zugeklappt.has(g))); return;
+      }
+      const zu = !raster.hidden; setzeZu(zu);
+      zu ? zugeklappt.add(gruppe) : zugeklappt.delete(gruppe); zugeklapptMerken();
+    });
     teile.forEach(([id, name, mass, dreh]) => {
       if (!D.modelle[id]) return;
       const b = document.createElement("button");
@@ -685,10 +782,19 @@ function fensterGebaeude(hinweis) {
           el("button", { class: "knopf", on: { click: () => verwerfenFrage(() => { try { ausDaten(JSON.parse(g.json), g.id); fensterZu(); } catch (e) { meldung(e.message); } }) } }, "Laden"),
           loeschKnopf));
       });
-      liste.append(el("h3", { style: "font-size:14px;margin-top:8px" }, "Vorlagen"));
-      D.vorlagen.forEach((v) => liste.append(el("div", { class: "eintrag" },
-        el("div", { class: "t" }, el("b", {}, v.name), el("small", {}, v.teile.length + " Teile · aus dem Projekt")),
-        el("button", { class: "knopf", on: { click: () => verwerfenFrage(() => { ausDaten(v, null); fensterZu(); }) } }, "Laden"))));
+      // Vorlagen aus dem Projekt nach Gruppe ("Beispiele", "Dorf: heil", "Dorf: alt", "Dorf: Ruine"), einklappbar
+      const gruppen = new Map();
+      D.vorlagen.forEach((v) => { const g = v.gruppe || "Beispiele"; if (!gruppen.has(g)) gruppen.set(g, []); gruppen.get(g).push(v); });
+      const ORDNUNG = ["Beispiele", "Dorf: heil", "Dorf: alt", "Dorf: Ruine"];
+      [...gruppen.entries()].sort((a, b) => (ORDNUNG.indexOf(a[0]) + 99) % 99 - (ORDNUNG.indexOf(b[0]) + 99) % 99).forEach(([g, vs]) => {
+        const det = el("details", { class: "vorlagen" });
+        if (g === "Beispiele") det.open = true;
+        det.append(el("summary", {}, "Vorlagen: " + g + " (" + vs.length + ")"));
+        vs.forEach((v) => det.append(el("div", { class: "eintrag" },
+          el("div", { class: "t" }, el("b", {}, v.name), el("small", {}, v.teile.length + " Teile · aus dem Projekt")),
+          el("button", { class: "knopf", on: { click: () => verwerfenFrage(() => { ausDaten(v, null); fensterZu(); }) } }, "Laden"))));
+        liste.append(det);
+      });
     };
     speicher.beiAenderung = zeichnen;
     k.append(el("h3", {}, "Gebäude"));
@@ -749,7 +855,30 @@ function groesse() {
   kamera.updateProjectionMatrix();
 }
 new ResizeObserver(groesse).observe(leinwand.parentElement);
+let letzteZeit = performance.now();
 function schleife() {
+  const jetzt = performance.now(), dt = Math.min(0.1, (jetzt - letzteZeit) / 1000);
+  letzteZeit = jetzt;
+  if (gedrueckt.size && $("fenster").hidden) {
+    const vor = new T.Vector3(); kamera.getWorldDirection(vor); vor.y = 0; vor.normalize();
+    const rechts = new T.Vector3(-vor.z, 0, vor.x);
+    const tempo = 6 * Math.max(0.6, kamera.position.distanceTo(steuerung.target) / 14) * dt;
+    const weg = new T.Vector3();
+    if (gedrueckt.has("w")) weg.add(vor);
+    if (gedrueckt.has("s")) weg.sub(vor);
+    if (gedrueckt.has("d")) weg.add(rechts);
+    if (gedrueckt.has("a")) weg.sub(rechts);
+    if (weg.lengthSq() > 0) {
+      weg.normalize().multiplyScalar(tempo);
+      kamera.position.add(weg); steuerung.target.add(weg);
+    }
+    const dreh = (gedrueckt.has("q") ? 1 : 0) - (gedrueckt.has("e") ? 1 : 0);
+    if (dreh) {
+      const rel = kamera.position.clone().sub(steuerung.target);
+      rel.applyAxisAngle(new T.Vector3(0, 1, 0), dreh * 1.6 * dt);
+      kamera.position.copy(steuerung.target).add(rel);
+    }
+  }
   steuerung.update();
   renderer.render(szene, kamera);
   requestAnimationFrame(schleife);
@@ -770,6 +899,6 @@ function schleife() {
   geistAktualisieren();
   infoZeigen();
   speicher.start();
-  window.BAUKASTEN = { zustand, alsDaten, ausDaten, setzen: (x, y, z) => setzen(new T.Vector3(x, y, z)) };   // für Tests
+  window.BAUKASTEN = { zustand, alsDaten, ausDaten, kamera, steuerung, setzen: (x, y, z) => setzen(new T.Vector3(x, y, z)) };   // für Tests
 })();
 })();
