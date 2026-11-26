@@ -41,6 +41,9 @@ Der Schädel ist ein Abstandsfeld (Marching Cubes) und braucht `pip install scik
 wurststange (Ursprung = Deckenhaken, hängt 0,42 m tief), kraeuterbuendel (Wandleiste, Ursprung auf der Wand, ragt nach -y), mehlsack, gemuesekorb.
 Neue einfarbige Materialien: brot, brot_innen, kaese, kaese_innen, wurst, kraut_trocken, kraut_welk, lavendel, knoblauch, mehl, karotte, kohl, zwiebel, faul, schimmel.
 
+**Werkstätten** (`blender/werkstaetten.py`): schleifstein (mit Wassertrog), werkbank (Hobelbank mit Werkzeug), holzstapel (mit Hackklotz und Axt),
+webstuhl (mit Bank), gerberrahmen (eingeschnürte Haut, Bottich), wassertrog. Neue Materialien haut, wasser (durchsichtig wie glas).
+
 **Haus-Baukasten** (`blender/baukasten.py`). Regeln: 1-m-Raster (Stockwerkshöhe frei, Teile drehbar und überlappbar), alle Stoßflächen eben
 und genau im Raster (damit Blueprints einrasten und beim späteren Backen verdeckte Flächen entfernt werden können).
 
@@ -95,6 +98,7 @@ python blender/deko.py    [-- <ziel> --nur amboss,brunnen --vorschau <ordner>]
 python blender/taverne.py [-- <ziel> --nur bett,regal --vorschau <ordner>]
 python blender/friedhof.py [-- <ziel> --nur gruft --vorschau <ordner>]
 python blender/kueche.py [-- <ziel> --nur brotlaib --vorschau <ordner>]
+python blender/werkstaetten.py [-- <ziel> --nur webstuhl --vorschau <ordner>]
 ```
 Ohne Ziel landen die Modelle in `modelle/`. `--vorschau` rendert jedes Modell mit Cycles als JPG.
 

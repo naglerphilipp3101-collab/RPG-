@@ -40,6 +40,11 @@ func _init() -> void:
 	gg.resource_name = "glas_gruen"
 	gg.albedo_color = Color(0.2, 0.38, 0.16, 0.45)
 	_speichern(gg, "glas_gruen")
+	var wasser: StandardMaterial3D = glas.duplicate()
+	wasser.resource_name = "wasser"
+	wasser.albedo_color = Color(0.1, 0.17, 0.19, 0.78)
+	wasser.roughness = 0.03
+	_speichern(wasser, "wasser")
 	var asche := StandardMaterial3D.new()
 	asche.resource_name = "asche"
 	asche.albedo_color = Color(0.24, 0.23, 0.22)
@@ -64,6 +69,7 @@ func _init() -> void:
 	for paar in [["farbe_rot", Color(0.6, 0.08, 0.06)], ["farbe_weiss", Color(0.86, 0.83, 0.76)],
 			["wolle_rot", Color(0.4, 0.11, 0.09)], ["knochen", Color(0.76, 0.7, 0.57)],
 			# Küche und Vorrat
+			["haut", Color(0.66, 0.52, 0.36)],
 			["brot", Color(0.56, 0.33, 0.13)],
 			["brot_innen", Color(0.86, 0.76, 0.56)],
 			["kaese", Color(0.8, 0.6, 0.22)],
