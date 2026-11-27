@@ -1,0 +1,28 @@
+{
+	"haupt_prolog_1": {
+		"art": "haupt", "reihe": "hauptquest", "titel": "Gestrandet", "geber": "", "region": "startgebiet",
+		"texte": {
+			"angebot": "Salz im Mund, Sand in den Kleidern. Vom Schiff ist nichts geblieben. In der Nähe steigt Rauch auf: ein Dorf.",
+			"laufend": "Im Dorf kann dir vielleicht jemand sagen, wo du gestrandet bist."
+		},
+		"ziele": [
+			{"art": "reden", "npc": "aeltester", "text": "Mit dem Dorfältesten reden",
+				"sagt": "Noch einer vom Riff? Du bist der Erste seit Wochen, der lebend ankommt. Seit sie oben am Berg wieder graben, tobt der Sturm um die Insel. Kein Schiff kommt durch. Ruh dich aus, und dann sehen wir, wofür du taugst."}
+		],
+		"belohnung": {"ep": 50},
+		"folgequest": "haupt_prolog_2"
+	},
+	"haupt_prolog_2": {
+		"art": "haupt", "reihe": "hauptquest", "titel": "Ein Dach über dem Kopf", "geber": "aeltester", "region": "startgebiet",
+		"bedingungen": {"quests": ["haupt_prolog_1"]},
+		"texte": {
+			"angebot": "Wer in Kiesbach schlafen will, hilft mit. Bring mir Frischholz für die Hütte am Dorfrand, dann gehört sie dir.",
+			"laufend": "Fünf Stück Frischholz. Die Bäume rund ums Dorf reichen dafür.",
+			"abschluss": "Gutes Holz. Die Hütte ist deine. Und wenn du etwas Gold brauchst: Maren und Rudger haben immer Arbeit."
+		},
+		"ziele": [
+			{"art": "abgeben", "item": "green_wood", "anzahl": 5, "npc": "aeltester"}
+		],
+		"belohnung": {"ep": 150, "gold": 20, "region_ansehen": 50}
+	}
+}

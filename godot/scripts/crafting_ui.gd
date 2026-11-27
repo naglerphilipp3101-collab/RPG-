@@ -213,6 +213,9 @@ func _look_waffe(output: String) -> String:
 
 func _show_look(output: String) -> void:
 	var waffe := _look_waffe(output)
+	# Die Spalte gibt es erst mit dem Skizzenbuch (Questreihe bei der Schmiedin, data/quests/skizzenbuch.json)
+	if not player.freischaltungen.has("skizzenbuch"):
+		waffe = ""
 	look_box.visible = waffe != ""
 	if waffe == "":
 		module = {}
@@ -246,11 +249,15 @@ func _show_look(output: String) -> void:
 		stil.item_selected.connect(func(i: int) -> void:
 			module[platz]["tier"] = i + 1
 			module[platz]["form"] = mini(int(module[platz]["form"]), WaffenModell.formen(String(def[0]), i + 1))
+			if not player.hat_blaupause(String(def[0]), i + 1, int(module[platz]["form"])):
+				module[platz]["form"] = 1
 			_show_look.call_deferred(output))
 		row.add_child(stil)
 		var form := OptionButton.new()
 		for f in range(1, WaffenModell.formen(String(def[0]), int(module[platz]["tier"])) + 1):
-			form.add_item("Form %d" % f, f)
+			var frei_form: bool = player.hat_blaupause(String(def[0]), int(module[platz]["tier"]), f)
+			form.add_item("Form %d" % f if frei_form else "Form %d (Blaupause fehlt)" % f, f)
+			form.set_item_disabled(f - 1, not frei_form)
 		form.select(int(module[platz]["form"]) - 1)
 		form.item_selected.connect(func(i: int) -> void:
 			module[platz]["form"] = i + 1

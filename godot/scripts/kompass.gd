@@ -90,6 +90,17 @@ func _draw() -> void:
 		draw_circle(pos, 5.5, color)
 		var letter: String = LETTERS.get(t["profession"], "?")
 		draw_string(font, pos + Vector2(-3.5, 4.0), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0, 0, 0, 0.85))
+	# Ziel der verfolgten Quest (scripts/quest_welt.gd): goldene Raute, außerhalb des Ausschnitts am Rand
+	var welt = get_tree().get_first_node_in_group("quest_welt")
+	var ziel = welt.ziel_position() if welt else null
+	if ziel != null:
+		var to: Vector3 = Vector3(ziel) - player.global_position
+		var rel := wrapf(atan2(-to.x, -to.z) - float(player.cam_yaw), -PI, PI)
+		var x := center - clampf(rel / HALF_FOV, -1.0, 1.0) * WIDTH * 0.5
+		var y := rect.get_center().y
+		var raute := PackedVector2Array([Vector2(x, y - 10), Vector2(x + 8, y), Vector2(x, y + 10), Vector2(x - 8, y)])
+		draw_colored_polygon(raute, Color(0, 0, 0, 0.7) if absf(rel) > HALF_FOV else Color(1.0, 0.8, 0.25))
+		draw_polyline(raute + PackedVector2Array([raute[0]]), Color(1.0, 0.85, 0.4), 1.5)
 	var clock := "Tag %d  ·  %s" % [Game.day, clock_text()]
 	var cw := font.get_string_size(clock, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
 	draw_string(font, Vector2(center - cw * 0.5, rect.end.y + 34.0), clock, HORIZONTAL_ALIGNMENT_LEFT, -1, 13,

@@ -94,8 +94,10 @@ GitHub: https://github.com/naglerphilipp3101-collab/RPG- (öffentlich). Lokal: `
 | `scripts/ausruestung_ui.gd` | Ausrüstungsschrank im Dorf (Werkstatt `schrank`): ein Knopf je Waffe legt Stufe 1 + Schild + Lederrüstung an, Meisterschaft auf 20 (zum Ansehen der Animationen); Test `--autotest --schrank` |
 | `scripts/hud.gd`, `inventory_ui.gd`, `crafting_ui.gd`, `skill_tree_ui.gd`, `charakter_ui.gd`, `kompass.gd`, `pause_menu.gd` | Oberfläche (Charakterfenster P, Kompass mit Aufspüren und Uhrzeit) |
 | `scripts/fehler_melden.gd` | Taste B: Fehler mit Position, Blick, Biom, Bildschirmfoto und Kommentar nach `%APPDATA%\Godot\app_userdata\RPG\fehler\` (`fehler.json` + `fehler_NNN.jpg`); Start an einer Meldung mit `-- --fehler <nr>` |
+| `scripts/quest_log.gd`, `quest_welt.gd`, `npc.gd`, `quest_ort.gd`, `dialog_ui.gd`, `questlog_ui.gd` | Quests (27.11.): Questbuch-Logik, NPCs/Orte/Quest-Gegner in der Welt, Platzhalter-NPCs, Gespräche und Entscheidungen, Questbuch (J). Daten `data/quests/*.json` (alle Dateien werden geladen), `data/npcs.json` (NPCs, Orte lokal zum Startgebiet). Quest ohne Geber startet von selbst, außer sie ist Folgequest; `"abgabe": ""` = schließt sich selbst ab. Entwurf: Claude Doc „Quest-System Morvane“ |
 | `scripts/tageszeit.gd` | Tag/Nacht-Zyklus (Sonne, Mond, Himmel, Nebel; Uhrzeit in `Game.time_of_day`) |
 | `scripts/save_game.gd` | Speichern/Laden (JSON) |
+| `data/quests/*.json` | Quests: art (neben/blaupause/haupt/fraktion/lore/stimme), geber, abgabe, bedingungen, texte, ziele, reihenfolge, wahl, belohnung, beim_annehmen, folgequest |
 | `data/weapons.json` | 15 Waffen (10 + 5 Magie, `magic`/`element`): Movesets, Fernkampf, Rezepte, je 2 Seiten (`sides`: Passive mit `mechanic`/`params`, 4 Fähigkeiten, Ultimative; Templates strike/dash/leap/buff/evade/shot/zone) |
 | `data/attributes.json` | 5 Attribute: Boni je Punkt, Schwellen 25–500 (`stats` → `player.bonus()`, `mechanics` → Sonderregeln, `ab` = noch ohne Wirkung) |
 | `data/items|recipes|stations|gathering|professions|enemies.json` | Übrige Inhalte (`level` bei Rezepten/Quellen = benötigter Berufs-Skill 0–300) |
@@ -115,7 +117,8 @@ Kollisionsebenen im Spiel: 1 = Welt, 2 = Spieler, 4 = Gegner, 8 = Baumkronen (nu
   6 kleine Passiven (`minors`), große Passive (ab 3 Punkten) und Ultimative (ab 7). Eine große Passive und eine Ultimative aktiv. Logik in `Game._build_weapon_trees`/`effective_skill`, Fenster `skill_tree_ui.gd`,
   Bilder `skill_icons.gd` (Datei unter `assets/icons/faehigkeiten/<id>.png|svg` hat Vorrang). Die übrigen 14 Waffen haben noch keine Verbesserungen/kleinen Passiven. Details in KONZEPT.md „Skillbäume (22.10.)“
 - **Freie Kamera** (25.11., `scripts/freie_kamera.gd`): F4 an/aus, WASD/Leertaste/C fliegen, Umschalt schnell, Alt langsam, Mausrad Zoom, G Zeitlupe, V Standbild; die Figur bleibt stehen und greift weiter an. Test `--autotest --freecam`
-- **Tasten:** Q/E/R Fähigkeiten, X Ultimative, F Interagieren, T/Mausrad Waffe wechseln, 1 Trank, 2 Essen (3/4 gesperrt bis M8-Level-Quests), K Skillbaum, P Charakter, B Fehler melden (nicht F9: die pausiert im Godot-Editor das laufende Spiel)
+- **Quest-System** (27.11., Beginn M8): siehe KONZEPT.md „Quest-System“. Gold, Regions-/Fraktionsansehen (nur Punkte, Stufen mit M9), Blaupausen (`player.hat_blaupause`, Form 1 immer frei, Spalte Aussehen erst mit Freischaltung `skizzenbuch`), Spielstand-Version 5
+- **Tasten:** Q/E/R Fähigkeiten, X Ultimative, F Interagieren, T/Mausrad Waffe wechseln, 1 Trank, 2 Essen (3/4 gesperrt bis M8-Level-Quests), K Skillbaum, P Charakter, J Questbuch, B Fehler melden (nicht F9: die pausiert im Godot-Editor das laufende Spiel)
 
 **Designregeln des Nutzers:**
 - Rohstoffe haben LP pro Tier, Werkzeuge haben Abbaukraft. Abbauzeit = LP ÷ Abbaukraft.
@@ -184,6 +187,7 @@ Godot --headless --path godot -- --autotest --character    # Level, Attribute, W
 Godot --headless --path godot -- --autotest --m6           # Waffenseiten, Passive, Ultimative, Effekte, Tasten, alte Spielstände
 Godot --headless --path godot -- --autotest --m7           # Magie: Hitze, Frost, Ladung, Brennen, Beschwörungen, Heilung, Sanktum
 Godot --headless --path godot -- --autotest --fehlertest   # Fehlermeldung mit B (stellt vorhandene Meldungen wieder her)
+Godot --headless --path godot -- --autotest --quests       # Quest-System: Prolog, Nebenaufgaben, Skizzenbuch, beide Enden der Geister-Questreihe, Speichern
 Godot --path godot --write-movie <ordner>\f.png --fixed-fps 20 -- --autotest --showcase   # Bilder prüfen
 ```
 Weitere Bild-Modi: `--ui`, `--village`, `--pause` (mit `--quit-after N`); Insel: `--island` (Blick aufs Startdorf), `--island --aerial`, `--island --flytest` (nur mit Fenster, headless bewegt sich der Spieler nicht). Im Testmodus ist das Speichern abgeschaltet (`Game.saving_enabled = false`).

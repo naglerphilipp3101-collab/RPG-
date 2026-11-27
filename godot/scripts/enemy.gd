@@ -37,6 +37,7 @@ var dt := 0.0
 var shown_ratio := -1.0
 var life_id := 0 # zählt Tode, damit alte Timer nach dem Wiedererscheinen ignoriert werden
 var corpse_present := false
+var einmalig := false # von einer Quest erschaffen: erscheint nach dem Tod nicht wieder (scripts/quest_welt.gd)
 var interact_radius := 2.0
 var bleed_dps := 0.0
 var bleed_time := 0.0
@@ -857,6 +858,11 @@ func _die() -> void:
 	corpse_present = true
 	var respawn_time := float(data.get("respawn", 30.0))
 	var corpse_time := minf(40.0, respawn_time - 2.0) if data.get("skinnable", false) else 2.5
+	if einmalig:
+		corpse_time = maxf(corpse_time, 2.5)
+		get_tree().create_timer(corpse_time).timeout.connect(_remove_corpse.bind(life_id))
+		get_tree().create_timer(corpse_time + 2.0).timeout.connect(queue_free)
+		return
 	get_tree().create_timer(corpse_time).timeout.connect(_remove_corpse.bind(life_id))
 	get_tree().create_timer(respawn_time).timeout.connect(_respawn)
 

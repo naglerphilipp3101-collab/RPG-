@@ -13,6 +13,8 @@ const CharakterUIScript := preload("res://scripts/charakter_ui.gd")
 const KompassScript := preload("res://scripts/kompass.gd")
 const FaerberUIScript := preload("res://scripts/faerber_ui.gd")
 const AusruestungUIScript := preload("res://scripts/ausruestung_ui.gd")
+const DialogUIScript := preload("res://scripts/dialog_ui.gd")
+const QuestlogUIScript := preload("res://scripts/questlog_ui.gd")
 const NOTIFY_TIME := 3.5
 const MAX_NOTIFICATIONS := 7
 const HELP_TEXT := """Steuerung
@@ -22,11 +24,11 @@ Shift  Ausweichrolle
 Linke Maustaste  Angriff (halten = schwer)
 Rechte Maustaste  Blocken
 Q / E / R  Fähigkeiten    X  Ultimative
-F  Sammeln / Häuten / Angeln / Werkstatt
+F  Sammeln / Häuten / Angeln / Werkstatt / Reden
 1  Heiltrank    2  Essen    (3, 4 später)
 Fernkampf: Rechte Maustaste zielen
 T / Mausrad  Waffe wechseln
-K  Skillbaum    P  Charakter
+K  Skillbaum    P  Charakter    J  Questbuch
 M  Karte    N  Minimap-Zoom    L  Tag/Nacht wechseln
 F3  Debug-Flug (Strg = ×30, Leertaste/C = hoch/runter)
 F4  Freie Kamera (Mausrad Zoom, G Zeitlupe, V Standbild)
@@ -47,6 +49,9 @@ var charakter_erstellung: Control
 var fehler_melden: Control # B: Fehler mit Ort, Bild und Kommentar festhalten
 var skill_tree_ui: Control
 var charakter_ui: Control
+var dialog_ui: Control # Gespräche mit NPCs, Entscheidungen, Hinweise
+var questlog_ui: Control # J
+var quest_anzeige: Label # verfolgte Quest am rechten Rand
 var kompass: Control
 var xp_bar: ProgressBar
 var level_label: Label
@@ -250,6 +255,23 @@ func _ready() -> void:
 	root.add_child(skill_tree_ui)
 	charakter_ui = CharakterUIScript.new()
 	root.add_child(charakter_ui)
+	questlog_ui = QuestlogUIScript.new()
+	questlog_ui.wahl_angefordert.connect(_wahl_oeffnen)
+	root.add_child(questlog_ui)
+	dialog_ui = DialogUIScript.new()
+	dialog_ui.closed.connect(_apply_ui_mode)
+	root.add_child(dialog_ui)
+	quest_anzeige = _make_label(15, Color(1.0, 0.9, 0.65))
+	quest_anzeige.anchor_left = 1.0
+	quest_anzeige.anchor_right = 1.0
+	quest_anzeige.offset_left = -360
+	quest_anzeige.offset_right = -24
+	quest_anzeige.offset_top = 290
+	quest_anzeige.offset_bottom = 460
+	quest_anzeige.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	quest_anzeige.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	quest_anzeige.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(quest_anzeige)
 	pause_menu = PauseMenuScript.new()
 	pause_menu.resume_requested.connect(func() -> void: set_paused(false))
 	pause_menu.aussehen_requested.connect(charakter_erstellung_oeffnen.bind(false))
@@ -267,6 +289,12 @@ func bind_player(p) -> void:
 	player.message.connect(show_message)
 	player.notify.connect(add_notification)
 	player.station_opened.connect(open_station)
+	player.gespraech_geoeffnet.connect(_gespraech_oeffnen)
+	player.hinweis_gefunden.connect(func(titel: String, saetze: Array) -> void:
+		close_all_windows()
+		dialog_ui.open_hinweis(player, titel, saetze)
+		_apply_ui_mode())
+	player.quests.wahl_noetig.connect(_wahl_oeffnen, CONNECT_DEFERRED)
 	player.hurt.connect(func() -> void: vignette.color.a = 0.22)
 	player.died.connect(func() -> void: death_label.visible = true)
 	player.respawned.connect(func() -> void: death_label.visible = false)
@@ -298,6 +326,8 @@ func set_inventory_open(open: bool) -> void:
 	ausruestung_ui.close()
 	skill_tree_ui.close()
 	charakter_ui.close()
+	questlog_ui.close()
+	dialog_ui.close()
 	if open:
 		inventory_ui.open(player)
 	else:
@@ -313,6 +343,8 @@ func set_skill_tree_open(open: bool) -> void:
 	ausruestung_ui.close()
 	inventory_ui.close()
 	charakter_ui.close()
+	questlog_ui.close()
+	dialog_ui.close()
 	if open:
 		skill_tree_ui.open(player)
 	else:
@@ -328,17 +360,70 @@ func set_character_open(open: bool) -> void:
 	ausruestung_ui.close()
 	inventory_ui.close()
 	skill_tree_ui.close()
+	questlog_ui.close()
+	dialog_ui.close()
 	if open:
 		charakter_ui.open(player)
 	else:
 		charakter_ui.close()
+		questlog_ui.close()
+		dialog_ui.close()
 	_apply_ui_mode()
+
+
+func set_questlog_open(open: bool) -> void:
+	if player == null:
+		return
+	close_all_windows()
+	if open:
+		questlog_ui.open(player)
+	_apply_ui_mode()
+
+
+func _gespraech_oeffnen(npc_id: String) -> void:
+	close_all_windows()
+	dialog_ui.open_npc(player, npc_id)
+	_apply_ui_mode()
+
+
+## Entscheidung einer Quest ohne Abgabe-NPC (z. B. was mit dem besiegten Vogt geschieht).
+func _wahl_oeffnen(quest_id: String) -> void:
+	if player == null or not player.quests.bereit(quest_id):
+		return
+	close_all_windows()
+	dialog_ui.open_wahl(player, quest_id)
+	_apply_ui_mode()
+
+
+## Verfolgte Quest mit ihren offenen Zielen und der Entfernung zum Ziel.
+func _update_quest_anzeige() -> void:
+	var q = player.quests
+	var id: String = q.verfolgt
+	if id == "" or not q.aktiv.has(id) or _any_window_open():
+		quest_anzeige.text = ""
+		return
+	var zeilen: Array = [String(Game.quests[id].get("titel", id))]
+	if q.bereit(id):
+		var npc: String = q.abgabe_npc(id)
+		zeilen.append("Bei %s abgeben" % q.npc_name(npc) if npc != "" else "Entscheidung treffen (J)")
+	else:
+		for i in q.ziele(id).size():
+			if q.ziel_offen(id, i):
+				zeilen.append(q.ziel_text(id, i))
+	var welt = get_tree().get_first_node_in_group("quest_welt")
+	if welt:
+		var ziel = welt.ziel_position()
+		if ziel != null:
+			zeilen.append("%d m" % int(Vector3(ziel).distance_to(player.global_position)))
+	quest_anzeige.text = "\n".join(zeilen)
 
 
 func open_station(station_id: String) -> void:
 	inventory_ui.close()
 	skill_tree_ui.close()
 	charakter_ui.close()
+	questlog_ui.close()
+	dialog_ui.close()
 	if station_id == "schrank":
 		crafting_ui.close()
 		faerber_ui.close()
@@ -361,12 +446,15 @@ func close_all_windows() -> void:
 	ausruestung_ui.close()
 	skill_tree_ui.close()
 	charakter_ui.close()
+	questlog_ui.close()
+	dialog_ui.close()
 	minimap.set_big(false)
 	_apply_ui_mode()
 
 
 func _any_window_open() -> bool:
-	return inventory_ui.visible or crafting_ui.visible or faerber_ui.visible or ausruestung_ui.visible or skill_tree_ui.visible or charakter_ui.visible or minimap.big
+	return inventory_ui.visible or crafting_ui.visible or faerber_ui.visible or ausruestung_ui.visible or skill_tree_ui.visible or charakter_ui.visible \
+		or questlog_ui.visible or dialog_ui.visible or minimap.big
 
 
 ## Wird von main.gd aufgerufen, wenn eine Welt mit Übersichtskarte geladen ist.
@@ -383,6 +471,8 @@ func set_world_map_open(open: bool) -> void:
 	ausruestung_ui.close()
 	skill_tree_ui.close()
 	charakter_ui.close()
+	questlog_ui.close()
+	dialog_ui.close()
 	minimap.set_big(open)
 	_apply_ui_mode()
 
@@ -428,6 +518,8 @@ func set_paused(paused: bool) -> void:
 		ausruestung_ui.close()
 		skill_tree_ui.close()
 		charakter_ui.close()
+		questlog_ui.close()
+		dialog_ui.close()
 		pause_menu.open()
 	else:
 		pause_menu.close()
@@ -461,6 +553,9 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("skill_tree") and not pause_menu.visible:
 		set_skill_tree_open(not skill_tree_ui.visible)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("questlog") and not pause_menu.visible:
+		set_questlog_open(not questlog_ui.visible)
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("character") and not pause_menu.visible:
 		set_character_open(not charakter_ui.visible)
@@ -523,7 +618,7 @@ func _process(delta: float) -> void:
 	stamina_bar.value = player.stamina / player.max_stamina
 	var level: int = player.char_level
 	var free_points: int = player.attribute_points_free()
-	level_label.text = "Level %d" % level + ("   ·   %d Punkte frei (P)" % free_points if free_points > 0 else "")
+	level_label.text = "Level %d   ·   %d Gold" % [level, player.gold] + ("   ·   %d Punkte frei (P)" % free_points if free_points > 0 else "")
 	xp_bar.value = 1.0 if level >= Game.MAX_CHAR_LEVEL else float(player.char_xp) / Game.char_xp_to_next(level)
 	for i in skill_slots.size():
 		var info: Dictionary = player.get_skill_info(i)
@@ -542,6 +637,7 @@ func _process(delta: float) -> void:
 	if death_label.visible:
 		death_label.text = "Du bist gestorben\nWiederbelebung in %d …" % ceili(player.state_timer)
 	_update_quick_slots()
+	_update_quest_anzeige()
 
 
 func _update_weapon_display() -> void:
