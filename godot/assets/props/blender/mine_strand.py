@@ -30,10 +30,11 @@ def geroell(m, mitte, n, weite, gross=(0.04, 0.12), mat="stein", rx=1.0):
                M((mitte[0] + d * math.cos(a) * rx, mitte[1] + d * math.sin(a), g * 0.35), (0, 0, m.rnd.uniform(0, 360))))
 
 
-def spitzhacke(m, matrix, stiel=0.85, nur_kopf=False):
-    """Spitzhacke: Stiel entlang z, Kopf quer (x) am oberen Ende."""
+def spitzhacke(m, matrix, stiel=0.85, nur_kopf=False, bruch=0):
+    """Spitzhacke: Stiel entlang z, Kopf quer (x) am oberen Ende. bruch=-1: Stiel unten abgebrochen."""
     if not nur_kopf:
-        m.stab(tuple(matrix @ Vector((0, 0, 0))), tuple(matrix @ Vector((0, 0, stiel))), 0.018, "holz", biegen=0.002)
+        m.stab(tuple(matrix @ Vector((0, 0, 0))), tuple(matrix @ Vector((0, 0, stiel))), 0.018, "holz", biegen=0.002,
+               bruch=bruch, bruch_tiefe=0.05)
     for s in (-1, 1):
         kopf = drehkoerper([(0.022, 0.0), (0.018, 0.12), (0.008, 0.24), (0.0, 0.27)], 6)
         verbiegen(kopf, m.rnd, 0.003, 0.1)
@@ -46,15 +47,10 @@ def spitzhacke(m, matrix, stiel=0.85, nur_kopf=False):
 def stuetzbalken(m, kaputt):
     B, H = 2.4, 2.5
     r = 0.12
-    for s in (-1, 1):
-        x = s * (B / 2 - 0.15)
-        if kaputt and s == 1:
-            # rechter Stempel weggeknickt, die Kappe hängt rechts herunter
-            m.stab((x, 0, 0), (x - 0.12, 0, 1.3), r, "holz_alt", biegen=0.01)
-            m.stab((x + 0.15, -0.25, 0.12), (x + 0.75, -0.9, 0.12), r, "holz_alt", biegen=0.01)
-            continue
-        m.stab((x + s * 0.12, 0, 0), (x, 0, H - 0.12), r, "holz_alt", biegen=0.008)
     if not kaputt:
+        for s in (-1, 1):
+            x = s * (B / 2 - 0.15)
+            m.stab((x + s * 0.12, 0, 0), (x, 0, H - 0.12), r, "holz_alt", biegen=0.008)
         m.stab((-B / 2 - 0.05, 0, H), (B / 2 + 0.05, 0, H), r + 0.01, "holz_alt", biegen=0.008)
         # Keile zwischen Stempel und Kappe, Verzug oben
         for s in (-1, 1):
@@ -63,17 +59,26 @@ def stuetzbalken(m, kaputt):
             y = -0.45 + 0.15 * k
             m.brett(B + 0.3, 0.14, 0.03, M((0, y, H + r + 0.03), (0, 0, m.rnd.uniform(-2, 2))), "holz_alt", biegen=0.01)
         return
-    # Kappe gebrochen, schräg; Verzug teils heruntergefallen; Geröll darunter
-    links = Vector((-B / 2 - 0.05, 0, H)); knick = Vector((0.1, 0, H - 0.15)); rechts = Vector((B / 2 - 0.1, 0.0, 1.35))
-    m.stab(tuple(links), tuple(knick), r + 0.01, "holz_alt", biegen=0.008)
-    m.stab(tuple(knick + Vector((0.03, 0, -0.02))), tuple(rechts), r + 0.01, "holz_alt", biegen=0.008)
-    for k in range(4):
-        y = -0.45 + 0.3 * k
-        m.brett(1.4, 0.14, 0.03, M((-0.55, y, H + r + 0.03)), "holz_alt", biegen=0.01, bruch=1)
-    for k in range(3):
-        m.brett(1.2, 0.14, 0.03, M((0.4 + 0.2 * k, -0.6 + 0.4 * k, 0.12 + 0.03 * k), (0, 0, 30 * k - 20)), "holz_alt", bruch=-1)
-    haufen(m, (0.6, 0.0), 0.8, 0.7, 0.35, "stein", m.rnd, rand_rauh=0.3)
-    geroell(m, (0.6, -0.2), 16, 0.8, (0.06, 0.18))
+    # Rechter Stempel geknickt (Stumpf steht noch, oben gesplittert), die Kappe ist gebrochen und mit dem
+    # Verzug heruntergefallen: alles liegt am Boden, nur der linke Stempel steht noch. Geröll vom Firstbruch.
+    x = -(B / 2 - 0.15)
+    m.stab((x - 0.12, 0, 0), (x, 0, H - 0.12), r, "holz_alt", biegen=0.008)
+    x = B / 2 - 0.15
+    m.stab((x + 0.12, 0, 0), (x + 0.06, 0, 1.1), r, "holz_alt", biegen=0.008, bruch=1)
+    # oberes Stück des Stempels nach hinten umgefallen
+    m.stab((1.75, -0.1, r), (1.8, 1.2, r), r, "holz_alt", biegen=0.008, bruch=-1)
+    # Kappe in zwei Stücken, beide flach am Boden (Bruchenden gesplittert)
+    m.stab((-1.35, -0.95, r + 0.01), (0.0, -1.1, r + 0.01), r + 0.01, "holz_alt", biegen=0.008, bruch=1)
+    m.stab((0.25, -1.3, r + 0.01), (1.35, -1.05, r + 0.01), r + 0.01, "holz_alt", biegen=0.008, bruch=-1)
+    # Keile
+    m.teil(quader(0.2, 0.1, 0.04), "holz", M((-0.7, -0.45, 0.02), (0, 0, 35)))
+    m.teil(quader(0.2, 0.1, 0.04), "holz", M((1.55, -0.55, 0.02), (0, 0, -60)))
+    # Verzugbretter flach am Boden, teils gebrochen
+    for k, (px, py, w, l, br) in enumerate(((-0.55, -1.65, 4, 1.4, 1), (0.6, -1.85, -9, 1.2, -1), (-0.35, -2.05, 12, 1.3, 0),
+                                            (-1.05, 0.95, 70, 1.1, 1), (0.9, -1.62, 3, 0.9, 1))):
+        m.brett(l, 0.14, 0.03, M((px, py, 0.015), (0, 0, w)), "holz_alt", biegen=0.004, bruch=br)
+    haufen(m, (0.5, 0.0), 0.75, 0.65, 0.35, "stein", m.rnd, rand_rauh=0.3)
+    geroell(m, (0.5, -0.2), 16, 0.8, (0.06, 0.18))
 
 
 # ======================================================================== Schienen
@@ -150,8 +155,10 @@ def spitzhacke_fels(m, kaputt):
             if s * v.co.x < -0.0:
                 v.co.x *= 0.15
         m.teil(h, "stein", M((s * 0.2, 0, 0.23), (0, s * 6, 0)))
-    spitzhacke(m, M((-0.84, 0.0, 0.33), (0, 60, 0)) @ M((0, 0, 0.55)), stiel=0.3)
-    m.stab((-0.55, -0.7, 0.018), (-0.05, -0.85, 0.018), 0.018, "holz", biegen=0)
+    # Kopf mit Stielstumpf flach am Boden (liegt auf Öhr und Spitzen), der Rest des Stiels daneben
+    stumpf = 0.22
+    spitzhacke(m, M((-0.2, -0.75, 0.025), (90, 0, 25)) @ M((0, 0, -(stumpf - 0.04))), stiel=stumpf, bruch=-1)
+    m.stab((-0.75, -1.05, 0.018), (-0.1, -1.2, 0.018), 0.018, "holz", biegen=0, bruch=1, bruch_tiefe=0.05)
     geroell(m, (0.0, -0.2), 14, 0.9, (0.02, 0.09))
 
 

@@ -13,7 +13,7 @@ import bpy, bmesh, math, sys, os
 from mathutils import Vector, Matrix
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import basis
-from basis import M, quader, rundholz, drehkoerper, rohr, flaeche, brocken, klotz, verbiegen, ausrichten
+from basis import M, quader, rundholz, drehkoerper, rohr, flaeche, brocken, klotz, verbiegen, ausrichten, risse, ruhelage
 import props
 import deko
 from kueche import haufen, ellipsoid
@@ -100,11 +100,12 @@ def wandteppich(m, kaputt):
             lz = 0.012 * math.sin(t * 22) * (0.4 + 0.6 * (1 - s))
             zeile.append((lx, ly, lz))
         g.append(zeile)
-    loch = None
     if kaputt:
-        loch = lambda i, j: (math.hypot(j - 7, i - 9) < 3.0 + math.sin(i * 1.3 + j)) or (j < 2 and i % 3 == 0) or \
-            (math.hypot(j - 15, i - 20) < 2.2)
-    bm = flaeche(g, 0.006, loch)
+        # u = Höhe (0 unten), v = Breite; zwei Risse und ein angefressener, verkohlter unterer Rand
+        bm = flaeche(g, 0.006, loch_uv=risse([(0.36, 0.32, 0.13), (0.75, 0.72, 0.08)], streck=2.0 / 1.4, saat=3,
+                                             kanten=[("v", 0, 0.05)]), fein=3)
+    else:
+        bm = flaeche(g, 0.006)
     # Lage: Textur-x wird senkrecht (oben bei x = +1), y waagerecht, z zeigt von der Wand weg
     if not kaputt:
         lage = Matrix.Translation((0, -0.09, zo - 1.03)) @ Matrix(((0, 1, 0, 0), (0, 0, -1, 0), (1, 0, 0, 0), (0, 0, 0, 1)))
@@ -117,9 +118,6 @@ def wandteppich(m, kaputt):
     if kaputt:
         r = Matrix.Translation((-0.65, -0.08, zo + 0.02)) @ Matrix.Rotation(math.radians(-28), 4, "Y") @ Matrix.Translation((0.65, 0.08, -zo - 0.02))
         stange = (r @ stange[0], r @ stange[1])
-        # verkohlter Rand unten links
-        for k in range(4):
-            m.teil(ellipsoid(0.06, 0.004, 0.03, 1), "holz_verkohlt", lage @ M((-0.95, -0.4 + 0.2 * k, 0.005)))
     m.stab(tuple(stange[0]), tuple(stange[1]), 0.02, "holz", biegen=0)
     for p in stange:
         m.teil(drehkoerper([(0.0, -0.03), (0.03, 0.0), (0.0, 0.03)], 8), "fahne_gold", Matrix.Translation(p) @ M(rot=(0, 90, 0)))
@@ -225,34 +223,45 @@ def sonne(m, matrix):
 
 def kirchenbank(m, kaputt):
     L = 2.4
-    teile = [(-L / 2, L / 2)] if not kaputt else [(-L / 2, -0.05), (0.05, L / 2)]
-    for k, (x0, x1) in enumerate(teile):
-        gebrochen = kaputt and k == 1
-        if gebrochen:
-            # rechte Hälfte: Sitz und Lehne in der Mitte gebrochen, das Bruchende liegt am Boden
-            drehpunkt = Vector((x1, 0, 0))
-            w = math.atan2(0.45, x1 - x0)
-            m.G = Matrix.Translation(drehpunkt) @ Matrix.Rotation(w, 4, Vector((0, 1, 0))) @ Matrix.Translation(-drehpunkt)
-        l = x1 - x0; xm = (x0 + x1) / 2
-        m.brett(l, 0.38, 0.04, M((xm, 0, 0.45)), "holz", bruch=(0 if not kaputt else (1 if k == 0 else -1)))
-        m.brett(l, 0.03, 0.42, M((xm, 0.2, 0.75), (-8, 0, 0)), "holz", bruch=(0 if not kaputt else (1 if k == 0 else -1)))
-        m.brett(l, 0.06, 0.04, M((xm, 0.2, 0.98)), "holz", bruch=(0 if not kaputt else (1 if k == 0 else -1)))
-        m.G = None
-    # Wangen an beiden Enden (Brett mit Rundung oben), unten Querleiste
-    for s in (-1, 1):
+
+    def wange(s):
         x = s * (L / 2 + 0.02)
         bm = quader(0.05, 0.55, 1.0, 1, 4, 6)
         for v in bm.verts:
             if v.co.z > 0.25 and v.co.y < 0:
-                v.co.z -= (0.25 + 0.0) * ((v.co.z - 0.25) / 0.25) * (-v.co.y / 0.275) * 0.9
+                v.co.z -= 0.25 * ((v.co.z - 0.25) / 0.25) * (-v.co.y / 0.275) * 0.9
         m.teil(bm, "holz", M((x, 0.05, 0.5)))
+
+    def sitz_lehne(x0, x1, bruch):
+        l = x1 - x0; xm = (x0 + x1) / 2
+        m.brett(l, 0.38, 0.04, M((xm, 0, 0.45)), "holz", bruch=bruch, bruch_tiefe=0.12)
+        m.brett(l, 0.03, 0.42, M((xm, 0.2, 0.75), (-8, 0, 0)), "holz", bruch=bruch, bruch_tiefe=0.12)
+        m.brett(l, 0.06, 0.04, M((xm, 0.2, 0.98)), "holz", bruch=bruch, bruch_tiefe=0.12)
+
     if not kaputt:
+        sitz_lehne(-L / 2, L / 2, 0)
+        for s in (-1, 1):
+            wange(s)
         m.kantholz((-L / 2, 0.05, 0.1), (L / 2, 0.05, 0.1), 0.06, 0.06)
         # Kniebank hinten für die nächste Reihe
         m.brett(L, 0.14, 0.04, M((0, 0.4, 0.15)), "holz")
-    else:
-        m.kantholz((-L / 2, 0.05, 0.1), (-0.1, 0.05, 0.1), 0.06, 0.06, bruch=1)
-        m.kantholz((0.3, -0.55, 0.03), (1.1, -0.65, 0.03), 0.06, 0.06, bruch=-1)
+        return
+    # In der Mitte durchgebrochen: jede Hälfte kippt mit ihrer Wange über deren innere Unterkante,
+    # bis das Bruchende des Sitzes auf dem Boden liegt (Wange oben nach innen geneigt).
+    for s, (x0, x1) in ((-1, (-L / 2, -0.05)), (1, (0.08, L / 2))):
+        kante = s * (L / 2 + 0.02) - s * 0.025              # innere Unterkante der Wange
+        innen = x1 if s < 0 else x0
+        dx = abs(innen - kante) - 0.04                    # Splitter ragen etwas über das Bruchende
+        w = math.atan2(0.43, dx) * (-s)
+        dreh = Vector((kante, 0, 0))
+        m.G = Matrix.Translation(dreh) @ Matrix.Rotation(w, 4, "Y") @ Matrix.Translation(-dreh)
+        sitz_lehne(x0, x1, 1 if s < 0 else -1)
+        wange(s)
+        m.G = None
+    # Fußleiste herausgebrochen, liegt in zwei Stücken davor; Kniebank hinten abgefallen
+    m.kantholz((-1.05, -0.55, 0.03), (-0.1, -0.62, 0.03), 0.06, 0.06, bruch=1)
+    m.kantholz((0.3, -0.72, 0.03), (1.15, -0.6, 0.03), 0.06, 0.06, bruch=-1)
+    m.brett(L, 0.14, 0.04, M((0.1, 0.75, 0.02), (0, 0, 4)), "holz")
 
 
 # ======================================================================== Weihwasserbecken
@@ -272,51 +281,75 @@ def weihwasserbecken(m, kaputt):
         m.teil(drehkoerper([(0.0, 0.0), (0.33, 0.0), (0.0, 0.001)], 24), "wasser", M((0, 0, zb + 0.2)), uv=None)
         return
     # Becken zur Hälfte abgeschlagen, das Stück liegt am Boden, leer
-    m.teil(drehkoerper(BECKEN, 16, False, False, winkel=(-10, 220)), "stein", M((0, 0, zb)), uv="zylz", r=0.4)
-    m.teil(drehkoerper(BECKEN, 8, False, False, winkel=(230, 330)), "stein", M((0.55, -0.15, 0.24), (0, 92, 30)) @ M((0, 0, -0.2)),
-           uv="zylz", r=0.4)
+    m.teil(drehkoerper(BECKEN, 16, False, False, winkel=(-10, 220), enden_zu=True), "stein", M((0, 0, zb)), uv="zylz", r=0.4)
+    stueck = drehkoerper(BECKEN, 8, False, False, winkel=(230, 330), enden_zu=True)
+    m.teil(stueck, "stein", M((0.78, -0.32, 0.0), (0, 0, 30)) @ ruhelage(stueck), uv="zylz", r=0.4)
     splitter(m, (0.2, -0.3), 9, 0.5)
 
 
 # ======================================================================== Statue
 
-def figur(m, matrix, kopf=True, arm=True, schwert=True):
-    """Stilisierte Heldin im langen Gewand, beide Hände auf dem Schwertknauf (Schwert zeigt nach unten)."""
-    robe = drehkoerper([(0.0, 0.0), (0.34, 0.0), (0.3, 0.3), (0.22, 0.8), (0.2, 1.1), (0.22, 1.3), (0.18, 1.42), (0.08, 1.5), (0.0, 1.5)], 20)
-    for v in robe.verts:
-        v.co.y *= 0.72
-        v.co.x *= 1 + 0.05 * math.sin(math.atan2(v.co.y, v.co.x) * 8) * (1 - v.co.z / 1.5)
-    verbiegen(robe, m.rnd, 0.01, 0.2)
-    m.teil(robe, "stein", matrix, uv="zylz", r=0.3)
-    # Umhang hinten
-    umhang = drehkoerper([(0.25, 0.0), (0.24, 0.6), (0.22, 1.1), (0.2, 1.4)], 10, False, False, winkel=(20, 160))
-    for v in umhang.verts:
-        v.co.y = v.co.y * 0.6 + 0.04
-    bmesh.ops.solidify(umhang, geom=umhang.faces[:], thickness=0.02)
-    m.teil(umhang, "stein", matrix, uv="zylz", r=0.25)
-    if kopf:
-        m.teil(drehkoerper([(0.0, 0.0), (0.05, 0.0), (0.055, 0.08)], 8), "stein", matrix @ M((0, 0, 1.48)))
-        k = ellipsoid(0.1, 0.11, 0.13, 2)
-        m.teil(k, "stein", matrix @ M((0, 0.0, 1.66)))
-        haar = ellipsoid(0.11, 0.12, 0.1, 2)
-        m.teil(haar, "stein", matrix @ M((0, 0.03, 1.7)))
-    # Arme: Schulter -> Ellbogen -> Hände vor dem Bauch
-    haende = Vector((0, -0.24, 1.0))
-    for s in (-1, 1):
-        if not arm and s == 1:
-            m.teil(drehkoerper([(0.0, 0.0), (0.06, 0.0), (0.05, 0.05), (0.0, 0.06)], 8), "stein", matrix @ M((s * 0.24, 0, 1.36), (0, s * 90, 0)))
-            continue
-        schulter = Vector((s * 0.22, 0.0, 1.36)); ell = Vector((s * 0.24, -0.08, 1.1))
-        m.teil(rohr([tuple(schulter), tuple(ell), tuple(haende + Vector((s * 0.05, 0, 0.0)))], 0.055, 8), "stein", matrix, uv=None)
-    m.teil(ellipsoid(0.08, 0.06, 0.06, 1), "stein", matrix @ M(tuple(haende)))
-    if schwert:
-        m.teil(quader(0.22, 0.04, 0.04), "stein", matrix @ M((0, -0.25, 0.93)))
-        m.teil(rundholz(0.022, 0.12, 8), "stein", matrix @ M((0, -0.25, 1.0), (0, 90, 0)))
-        bm = quader(0.08, 0.03, 0.85, 1, 1, 4)
-        for v in bm.verts:
-            if v.co.z < -0.4:
-                v.co.x *= 0.1
-        m.teil(bm, "stein", matrix @ M((0, -0.27, 0.48)))
+def figur(m, matrix, kaputt=False):
+    """Heldin aus dem Körper des Charakter-Editors (statue_mensch.py) in einem langen Rock, beide Hände auf dem
+    Knauf des Schwerts, das mit der Spitze vor ihr auf dem Sockel steht. Kaputt: Kopf und rechter Unterarm
+    abgeschlagen, Klinge gebrochen; die Teile liegen vor dem Sockel."""
+    import statue_mensch as sm
+    t = sm.figur_teile(m.rnd, kaputt)
+    koerper = t["koerper"]
+    zs = t["schnitt"]
+    # Rock: oben so weit wie die Hüfte an der Schnittkante, unten ausgestellt, Gürtel als Abschluss
+    ring = [v.co for v in koerper.verts if zs - 0.01 < v.co.z < zs + 0.07 and v.co.y > -0.15 and abs(v.co.x) < 0.2]     # Hüfte ohne Hände
+    rx = max(abs(c.x) for c in ring) + 0.012; ry = max(abs(c.y + 0.02) for c in ring) + 0.012
+    oben = zs + 0.08
+    rock = drehkoerper([(0.0, 0.0), (0.3, 0.0), (0.285, 0.15), (0.26, 0.5), (rx * 1.06, oben - 0.12), (rx, oben), (0.0, oben)], 24)
+    for v in rock.verts:
+        v.co.y = v.co.y * (ry / rx) - 0.02
+        a = math.atan2(v.co.y, v.co.x)
+        v.co.x *= 1 + 0.05 * math.sin(a * 9) * max(0.0, 1 - v.co.z / oben)
+        v.co.y *= 1 + 0.05 * math.sin(a * 9) * max(0.0, 1 - v.co.z / oben)
+    verbiegen(rock, m.rnd, 0.006, 0.2)
+    m.teil(rock, "stein", matrix, uv="zylz", r=0.3)
+    guertel = drehkoerper([(rx + 0.012, 0.0), (rx + 0.018, 0.02), (rx + 0.012, 0.04), (0.0, 0.04), (0.0, 0.0)], 24)
+    for v in guertel.verts:
+        v.co.y = v.co.y * (ry / rx) - 0.02
+    m.teil(guertel, "stein", matrix @ M((0, 0, oben - 0.06)), uv="zylz", r=0.3)
+    m.teil(koerper, "stein", matrix)
+    if t.get("saum") is not None:
+        m.teil(t["saum"], "stein", matrix, uv=None)
+    if not kaputt:
+        m.teil(t["haare"], "stein", matrix)
+        knoten = sm._knoten(); knoten.transform(t["knoten"])
+        m.teil(knoten, "stein", matrix)
+    # Schwert: Knauf unter den Händen, Klinge schräg nach vorn auf den Sockel
+    k = t["knauf"]
+    spitze = Vector((0.0, -0.42, 0.0))
+    richtung = (k - spitze).normalized()
+    parier = k - richtung * 0.15
+    m.teil(drehkoerper([(0.0, -0.03), (0.03, 0.0), (0.0, 0.03)], 8), "stein", matrix @ Matrix.Translation(k + richtung * 0.01))
+    m.teil(rundholz(0.018, 0.14, 8), "stein", matrix @ ausrichten(k, parier))
+    m.teil(quader(0.24, 0.04, 0.04), "stein", matrix @ Matrix.Translation(parier) @ _hoch(richtung))
+    blatt = quader(0.07, 0.025, 1.0, 1, 1, 6)
+    for v in blatt.verts:
+        if v.co.z < -0.45:
+            v.co.x *= 0.1
+    laenge = (parier - spitze).length
+    if kaputt:
+        # Klinge kurz unter der Parierstange gebrochen, das Stück liegt flach vor dem Sockel
+        stumpf = quader(0.07, 0.025, 0.18, 1, 1, 2)
+        for v in stumpf.verts:
+            if v.co.z < 0:
+                v.co.z += 0.04 * math.sin(v.co.x * 60)
+        m.teil(stumpf, "stein", matrix @ Matrix.Translation(parier - richtung * 0.09) @ _hoch(richtung))
+    else:
+        for v in blatt.verts:
+            v.co.z = (v.co.z + 0.5) * laenge - laenge / 2
+        m.teil(blatt, "stein", matrix @ Matrix.Translation((parier + spitze) / 2) @ _hoch(richtung))
+    return t
+
+
+def _hoch(richtung):
+    """Drehung, die die lokale z-Achse auf 'richtung' legt (x bleibt quer)."""
+    return Vector((0, 0, 1)).rotation_difference(richtung).to_matrix().to_4x4()
 
 
 def statue(m, kaputt):
@@ -325,19 +358,20 @@ def statue(m, kaputt):
     m.teil(klotz(m.rnd, 0.8, 0.8, 0.6, 0.02, 0.005, 0.6 if kaputt else 0.0), "stein", M((0, 0, 0.5)))
     m.teil(klotz(m.rnd, 0.9, 0.9, 0.12, 0.02, 0.005, 0.5 if kaputt else 0.0), "stein", M((0, 0, 0.86)))
     m.teil(quader(0.5, 0.01, 0.08), "fahne_gold", M((0, -0.405, 0.55)))
+    t = figur(m, M((0, 0, 0.92)), kaputt)
     if not kaputt:
-        figur(m, M((0, 0, 0.92)))
         return
-    # Kopf und rechter Arm abgeschlagen, Schwertklinge gebrochen; Trümmer am Boden
-    figur(m, M((0, 0, 0.92)), kopf=False, arm=False, schwert=False)
-    m.teil(drehkoerper([(0.0, 0.0), (0.05, 0.0), (0.055, 0.05), (0.0, 0.06)], 8), "stein", M((0, 0, 0.92 + 1.48)))
-    m.teil(quader(0.22, 0.04, 0.04), "stein", M((0, -0.25, 0.92 + 0.93)))
-    kopf = ellipsoid(0.1, 0.11, 0.13, 2)
-    m.teil(kopf, "stein", M((0.55, -0.6, 0.1), (70, 0, 30)))
-    m.teil(rohr([(0.0, 0.0, 0.055), (0.26, 0.06, 0.055), (0.48, -0.05, 0.055)], 0.055, 8), "stein", M((-0.85, -0.5, 0.0)), uv=None)
-    bm = quader(0.08, 0.03, 0.5, 1, 1, 3)
-    m.teil(bm, "stein", M((0.2, -0.85, 0.015), (90, 0, 70)))
-    splitter(m, (0.0, -0.55), 12, 0.6)
+    # Kopf, Unterarm und Klingenstück liegen in ihrer Ruhelage vor dem Sockel, dazu Splitter
+    m.teil(t["kopf"], "stein", M((0.6, -0.75, 0.0), (0, 0, 40)) @ ruhelage(t["kopf"]))
+    m.teil(t["arm"], "stein", M((-0.7, -0.7, 0.0), (0, 0, -20)) @ ruhelage(t["arm"]))
+    klinge = quader(0.07, 0.025, 0.75, 1, 1, 4)
+    for v in klinge.verts:
+        if v.co.z < -0.3:
+            v.co.x *= 0.1
+        if v.co.z > 0.3:
+            v.co.z += 0.04 * math.sin(v.co.x * 60)
+    m.teil(klinge, "stein", M((0.1, -0.95, 0.0125), (0, 90, 75)))
+    splitter(m, (0.0, -0.6), 12, 0.6)
 
 
 MODELLE = {"thron": thron, "wandteppich": wandteppich, "kronleuchter": kronleuchter, "altar": altar, "kirchenbank": kirchenbank,

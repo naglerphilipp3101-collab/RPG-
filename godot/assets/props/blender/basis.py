@@ -80,8 +80,9 @@ def _unterteilen(bm, nx, ny, nz):
             bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-5, plane_co=co, plane_no=no)
 
 
-def rundholz(r, l, seg=10, nx=1, r2=None, kappen=True):
-    """Zylinder entlang x von -l/2 bis l/2, Radius r (an einem Ende r2 für verjüngte Stämme)."""
+def rundholz(r, l, seg=10, nx=1, r2=None, kappen=True, bruch=0, rnd=None, tiefe=None):
+    """Zylinder entlang x von -l/2 bis l/2, Radius r (an einem Ende r2 für verjüngte Stämme).
+    bruch: +1 Ende bei +x gesplittert abgebrochen, -1 bei -x, 2 beide (braucht rnd)."""
     r2 = r if r2 is None else r2
     bm = bmesh.new()
     ringe = []
@@ -92,15 +93,48 @@ def rundholz(r, l, seg=10, nx=1, r2=None, kappen=True):
     for a, b in zip(ringe, ringe[1:]):
         for k in range(seg):
             bm.faces.new((a[k], a[(k + 1) % seg], b[(k + 1) % seg], b[k]))
-    if kappen:
-        bm.faces.new(list(reversed(ringe[0])))
-        bm.faces.new(ringe[-1])
+    enden = ((-1, ringe[0], r), (1, ringe[-1], r2))
+    for seite, ring, rr in enden:
+        if bruch in (seite, 2):
+            _splitterende(bm, ring, seite, rr, rnd, tiefe if tiefe else rr * 2.2)
+        elif kappen:
+            bm.faces.new(list(reversed(ring)) if seite < 0 else ring)
     bm.normal_update()
     return bm
 
 
-def drehkoerper(profil, seg=16, oben_zu=True, unten_zu=True, winkel=(0.0, 360.0)):
-    """Drehkörper um die z-Achse aus Profilpunkten (radius, z), von unten nach oben."""
+def _splitterende(bm, ring, seite, r, rnd, tiefe):
+    """Gesplittertes Bruchende statt glatter Kappe: Fasern unterschiedlich lang, einige lange Spieße,
+    die Bruchfläche selbst zerklüftet und schräg (Holz bricht nie quer glatt)."""
+    seg = len(ring)
+    x0 = ring[0].co.x
+    schraeg = rnd.uniform(0.5, 1.0) * tiefe; phase = rnd.uniform(0, 2 * math.pi)
+    def laenge(w, rad):
+        # schräger Grundbruch + Zacken; außen längere Fasern als innen
+        basis_ = schraeg * (0.5 + 0.5 * math.cos(w - phase))
+        return basis_ * (0.6 + 0.4 * rad) + tiefe * 0.35 * rnd.random() ** 2
+    lagen = [ring]
+    for rad in (1.0, 0.65, 0.3):
+        neu = []
+        for k in range(seg):
+            w = 2 * math.pi * k / seg
+            rr = r * rad * rnd.uniform(0.75, 1.0) if rad < 1 else r * rnd.uniform(0.6, 0.95)
+            spiess = tiefe * rnd.uniform(0.6, 1.2) if (rad == 1.0 and rnd.random() < 0.25) else 0.0
+            neu.append(bm.verts.new((x0 + seite * (laenge(w, rad) + spiess), rr * math.cos(w), rr * math.sin(w))))
+        lagen.append(neu)
+    mitte = bm.verts.new((x0 + seite * laenge(phase, 0.0) * rnd.uniform(0.6, 1.1), 0, 0))
+    for a, b in zip(lagen, lagen[1:]):
+        for k in range(seg):
+            f = (a[k], a[(k + 1) % seg], b[(k + 1) % seg], b[k])
+            bm.faces.new(f if seite > 0 else tuple(reversed(f)))
+    for k in range(seg):
+        f = (lagen[-1][k], lagen[-1][(k + 1) % seg], mitte)
+        bm.faces.new(f if seite > 0 else tuple(reversed(f)))
+
+
+def drehkoerper(profil, seg=16, oben_zu=True, unten_zu=True, winkel=(0.0, 360.0), enden_zu=False):
+    """Drehkörper um die z-Achse aus Profilpunkten (radius, z), von unten nach oben.
+    enden_zu: bei einem Teilwinkel die Schnittflächen mit dem (geschlossenen) Profil schließen (Bruchstücke)."""
     bm = bmesh.new()
     voll = abs(winkel[1] - winkel[0]) >= 359.9
     n = seg if voll else seg + 1
@@ -120,6 +154,10 @@ def drehkoerper(profil, seg=16, oben_zu=True, unten_zu=True, winkel=(0.0, 360.0)
             bm.faces.new(list(reversed(ringe[0])))
         if oben_zu and profil[-1][0] > 1e-4:
             bm.faces.new(ringe[-1])
+    elif enden_zu:
+        bm.faces.new([r[0] for r in ringe])
+        bm.faces.new([r[-1] for r in reversed(ringe)])
+        bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
     bm.normal_update()
     return bm
 
@@ -152,9 +190,62 @@ def rohr(punkte, r, seg=6, kappen=True, r_ende=None):
     return bm
 
 
-def flaeche(punkte_gitter, dicke=0.0, loch=None):
+def gitter_verfeinern(g, f):
+    """Teilt ein Punktgitter [zeile][spalte] f-fach bilinear (feinere Zellen für natürliche Risse)."""
+    ny = len(g) - 1; nx = len(g[0]) - 1
+    out = []
+    for I in range(ny * f + 1):
+        i = min(I // f, ny - 1); a = I / f - i
+        zeile = []
+        for J in range(nx * f + 1):
+            j = min(J // f, nx - 1); b = J / f - j
+            p = (Vector(g[i][j]) * ((1 - a) * (1 - b)) + Vector(g[i][j + 1]) * ((1 - a) * b) +
+                 Vector(g[i + 1][j]) * (a * (1 - b)) + Vector(g[i + 1][j + 1]) * (a * b))
+            zeile.append(tuple(p))
+        out.append(zeile)
+    return out
+
+
+def _zufall2(u, v, saat):
+    x = math.sin(u * 127.1 + v * 311.7 + saat * 74.7) * 43758.5453
+    return x - math.floor(x)
+
+
+def risse(loecher=(), streck=1.0, saat=0, kanten=()):
+    """Natürliche Löcher für flaeche(loch_uv=...): u (Spalten) und v (Zeilen) laufen 0..1 über das Gitter.
+    loecher: (u, v, r) mit r in v-Einheiten; streck = Breite/Höhe in Metern (macht die Löcher rund).
+    Der Rand ist unregelmäßig (mehrere Wellen) und ausgefranst (einzelne Fasern fehlen oder bleiben stehen).
+    kanten: (achse 'u'/'v', seite 0/1, tiefe) -> angefressene, ausgefranste Außenkante."""
+    def feld(u, v):
+        for k, (cu, cv, r) in enumerate(loecher):
+            du, dv = (u - cu) * streck, v - cv
+            a = math.atan2(dv, du); s = saat + k * 1.7
+            reff = r * (1 + 0.28 * math.sin(3 * a + s) + 0.16 * math.sin(5 * a + 2 * s) + 0.09 * math.sin(9 * a + 3 * s))
+            d = math.hypot(du, dv)
+            if d < reff:
+                return True
+            if d < reff * 1.35 and _zufall2(u, v, s) < 0.55 * (1 - (d - reff) / (reff * 0.35)):
+                return True
+        for k, (achse, seite, tiefe) in enumerate(kanten):
+            w = u if achse == "v" else v
+            x = v if achse == "v" else u
+            abstand = x if seite == 0 else 1 - x
+            t = tiefe * (0.55 + 0.3 * math.sin(w * 23 + saat + k) + 0.2 * math.sin(w * 51 + 2 * saat))
+            if abstand < t or (abstand < t * 1.5 and _zufall2(u, v, saat + 9 + k) < 0.5):
+                return True
+        return False
+    return feld
+
+
+def flaeche(punkte_gitter, dicke=0.0, loch=None, loch_uv=None, fein=1):
     """Fläche aus einem Gitter von Punkten [zeile][spalte] (Tuch, Plane), optional mit Dicke.
-    loch(i, j) -> True: an dieser Zelle fehlt das Tuch (Risse)."""
+    loch(i, j) -> True: an dieser Zelle fehlt das Tuch (Risse). loch_uv(u, v) dasselbe über 0..1 (siehe risse());
+    fein > 1 teilt das Gitter vorher fein, damit Risse nicht eckig aussehen."""
+    if fein > 1:
+        punkte_gitter = gitter_verfeinern(punkte_gitter, fein)
+    if loch_uv is not None:
+        ny_, nx_ = len(punkte_gitter) - 1, len(punkte_gitter[0]) - 1
+        loch = lambda i, j: loch_uv((j + 0.5) / nx_, (i + 0.5) / ny_)
     bm = bmesh.new()
     vs = [[bm.verts.new(p) for p in zeile] for zeile in punkte_gitter]
     for i in range(len(vs) - 1):
@@ -162,6 +253,22 @@ def flaeche(punkte_gitter, dicke=0.0, loch=None):
             if loch and loch(i, j):
                 continue
             bm.faces.new((vs[i][j], vs[i][j + 1], vs[i + 1][j + 1], vs[i + 1][j]))
+    if loch:
+        # lose Inseln (einzelne stehengebliebene Zellen ohne Verbindung) fallen weg
+        rest = set(bm.faces); teile = []
+        while rest:
+            f0 = rest.pop(); teil_ = [f0]; stapel = [f0]
+            while stapel:
+                f = stapel.pop()
+                for e in f.edges:
+                    for f2 in e.link_faces:
+                        if f2 in rest:
+                            rest.discard(f2); teil_.append(f2); stapel.append(f2)
+            teile.append(teil_)
+        gross = max((len(t) for t in teile), default=0)
+        weg = [f for t in teile if len(t) < max(6, gross * 0.05) for f in t]
+        if weg:
+            bmesh.ops.delete(bm, geom=weg, context="FACES_ONLY")
     for v in [v for v in bm.verts if not v.link_faces]:
         bm.verts.remove(v)
     bm.normal_update()
@@ -401,10 +508,11 @@ class Modell:
             verbiegen(bm, self.rnd, biegen, 0.6)
         self.teil(bm, mat, matrix)
 
-    def stab(self, a, b, r, mat="holz", seg=8, r2=None, biegen=0.004, kappen=True, uvmodus="zyl"):
-        """Rundholz/Stange von Punkt a nach Punkt b."""
+    def stab(self, a, b, r, mat="holz", seg=8, r2=None, biegen=0.004, kappen=True, uvmodus="zyl", bruch=0, bruch_tiefe=None):
+        """Rundholz/Stange von Punkt a nach Punkt b. bruch: +1 Ende b gesplittert, -1 Ende a, 2 beide
+        (die Splitter ragen über a/b hinaus; die Punkte sind die Grundlinie des Bruchs)."""
         l = (Vector(b) - Vector(a)).length
-        bm = rundholz(r, l, seg, max(1, int(l / 0.35)), r2, kappen)
+        bm = rundholz(r, l, seg, max(1, int(l / 0.35)), r2, kappen, bruch, self.rnd, bruch_tiefe)
         if biegen:
             verbiegen(bm, self.rnd, biegen, 0.5)
         self.teil(bm, mat, ausrichten(a, b), uv=uvmodus, r=r)
@@ -486,3 +594,26 @@ def material(name):
             nt.links.new(f.outputs["Color"], bsdf.inputs["Emission Color"])
             bsdf.inputs["Emission Strength"].default_value = 6.0
     return m
+
+
+def ruhelage(bm, schritt=6):
+    """Stabile Ruhelage eines losen Bruchstücks auf flachem Boden: sucht die Drehung, in der der Schwerpunkt
+    (Flächenschwerpunkt der Hülle) am tiefsten über dem tiefsten Punkt liegt, wie ein Stück, das ausgerollt ist.
+    Gibt eine Matrix zurück, die das Teil so dreht und auf z = 0 stellt (Mitte über x/y = 0)."""
+    import numpy as np
+    bm.faces.ensure_lookup_table()
+    pts = np.array([v.co[:] for v in bm.verts])
+    flaechen = np.array([f.calc_area() for f in bm.faces])
+    mitten = np.array([f.calc_center_median()[:] for f in bm.faces])
+    sp = (mitten * flaechen[:, None]).sum(0) / flaechen.sum()
+    pts = pts - sp
+    beste = None
+    for ax in range(0, 360, schritt):
+        for ay in range(-90, 91, schritt):
+            r = Matrix.Rotation(math.radians(ay), 3, "Y") @ Matrix.Rotation(math.radians(ax), 3, "X")
+            R = np.array(r)
+            hoehe = -(pts @ R.T)[:, 2].min()          # Schwerpunkt über dem tiefsten Punkt
+            if beste is None or hoehe < beste[0]:
+                beste = (hoehe, r)
+    hoehe, r = beste
+    return Matrix.Translation((0, 0, hoehe)) @ r.to_4x4() @ Matrix.Translation(-Vector(sp))

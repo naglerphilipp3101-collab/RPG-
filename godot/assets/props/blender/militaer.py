@@ -160,31 +160,58 @@ def banner(farbe):
 def spanische_reiter(m, kaputt):
     L = 2.4
     zb = 0.5
-    bm = rundholz(0.09, L, 12, 4)
-    verbiegen(bm, m.rnd, 0.01, 0.5)
-    m.teil(bm, "holz_alt", M((0, 0, zb)), uv="zyl", r=0.09)
-    if kaputt:
-        m.teil(rundholz(0.092, 0.5, 12, 1), "holz_verkohlt", M((0.7, 0, zb)), uv="zyl", r=0.09)
     xs = [-1.05 + 0.35 * k for k in range(7)]
-    for k, x in enumerate(xs):
-        for s in (-1, 1):
-            a = Vector((x + 0.02 * s, -s * 0.55, 0.0))
-            b = Vector((x + 0.02 * s, s * 0.55, 1.1))
-            richtung = (b - a).normalized()
-            gebrochen = kaputt and (k + (s > 0)) % 3 == 0
-            if gebrochen:
-                b = a + richtung * 0.95
-            m.stab(tuple(a), tuple(b), 0.04, "holz_alt", biegen=0.004)
-            if not gebrochen:
-                spitze = drehkoerper([(0.04, 0.0), (0.0, 0.14)], 8)
-                m.teil(spitze, "holz", ausrichten(b, b + richtung * 0.001) @ M(rot=(0, 90, 0)) @ M((0, 0, -0.005)))
-            else:
-                for j in range(4):
-                    aa = 2 * math.pi * j / 4
-                    rr = Vector((math.cos(aa), math.sin(aa), 0)) * 0.025
-                    m.stab(tuple(b + rr * 0.5), tuple(b + rr + richtung * m.rnd.uniform(0.04, 0.1)), 0.01, "holz", biegen=0)
-                m.stab((x + m.rnd.uniform(-0.3, 0.3), -0.9 - 0.2 * (k % 2), 0.04),
-                       (x + m.rnd.uniform(-0.3, 0.3), -0.9 - 0.2 * (k % 2) - 0.45, 0.04), 0.04, "holz_alt", biegen=0.004)
+
+    def pfahl(x, s):
+        a = Vector((x + 0.02 * s, -s * 0.55, 0.0))
+        b = Vector((x + 0.02 * s, s * 0.55, 1.1))
+        return a, b, (b - a).normalized()
+
+    def spitze(b, richtung):
+        m.teil(drehkoerper([(0.04, 0.0), (0.0, 0.14)], 8), "holz", ausrichten(b, b + richtung * 0.001) @ M(rot=(0, 90, 0)) @ M((0, 0, -0.005)))
+
+    if not kaputt:
+        bm = rundholz(0.09, L, 12, 4)
+        verbiegen(bm, m.rnd, 0.01, 0.5)
+        m.teil(bm, "holz_alt", M((0, 0, zb)), uv="zyl", r=0.09)
+        for x in xs:
+            for s in (-1, 1):
+                a, b, richtung = pfahl(x, s)
+                m.stab(tuple(a), tuple(b), 0.04, "holz_alt", biegen=0.004)
+                spitze(b, richtung)
+        return
+    # In der Mitte durchgebrochen: jede Hälfte kippt um die Füße ihres äußeren Kreuzes, bis das Bruchende am Boden liegt.
+    # Die inneren Pfähle sind unter dem Balken abgeknickt (oben stecken Stümpfe), ihre unteren Teile liegen am Boden.
+    bruch_x = -0.12
+    for seite, (x0, x1, aussen) in enumerate(((-L / 2, bruch_x, -1.05), (bruch_x + 0.03, L / 2, 1.05))):
+        innen = x1 if seite == 0 else x0
+        dx = abs(innen - aussen) + 0.03
+        w = math.atan2(zb - 0.09, dx) * (1 if seite == 0 else -1)
+        dreh = Vector((aussen, 0, 0))
+        m.G = Matrix.Translation(dreh) @ Matrix.Rotation(w, 4, "Y") @ Matrix.Translation(-dreh)
+        m.stab((x0, 0, zb), (x1, 0, zb), 0.09, "holz_alt", seg=12, biegen=0.01, bruch=(1 if seite == 0 else -1), bruch_tiefe=0.1)
+        for k, x in enumerate(xs):
+            if (x < bruch_x) != (seite == 0) or k == 3:
+                continue
+            for s in (-1, 1):
+                a, b, richtung = pfahl(x, s)
+                if k in (0, 6):
+                    m.stab(tuple(a), tuple(b), 0.04, "holz_alt", biegen=0.004)
+                    spitze(b, richtung)
+                else:
+                    knick = a + (b - a) * 0.36
+                    m.stab(tuple(knick), tuple(b), 0.04, "holz_alt", biegen=0.004, bruch=-1, bruch_tiefe=0.07)
+                    if (k + (s > 0)) % 3:
+                        spitze(b, richtung)
+        m.G = None
+    # abgeknickte Unterteile und das ganz herausgerissene mittlere Kreuz liegen am Boden
+    for k, (x, y, w, l) in enumerate(((-0.75, -0.95, 15, 0.56), (-0.3, -1.1, -20, 0.56), (0.45, -0.9, 30, 0.56), (0.95, 0.95, -10, 0.56),
+                                      (-0.55, 0.95, 60, 0.56), (0.15, 1.15, 5, 1.56), (0.35, -1.35, -5, 1.56))):
+        v = Vector((math.cos(math.radians(w)), math.sin(math.radians(w)), 0)) * l / 2
+        p = Vector((x, y, 0.04))
+        m.stab(tuple(p - v), tuple(p + v), 0.04, "holz_alt", biegen=0.004, bruch=(1 if l < 1 else 0), bruch_tiefe=0.07)
+        if l > 1:
+            spitze(p + v, v.normalized())
 
 
 # ======================================================================== Pfeile

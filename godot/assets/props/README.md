@@ -41,7 +41,7 @@ Der Schädel ist ein Abstandsfeld (Marching Cubes) und braucht `pip install scik
 wurststange (Ursprung = Deckenhaken, hängt 0,42 m tief), kraeuterbuendel (Wandleiste, Ursprung auf der Wand, ragt nach -y), mehlsack, gemuesekorb.
 Neue einfarbige Materialien: brot, brot_innen, kaese, kaese_innen, wurst, kraut_trocken, kraut_welk, lavendel, knoblauch, mehl, karotte, kohl, zwiebel, faul, schimmel.
 
-**Werkstätten** (`blender/werkstaetten.py`): schleifstein (mit Wassertrog), werkbank (Hobelbank mit Werkzeug), holzstapel (mit Hackklotz und Axt),
+**Werkstätten** (`blender/werkstaetten.py`): schleifstein (mit Wassertrog), werkbank (Hobelbank mit Werkzeug), holzstapel (Holzlege mit Schwellen, Seitenrahmen und Pultdach, Hackklotz und Axt),
 webstuhl (mit Bank), gerberrahmen (eingeschnürte Haut, Bottich), wassertrog. Neue Materialien haut, wasser (durchsichtig wie glas).
 
 **Dorf und Straße** (`blender/dorf.py`): marktstand (Plane, Ware), wegweiser, pranger (auf Podest), brennholzstapel (Rundhölzer),
@@ -55,7 +55,15 @@ pfeilbuendel, ruestungsstapel, feldbett, kartentisch. Materialien fahne_* und pa
 ruderboot, steg (Deck bei z = 0,6, Pfähle bis -1,5 m), hummerkorb, fischgestell. Materialien erz, fisch, fisch_trocken.
 
 **Burg und Kirche** (`blender/burg_kirche.py`): thron (auf Podest), wandteppich (Ursprung am Boden an der Wand, Textur teppich),
-kronleuchter (Ursprung = Deckenhaken, 1,2 m tief), altar, kirchenbank, weihwasserbecken, statue (stilisierte Heldin mit Schwert).
+kronleuchter (Ursprung = Deckenhaken, 1,2 m tief), altar, kirchenbank, weihwasserbecken, statue (Heldin mit Schwert). Die Statue nimmt
+Oberkörper und Kopf aus dem Charakter-Editor (`blender/statue_mensch.py` liest `charakter/daten` über `tools/ruestung/mensch_lesen.py`,
+Arme per Knochengewichten auf den Schwertknauf gebeugt, Rumpf geglättet als Gewand, Augäpfel aus den Hilfskugeln, Haarkappe mit Knoten; braucht numpy und zstandard).
+
+**Bruch-Helfer** (`blender/basis.py`, für alle Sets): `stab(..., bruch=±1|2)` bzw. `rundholz(..., bruch=…)` gibt Rundhölzern ein gesplittertes,
+schräges Bruchende statt eines glatten Schnitts. `flaeche(gitter, dicke, loch_uv=risse([(u, v, r), …], streck, saat, kanten), fein=3)` schneidet
+natürliche, ausgefranste Risse in Tücher und Häute (feines Raster, unregelmäßiger Rand, lose Inseln fallen weg). `ruhelage(bm)` legt ein loses
+Bruchstück in seine stabile Lage auf dem Boden (tiefster Schwerpunkt). `drehkoerper(..., enden_zu=True)` schließt die Schnittflächen eines Teilstücks.
+Regel für kaputte Modelle: Gefallenes liegt so, wie es die Schwerkraft hinlegen würde; was nicht gestützt ist, sackt bis zum Boden.
 
 **Haus-Baukasten** (`blender/baukasten.py`). Regeln: 1-m-Raster (Stockwerkshöhe frei, Teile drehbar und überlappbar), alle Stoßflächen eben
 und genau im Raster (damit Blueprints einrasten und beim späteren Backen verdeckte Flächen entfernt werden können).

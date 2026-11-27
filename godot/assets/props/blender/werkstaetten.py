@@ -12,7 +12,7 @@ import bpy, bmesh, math, sys, os
 from mathutils import Vector, Matrix
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import basis
-from basis import M, quader, rundholz, drehkoerper, rohr, flaeche, brocken, klotz, verbiegen, ausrichten
+from basis import M, quader, rundholz, drehkoerper, rohr, flaeche, brocken, klotz, verbiegen, ausrichten, risse
 import props
 from props import bretterwand
 import deko
@@ -177,22 +177,64 @@ def werkbank(m, kaputt):
 def holzstapel(m, kaputt):
     L, r = 0.4, 0.075
     xs = [-0.6 + 0.085 * k for k in range(15)]
+    X = 0.75                       # Achse der Seitenrahmen
+    yv, yh = 0.1, 0.5              # vordere/hintere Ständer
+    # Gestell: drei Schwellen quer, zwei Auflagebalken längs (Scheite liegen trocken über dem Boden)
+    for x in (-0.62, 0.0, 0.62):
+        m.kantholz((x, 0.03, 0.03), (x, 0.57, 0.03), 0.07, 0.06, "holz_alt")
+    for y in (0.17, 0.43):
+        m.kantholz((-X, y, 0.09), (X, y, 0.09), 0.07, 0.06, "holz_alt")
+    z0 = 0.12 + r                  # Mitte der untersten Scheitlage
     if not kaputt:
         for reihe in range(6):
             versatz = 0.04 * (reihe % 2)
             for x in xs[: 15 - reihe % 2]:
-                scheit(m, M((x + versatz, 0.3, 0.05 + reihe * 0.085), (0, 0, 90)), L, r)
+                scheit(m, M((x + versatz, 0.3, z0 + reihe * 0.085), (0, 0, 90)), L, r)
+    # Seitenrahmen: je zwei Ständer, oben und unten ein Riegel, Kopfband zur Pfette
+    def rahmen(s, ganz=True):
+        x = s * X
+        for y in (yv, yh):
+            if ganz:
+                m.kantholz((x, y, 0.0), (x, y, 0.95 + (y - yv) * 0.25), 0.07, 0.07, "holz_alt", oben=(1, 0, 0))
+            else:
+                m.kantholz((x, y, 0.0), (x, y, 0.35 + 0.1 * (y > 0.3)), 0.07, 0.07, "holz_alt", oben=(1, 0, 0), bruch=1)
+        if ganz:
+            m.kantholz((x, yv - 0.04, 0.78), (x, yh + 0.04, 0.78), 0.05, 0.05, "holz_alt")
+        m.kantholz((x, yv - 0.04, 0.2), (x, yh + 0.04, 0.2), 0.05, 0.05, "holz_alt")
+    if not kaputt:
         for s in (-1, 1):
-            m.stab((s * 0.7, 0.3, -0.05), (s * 0.7, 0.3, 0.65), 0.035, "holz_alt", biegen=0.004)
+            rahmen(s)
+        # Pfetten längs, hinten höher; Pultdach aus Brettern; Kopfbänder hinten gegen Kippen
+        m.kantholz((-X - 0.08, yv, 0.98), (X + 0.08, yv, 0.98), 0.07, 0.07, "holz_alt")
+        m.kantholz((-X - 0.08, yh, 1.08), (X + 0.08, yh, 1.08), 0.07, 0.07, "holz_alt")
+        for s in (-1, 1):
+            m.kantholz((s * X, yh, 0.7), (s * (X - 0.3), yh, 1.045), 0.05, 0.04, "holz_alt", oben=(0, 1, 0))
+        w = math.degrees(math.atan2(0.1, yh - yv))
+        for k in range(9):
+            x = -X - 0.05 + 0.19 * k
+            m.brett(yh - yv + 0.36, 0.18, 0.025, M((x, (yv + yh) / 2, 1.03 + 0.0125 + 0.035), (w, 0, 0)) @ M(rot=(0, 0, 90)),
+                    "holz_alt", biegen=0.004)
     else:
-        # umgestürzt: Scheite in einem flachen Haufen, ein Pfahl umgebrochen
-        for k in range(46):
-            x = m.rnd.uniform(-0.75, 0.75); y = m.rnd.uniform(0.0, 0.6)
-            lage = 0 if k < 26 else 1
-            scheit(m, M((x, y, 0.045 + lage * 0.07), (m.rnd.uniform(-8, 8), m.rnd.uniform(-8, 8), m.rnd.uniform(-60, 60) + 90)), L, r)
-        m.stab((-0.7, 0.3, -0.05), (-0.7, 0.3, 0.65), 0.035, "holz_alt", biegen=0.004)
-        m.stab((0.7, 0.3, -0.05), (0.7, 0.3, 0.2), 0.035, "holz_alt", biegen=0.004)
-        m.stab((0.75, 0.0, 0.035), (0.9, -0.42, 0.035), 0.035, "holz_alt", biegen=0.004)
+        # Rahmen rechts umgebrochen, Dach heruntergefallen, Scheite nach vorn herausgerutscht
+        rahmen(-1)
+        rahmen(1, ganz=False)
+        m.kantholz((-X - 0.08, yh, 1.08), (-0.1, yh, 1.08), 0.07, 0.07, "holz_alt", bruch=1)
+        m.kantholz((X + 0.25, -0.05, 0.035), (X + 0.35, 0.85, 0.035), 0.07, 0.07, "holz_alt", bruch=-1)        # Ständeroberteil
+        m.kantholz((0.15, 0.75, 0.035), (1.35, 0.95, 0.035), 0.07, 0.07, "holz_alt", bruch=-1)                  # Pfettenstück
+        for k, (x, y, w) in enumerate(((-0.35, 0.9, 85), (0.45, 1.15, 100), (1.15, 0.35, 15), (-1.15, 0.75, 60))):
+            m.brett(0.76, 0.18, 0.025, M((x, y, 0.0125), (0, 0, w)), "holz_alt", biegen=0.004, bruch=(1 if k == 1 else 0))
+        # untere Lagen links liegen noch im Gestell
+        for reihe in range(2):
+            for x in xs[: 7 - reihe]:
+                scheit(m, M((x + 0.04 * reihe, 0.3, z0 + reihe * 0.085), (0, 0, 90)), L, r)
+        # der Rest liegt verstreut vorn am Boden (nicht unter dem Hackklotz)
+        n = 0
+        while n < 30:
+            x = m.rnd.uniform(-0.85, 0.95); y = m.rnd.uniform(-0.95, 0.0)
+            if math.hypot(x - 0.2, y + 0.55) < 0.38:
+                continue
+            scheit(m, M((x, y, 0.045 + (n % 3 == 0) * 0.06), (m.rnd.uniform(-6, 6), m.rnd.uniform(-6, 6), m.rnd.uniform(0, 180))), L, r)
+            n += 1
     # Hackklotz mit Axt
     kx, ky = 0.2, -0.55
     m.teil(drehkoerper([(0.0, 0.0), (0.25, 0.0), (0.24, 0.42), (0.0, 0.44)], 16), "holz_alt", M((kx, ky, 0.0)), uv="zylz", r=0.25)
@@ -264,8 +306,9 @@ def webstuhl(m, kaputt):
             t = i / 8
             g.append([(x, -0.55 - 0.06 * math.sin(t * 2), 0.95 - 0.6 * t + 0.02 * math.sin(x * 20 + t * 5)) for x in
                       (-0.46 + 0.92 * j / 10 for j in range(11))])
-        loecher = {(5, 2), (6, 2), (6, 3), (7, 3), (7, 4), (4, 7), (5, 7), (8, 8), (8, 9), (7, 9), (3, 1)}
-        m.teil(flaeche(g, 0.003, lambda i, j: (i, j) in loecher), "wolle_rot", None)
+        # u = Breite (0,92 m), v = Länge nach unten (0,6 m); zerrissen und unten ausgefranst
+        m.teil(flaeche(g, 0.003, loch_uv=risse([(0.27, 0.68, 0.14), (0.72, 0.62, 0.1), (0.55, 0.25, 0.05)], streck=0.92 / 0.6, saat=1,
+                                               kanten=[("u", 1, 0.06)]), fein=4), "wolle_rot", None)
         m.teil(rundholz(0.05, 0.94, 16), "wolle_rot", M((0, -0.55, 0.95)))
         # ein Schaft ist heruntergefallen, die Lade lehnt schief
         m.teil(quader(1.0, 0.02, 0.02), "holz", M((0, 0.2, 1.08)))
@@ -332,10 +375,11 @@ def gerberrahmen(m, kaputt):
                 p = p0 + Vector((0, -0.03 * math.sin(x * 9) - 0.02, -(oben - v)))
             zeile.append(tuple(p))
         g.append(zeile)
-    loch = None
     if kaputt:
-        loch = lambda i, j: (i in (3, 4) and j in (10, 11, 12)) or (i in (4, 5) and j in (30, 31))
-    m.teil(flaeche(g, 0.006, loch), "haut", None)
+        # Polargitter: u = Winkel, v = Abstand von der Mitte; zwei Risse in der Haut
+        m.teil(flaeche(g, 0.006, loch_uv=risse([(0.3, 0.62, 0.12), (0.81, 0.72, 0.08)], streck=3.0, saat=5), fein=3), "haut", None)
+    else:
+        m.teil(flaeche(g, 0.006), "haut", None)
     # Schnürung vom Hautrand zum Rahmen
     for j in range(0, na, 4):
         a = 2 * math.pi * j / na
