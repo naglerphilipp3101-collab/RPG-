@@ -9,6 +9,8 @@ signal died
 signal respawned
 signal station_opened(station_id: String)
 signal equipment_changed
+signal gespraech_geoeffnet(npc_id: String) # F bei einem NPC
+signal hinweis_gefunden(titel: String, saetze: Array) # F an einem Quest-Ort
 
 const FX := preload("res://scripts/fx.gd")
 const MeshUtil := preload("res://scripts/mesh_util.gd")
@@ -16,6 +18,7 @@ const InventoryScript := preload("res://scripts/inventory.gd")
 const WeaponModels := preload("res://scripts/weapon_models.gd")
 const ProjectileScript := preload("res://scripts/projectile.gd")
 const ZoneScript := preload("res://scripts/zone.gd")
+const QuestLogScript := preload("res://scripts/quest_log.gd")
 
 const WALK_SPEED := 5.0
 const SPRINT_SPEED := 8.0
@@ -139,6 +142,14 @@ var gather_hp := 0.0
 # Ausrüstung: Slot ("weapon", "weapon2", "shield", "head", "chest", "legs", "ring", "tool:<beruf>") -> Ausrüstungsstück
 var equipment: Dictionary = {}
 var farbpalette: Array = [] # gespeicherte Farben des Färbers ("#rrggbb", höchstens 20)
+# Quests (M8): Questbuch, Gold, Ansehen, Blaupausen für Waffenformen, Freischaltungen aus Quests
+var quests = null # scripts/quest_log.gd
+var gold := 0
+var ansehen_region: Dictionary = {} # Region -> Punkte (Stufen kommen mit M9)
+var ansehen_fraktion: Dictionary = {} # Fraktion -> Punkte
+var blaupausen: Array = [] # "<modulart>_t<tier>_f<form>", "*_t1_f2" (alle Teile) oder "*" (alles)
+var freischaltungen: Array = [] # z. B. "skizzenbuch" (Spalte Aussehen an der Schmiede)
+var _quest_pruefung := false
 var magieklinge_an := false # Leerenhandschuh: Magieklinge ausgefahren (per Fähigkeit)
 const BASE_MAX_HEALTH := 150.0 # dazu 10 je Punkt Vitalität (Start 5 → 200)
 const BASE_WEAPON_DAMAGE := 20.0 # Schaden ohne Waffe; Angriffe skalieren relativ zum Waffenschaden
@@ -253,6 +264,8 @@ func _ready() -> void:
 		tool_tiers[id] = 1
 	for id in Game.attribute_ids():
 		attribute_points[id] = 0
+	quests = QuestLogScript.new(self)
+	inventory.changed.connect(_quests_inventar)
 
 	_build_model()
 	_build_tools()
@@ -585,6 +598,10 @@ func on_enemy_killed(enemy, xp: int, damage_by_source: Dictionary) -> void:
 	if total <= 0.0:
 		return
 	add_char_xp(xp)
+	var beutel: Array = enemy.data.get("gold", [])
+	if beutel.size() == 2:
+		gold_erhalten(randi_range(int(beutel[0]), int(beutel[1])))
+	quests.ereignis("toeten", String(enemy.type_id))
 	for source in damage_by_source:
 		if Game.weapons.has(source):
 			add_mastery_xp(source, xp * float(damage_by_source[source]) / total)
@@ -1018,11 +1035,17 @@ func _stealth_look(on: bool) -> void:
 ## Prüft die gewählten Module: jeder Stil muss mit dem Skill des Berufs freigeschaltet sein.
 func module_check(recipe_id: String, module: Dictionary) -> String:
 	var profession: String = Game.stations[Game.recipes[recipe_id]["station"]]["profession"]
+	var def := Game.item(String(Game.recipes[recipe_id]["output"]))
+	var waffe := "schild" if def.get("slot", "") == "shield" else WeaponModels.modular_name(Game.weapon_def(String(def.get("weapon_type", ""))))
 	for platz in module:
 		var t := int(module[platz].get("tier", 1))
+		var form := int(module[platz].get("form", 1))
 		if t > profession_tier(profession):
 			return "Stil %s benötigt %s Skill %d" % [WaffenModell.TIER_NAMEN[clampi(t, 1, 6) - 1],
 				Game.profession_name(profession), Game.required_skill(t)]
+		if WaffenModell.WAFFEN.has(waffe) and WaffenModell.WAFFEN[waffe].has(platz):
+			if not hat_blaupause(WaffenModell.modulart(waffe, platz), t, form):
+				return "Für %s in Form %d fehlt die Blaupause" % [String(WaffenModell.WAFFEN[waffe][platz][1]), form]
 	return ""
 
 
@@ -1092,6 +1115,10 @@ func craft(recipe_id: String, amount := 1, modifiers: Array = [], module: Dictio
 	var profession: String = Game.stations[recipe["station"]]["profession"]
 	notify.emit("Hergestellt: " + made, Color(1.0, 0.85, 0.5))
 	add_profession_xp(profession, int(recipe.get("xp", 10)) * amount)
+	var hoechste_form := 1
+	for platz in module:
+		hoechste_form = maxi(hoechste_form, int(module[platz].get("form", 1)))
+	quests.ereignis("herstellen", output, 1 if gear else int(recipe.get("count", 1)) * amount, {"form": hoechste_form})
 	return ""
 
 
@@ -1160,6 +1187,12 @@ func to_save() -> Dictionary:
 		"ultimate_charge": ultimate_charge,
 		"farbpalette": farbpalette.duplicate(),
 		"aussehen": aussehen.duplicate(true) if aussehen_gespeichert else {},
+		"quests": quests.to_save(),
+		"gold": gold,
+		"ansehen_region": ansehen_region.duplicate(),
+		"ansehen_fraktion": ansehen_fraktion.duplicate(),
+		"blaupausen": blaupausen.duplicate(),
+		"freischaltungen": freischaltungen.duplicate(),
 	}
 
 
@@ -1261,10 +1294,86 @@ func from_save(data: Dictionary) -> void:
 	if old_trees and not saved_masteries.is_empty():
 		notify.emit("Skillbäume wurden überarbeitet: Skillpunkte erstattet (K)", Color(1.0, 0.85, 0.5))
 
+	# Quests (Version 5). Ältere Spielstände behalten das Aussehen-Menü und alle Formen, die es vorher schon gab.
+	gold = maxi(int(data.get("gold", 0)), 0)
+	ansehen_region = {}
+	for r in data.get("ansehen_region", {}):
+		ansehen_region[r] = int(data["ansehen_region"][r])
+	ansehen_fraktion = {}
+	for f in data.get("ansehen_fraktion", {}):
+		ansehen_fraktion[f] = int(data["ansehen_fraktion"][f])
+	blaupausen = Array(data.get("blaupausen", []))
+	freischaltungen = Array(data.get("freischaltungen", []))
+	if int(data.get("_version", 5)) < 5:
+		if not freischaltungen.has("skizzenbuch"):
+			freischaltungen.append("skizzenbuch")
+		if not blaupausen.has("*"):
+			blaupausen.append("*")
+	quests.from_save(data.get("quests", {}))
+
 	weapon_def = {} # erzwingt Neuaufbau der Waffe
 	_recalc_stats()
 	health = clampf(float(data.get("health", max_health)), 1.0, max_health)
 	inventory.changed.emit()
+
+
+# --- Quests, Gold, Ansehen, Blaupausen -----------------------------------
+
+## Inventar geändert: Sammel-Ziele neu prüfen (verzögert, damit laufende Quest-Schritte nicht gestört werden).
+func _quests_inventar() -> void:
+	if not _quest_pruefung:
+		_quest_pruefung = true
+		_quests_pruefen.call_deferred()
+
+
+func _quests_pruefen() -> void:
+	_quest_pruefung = false
+	quests._pruefen()
+
+
+func gold_erhalten(menge: int) -> void:
+	if menge <= 0:
+		return
+	gold += menge
+	notify.emit("+%d Gold" % menge, Color(1.0, 0.82, 0.3))
+
+
+## Belohnung aus Quests (scripts/quest_log.gd). region: wo die Quest angenommen wurde (Regionsansehen).
+func quest_belohnung(b: Dictionary, region: String) -> void:
+	add_char_xp(int(b.get("ep", 0)))
+	gold_erhalten(int(b.get("gold", 0)))
+	var ra := int(b.get("region_ansehen", 0))
+	if ra > 0 and region != "":
+		ansehen_region[region] = int(ansehen_region.get(region, 0)) + ra
+		notify.emit("+%d Regionsansehen" % ra, Color(0.6, 0.85, 1.0))
+	var fa: Dictionary = b.get("fraktion_ansehen", {})
+	for f in fa:
+		ansehen_fraktion[f] = int(ansehen_fraktion.get(f, 0)) + int(fa[f])
+		notify.emit("+%d Ansehen (%s)" % [int(fa[f]), f], Color(1.0, 0.6, 0.5))
+	var gegenstaende: Dictionary = b.get("items", {})
+	for id in gegenstaende:
+		if Game.is_gear(id):
+			for k in int(gegenstaende[id]):
+				if inventory.add_gear(Game.roll_gear(id, [])):
+					notify.emit("+1 %s" % Game.item_name(id), Game.tier_color(int(Game.item(id).get("tier", 1))))
+		else:
+			receive_items({id: int(gegenstaende[id])})
+	for bp in b.get("blaupausen", []):
+		if not blaupausen.has(bp):
+			blaupausen.append(bp)
+			notify.emit("Neue Blaupause: " + QuestLogScript.blaupause_name(String(bp)), Color(0.95, 0.65, 0.35))
+	for f in b.get("freischalten", []):
+		if not freischaltungen.has(f):
+			freischaltungen.append(f)
+			notify.emit(String({"skizzenbuch": "Skizzenbuch freigeschaltet: an der Schmiede gibt es jetzt die Spalte Aussehen"}.get(f, "Freigeschaltet: " + String(f))),
+				Color(0.95, 0.65, 0.35))
+
+
+## Darf der Spieler dieses Waffenteil in dieser Form schmieden? Form 1 ist immer frei, alles andere kommt über Blaupausen.
+func hat_blaupause(modulart: String, tier: int, form: int) -> bool:
+	if form <= 1 or blaupausen.has("*"):
+		return true
+	return blaupausen.has("%s_t%d_f%d" % [modulart, tier, form]) or blaupausen.has("*_t%d_f%d" % [tier, form])
 
 
 # --- Interaktion --------------------------------------------------------
@@ -1781,6 +1890,13 @@ func _state_normal(delta: float, move_dir: Vector3, captured: bool) -> void:
 # --- Sammeln, Häuten, Angeln --------------------------------------------
 
 func _start_interaction(target) -> void:
+	if target.has_method("get_npc_id"):
+		gespraech_geoeffnet.emit(target.get_npc_id())
+		return
+	if target.has_method("get_ort_id"):
+		var saetze: Array = quests.ereignis("untersuchen", target.get_ort_id())
+		hinweis_gefunden.emit(target.get_prompt_titel(), saetze)
+		return
 	if target.has_method("get_station_id"):
 		station_opened.emit(target.get_station_id())
 		return

@@ -1,0 +1,38 @@
+{
+	"_info": "NPCs und Quest-Orte des Startgebiets. Positionen lokal zum Startgebiet (Mitte des Dorfs bei 0/0/24), Höhe kommt vom Gelände. Platzhalter-Figuren, bis es NPC-Modelle gibt.",
+	"npcs": {
+		"aeltester": {"name": "Bertram", "titel": "Dorfältester", "pos": [-2, 0, 16], "farbe": [0.55, 0.5, 0.4],
+			"gruss": "Willkommen in Kiesbach, Fremder. Viel haben wir nicht, aber was wir haben, teilen wir."},
+		"jaegerin": {"name": "Maren", "titel": "Jägerin", "pos": [14, 0, 12], "farbe": [0.35, 0.45, 0.25],
+			"gruss": "Leise. Die Wölfe hören besser als du denkst."},
+		"wache": {"name": "Rudger", "titel": "Hauptmann der Wache", "pos": [-7, 0, 12], "farbe": [0.6, 0.55, 0.3],
+			"gruss": "Solange ich hier stehe, passiert im Dorf nichts. Draußen ist das eine andere Sache."},
+		"wirt": {"name": "Jost", "titel": "Wirt", "pos": [-4, 0, 27], "farbe": [0.6, 0.35, 0.25],
+			"gruss": "Ein Bier? Oder Neuigkeiten? Beides kostet, aber Neuigkeiten erzähle ich gern umsonst."},
+		"witwe": {"name": "Alma", "titel": "Witwe des Müllers", "pos": [4, 0, 29], "farbe": [0.3, 0.3, 0.35],
+			"gruss": "Zehn Jahre ist es her. Und doch höre ich ihn manchmal noch."},
+		"hedda": {"name": "Hedda", "titel": "Schmiedin", "bei_werkstatt": "weaponsmith", "farbe": [0.5, 0.3, 0.2],
+			"gruss": "Wenn du nur zuschauen willst, stell dich nicht vor die Esse."},
+		"faerber": {"name": "Linus", "titel": "Färber", "bei_werkstatt": "dyer", "farbe": [0.3, 0.4, 0.7],
+			"gruss": "Farbe ist das, was eine Klinge zu deiner Klinge macht."},
+		"vogt": {"name": "Harald", "titel": "Vogt", "pos": [24, 0, 35], "farbe": [0.45, 0.25, 0.45],
+			"gruss": "Ich habe zu tun. Steuern treiben sich nicht von selbst ein.",
+			"sichtbar": {"nicht_merker": ["vogt_entlarvt"]}},
+		"geist_elric": {"name": "Elric", "titel": "Geist des Müllers", "pos": [54, 0, 45], "farbe": [0.55, 0.75, 0.95], "geist": true,
+			"gruss": "Du kannst mich sehen? Dann hör mir zu, bitte.",
+			"sichtbar": {"quests": ["muehle_2"], "nicht_merker": ["geist_erloest"]}}
+	},
+	"orte": {
+		"muehle": {"name": "Verlassene Mühle", "pos": [55, 0, 45], "radius": 10, "bau": "muehle"},
+		"haus_am_fluss": {"name": "Abgebrannter Hof", "pos": [-50, 0, 0], "radius": 9, "bau": "ruine"},
+		"hinweis_oelkrug": {"name": "Zerbrochener Ölkrug", "pos": [-47, 0, -3], "radius": 2.5, "bau": "hinweis"},
+		"hinweis_schuldbuch": {"name": "Verkohlte Kiste", "pos": [-53, 0, 2], "radius": 2.5, "bau": "hinweis"},
+		"hinweis_ring": {"name": "Glitzern in der Asche", "pos": [-49, 0, 4], "radius": 2.5, "bau": "hinweis"},
+		"alte_schmiede": {"name": "Werkstatt des alten Meisters", "pos": [-45, 0, -62], "radius": 10, "bau": "ruine"},
+		"alte_esse": {"name": "Erkaltete Esse", "pos": [-45, 0, -64], "radius": 2.5, "bau": "hinweis"},
+		"wachturm": {"name": "Alter Wachturm", "pos": [45, 0, -45], "radius": 8, "bau": "turm"},
+		"wachturm_spuren": {"name": "Frische Spuren", "pos": [48, 0, -42], "radius": 2.5, "bau": "hinweis"},
+		"vogt_haus": {"name": "Haus des Vogts", "pos": [28, 0, 39], "radius": 6, "bau": "haus"},
+		"truhe_vogt": {"name": "Truhe des Vogts", "pos": [29, 0, 41], "radius": 2.0, "bau": "truhe"}
+	}
+}

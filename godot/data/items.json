@@ -121,5 +121,13 @@
 	"grilled_perch": {"name": "Gegrillter Barsch", "tier": 1, "weight": 0.3, "category": "Essen", "color": [0.8, 0.6, 0.35],
 		"consumable": {"type": "food", "regen": 3, "duration": 60}, "description": "Regeneriert 60 Sekunden lang 3 Leben pro Sekunde. Taste 2."},
 	"trout_stew": {"name": "Forelleneintopf", "tier": 2, "weight": 0.4, "category": "Essen", "color": [0.85, 0.7, 0.45],
-		"consumable": {"type": "food", "regen": 6, "duration": 60}, "description": "Regeneriert 60 Sekunden lang 6 Leben pro Sekunde. Taste 2."}
+		"consumable": {"type": "food", "regen": 6, "duration": 60}, "description": "Regeneriert 60 Sekunden lang 6 Leben pro Sekunde. Taste 2."},
+	"altes_skizzenbuch": {"name": "Altes Skizzenbuch", "tier": 1, "weight": 0.0, "category": "Questgegenstand", "color": [0.75, 0.62, 0.4],
+		"description": "Zeichnungen von Waffenteilen, angesengt und voller Ruß. Hedda wird es lesen können."},
+	"halber_siegelring": {"name": "Halber Siegelring", "tier": 1, "weight": 0.0, "category": "Questgegenstand", "color": [0.85, 0.75, 0.35],
+		"description": "Die abgebrochene Hälfte eines Siegelrings. Ein Wappen mit einem Turm ist noch zu erkennen."},
+	"schuldbuch": {"name": "Verkohltes Schuldbuch", "tier": 1, "weight": 0.0, "category": "Questgegenstand", "color": [0.35, 0.3, 0.25],
+		"description": "Elric schuldete niemandem Geld. Aber jemand schuldete ihm sehr viel."},
+	"schluessel_vogt": {"name": "Schlüssel des Vogts", "tier": 1, "weight": 0.0, "category": "Questgegenstand", "color": [0.7, 0.7, 0.72],
+		"description": "Ein schwerer Eisenschlüssel. Er passt zur Truhe im Haus des Vogts."}
 }

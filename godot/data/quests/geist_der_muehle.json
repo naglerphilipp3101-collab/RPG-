@@ -1,0 +1,128 @@
+{
+	"muehle_1": {
+		"art": "lore", "reihe": "geist_der_muehle", "titel": "Klagen in der Nacht", "geber": "wirt", "abgabe": "", "region": "startgebiet",
+		"texte": {
+			"angebot": "Willst du was Unheimliches hören? Seit ein paar Wochen weint es nachts in der alten Mühle im Osten. Keiner traut sich hin. Die Mühle ist abgebrannt, vor zehn Jahren, mit dem Müller Elric darin.",
+			"laufend": "Die Mühle liegt östlich vom Dorf. Das Weinen hört man nur nachts (Taste L stellt die Uhr vor)."
+		},
+		"ziele": [
+			{"art": "besuchen", "ort": "muehle", "zeit": "nacht", "text": "Nachts zur verlassenen Mühle gehen"}
+		],
+		"belohnung": {"ep": 80},
+		"folgequest": "muehle_2"
+	},
+	"muehle_2": {
+		"art": "lore", "reihe": "geist_der_muehle", "titel": "Der trauernde Geist", "geber": "", "region": "startgebiet",
+		"texte": {
+			"angebot": "Zwischen den verkohlten Balken steht eine bleiche Gestalt. Sie schreit auf, als sie dich sieht, und stürzt auf dich zu.",
+			"laufend": "Der Geist greift jeden an, der der Mühle zu nahe kommt."
+		},
+		"ziele": [
+			{"art": "toeten", "gegner": "geist", "anzahl": 1, "text": "Den trauernden Geist besiegen", "erscheinen": {"ort": "muehle", "anzahl": 1}}
+		],
+		"belohnung": {"ep": 250},
+		"folgequest": "muehle_3"
+	},
+	"muehle_3": {
+		"art": "lore", "reihe": "geist_der_muehle", "titel": "Elrics Geschichte", "geber": "", "region": "startgebiet",
+		"texte": {
+			"angebot": "Der Geist zerfällt nicht. Er sinkt auf die Knie, und zum ersten Mal sieht er dich wirklich an.",
+			"laufend": "Der Geist wartet in der Mühle."
+		},
+		"ziele": [
+			{"art": "reden", "npc": "geist_elric", "text": "Mit dem Geist reden",
+				"sagt": "Ich bin Elric, der Müller. Sie sagen, ich sei im Feuer gestorben. Das ist nicht wahr. Ich war schon tot, als die Mühle brannte. An jenem Abend war ich im Haus am Teich, beim alten Hof. Danach ist alles dunkel. Bitte, finde heraus, was geschehen ist. Ich kann nicht gehen, solange ich es nicht weiß."}
+		],
+		"belohnung": {"ep": 50},
+		"folgequest": "muehle_4"
+	},
+	"muehle_4": {
+		"art": "lore", "reihe": "geist_der_muehle", "titel": "Der abgebrannte Hof", "geber": "", "region": "startgebiet",
+		"reihenfolge": "beliebig",
+		"texte": {
+			"angebot": "Der Hof am Teich ist seit dem Brand verlassen. Wenn es Spuren gibt, dann dort.",
+			"laufend": "Der Hof liegt westlich vom Dorf, am Teich. Untersuche, was dir auffällt."
+		},
+		"ziele": [
+			{"art": "untersuchen", "ort": "hinweis_oelkrug", "text": "Den zerbrochenen Ölkrug untersuchen",
+				"sagt": "Ein Ölkrug mit dem Zeichen der Schänke. Jemand hat hier Lampenöl ausgegossen, viel Öl."},
+			{"art": "untersuchen", "ort": "hinweis_schuldbuch", "text": "Die verkohlte Kiste untersuchen", "gibt": {"schuldbuch": 1},
+				"sagt": "Ein Schuldbuch, halb verbrannt. Elric schuldete niemandem etwas. Aber eine Zeile ist dick unterstrichen: \"H. schuldet 400 Gold, fällig zum Herbst.\""},
+			{"art": "untersuchen", "ort": "hinweis_ring", "text": "Dem Glitzern in der Asche nachgehen", "gibt": {"halber_siegelring": 1},
+				"sagt": "Die Hälfte eines Siegelrings. Darauf ein Turm. Elric war Müller, kein Edelmann. Wem gehört dieser Ring?"}
+		],
+		"belohnung": {"ep": 300},
+		"folgequest": "muehle_5"
+	},
+	"muehle_5": {
+		"art": "lore", "reihe": "geist_der_muehle", "titel": "Fragen stellen", "geber": "", "region": "startgebiet",
+		"reihenfolge": "beliebig",
+		"texte": {
+			"angebot": "Ölkrug, Schuldbuch, Ring. Zeit, mit den Leuten im Dorf zu reden.",
+			"laufend": "Frag die Witwe, den Wirt und den Hauptmann der Wache."
+		},
+		"ziele": [
+			{"art": "reden", "npc": "witwe", "text": "Die Witwe Alma befragen",
+				"sagt": "Elric hat niemandem etwas getan. Aber sein Bruder Konrad, der hat die Mühle geerbt und das Land gleich verkauft. Fragt ihn, nicht mich."},
+			{"art": "reden", "npc": "wirt", "text": "Den Wirt Jost nach dem Ölkrug fragen",
+				"sagt": "Lampenöl? An dem Abend? Lass mich nachdenken. Ja. Der Knecht des Vogts hat zwei Krüge gekauft. Hab mich noch gewundert, im Sommer."},
+			{"art": "reden", "npc": "wache", "text": "Rudger den Ring zeigen",
+				"sagt": "Ein Turm auf dem Siegel? Das ist das Wappen der Vögte von Kiesbach. Harald hat damals behauptet, sein Ring sei ihm gestohlen worden. Und das Mühlenland hat am Ende er gekauft, nicht Konrad."}
+		],
+		"belohnung": {"ep": 200},
+		"folgequest": "muehle_6"
+	},
+	"muehle_6": {
+		"art": "lore", "reihe": "geist_der_muehle", "titel": "Der wahre Täter", "geber": "", "region": "startgebiet",
+		"texte": {
+			"angebot": "Das Öl, die Schulden, der Ring. Alles führt zum Vogt.",
+			"laufend": "Der Vogt Harald wohnt östlich des Dorfplatzes.",
+			"abschluss": "Harald liegt geschlagen im Staub. \"Gnade! Ich gestehe alles. Ich konnte nicht zahlen, und er wollte zum Grafen gehen. Ich wollte ihn nur einschüchtern ...\" Was tust du?"
+		},
+		"ziele": [
+			{"art": "reden", "npc": "vogt", "text": "Den Vogt zur Rede stellen", "merker": "vogt_entlarvt",
+				"sagt": "Woher hast du diesen Ring? ... Du weißt es also. Dann wirst du es niemandem erzählen. Wachen! Ach, ich mach es selbst."},
+			{"art": "toeten", "gegner": "vogt", "anzahl": 1, "text": "Den Vogt besiegen", "erscheinen": {"ort": "vogt_haus", "anzahl": 1}}
+		],
+		"abgabe": "",
+		"wahl": {
+			"frage": "Was geschieht mit dem Vogt?",
+			"optionen": [
+				{"text": "Ihn der Wache übergeben", "merker": ["vogt_gefangen"], "folgequest": "muehle_7a",
+					"ergebnis": "Du fesselst Harald und bringst ihn zu Rudger."},
+				{"text": "Ihn töten", "merker": ["vogt_tot"], "folgequest": "muehle_7b", "belohnung": {"items": {"schluessel_vogt": 1}},
+					"ergebnis": "Harald sagt nichts mehr. An seinem Gürtel hängt ein schwerer Schlüssel."}
+			]
+		},
+		"belohnung": {"ep": 400}
+	},
+	"muehle_7a": {
+		"art": "lore", "reihe": "geist_der_muehle", "titel": "Gerechtigkeit für Elric", "geber": "", "region": "startgebiet",
+		"texte": {
+			"angebot": "Der Vogt soll sich vor dem Dorf verantworten.",
+			"laufend": "Bring den Vogt zu Rudger und sag dann Elric, dass sein Mörder gefasst ist.",
+			"abschluss": "Elric lächelt. \"Dann weiß es jetzt jeder. Alma, Konrad, alle.\" Er wird durchsichtig wie Morgennebel. \"Nimm das. Ich habe es für meinen Sohn gezeichnet, er ist nie Schmied geworden.\""
+		},
+		"ziele": [
+			{"art": "reden", "npc": "wache", "text": "Den Vogt Rudger übergeben",
+				"sagt": "Der Vogt selbst. Bei allen Helden. Das Dorf steht in deiner Schuld, und die Wache auch. Hier, die Belohnung, die auf den Brandstifter ausgesetzt war. Zehn Jahre hat sie niemand abgeholt."},
+			{"art": "reden", "npc": "geist_elric", "text": "Elric Bescheid geben", "merker": "geist_erloest"}
+		],
+		"belohnung": {"ep": 300, "gold": 80, "region_ansehen": 300, "blaupausen": ["hammerkopf_t1_f4"]}
+	},
+	"muehle_7b": {
+		"art": "lore", "reihe": "geist_der_muehle", "titel": "Die Truhe des Vogts", "geber": "", "region": "startgebiet",
+		"texte": {
+			"angebot": "Was ein Vogt wohl in seiner Truhe aufbewahrt?",
+			"laufend": "Öffne die Truhe im Haus des Vogts und sag dann Elric, dass sein Mörder tot ist.",
+			"abschluss": "Elric schweigt lange. \"Tot also. Ich dachte, es würde sich besser anfühlen.\" Er wird durchsichtig wie Morgennebel. \"Nimm das. Ich habe es für meinen Sohn gezeichnet.\""
+		},
+		"ziele": [
+			{"art": "untersuchen", "ort": "truhe_vogt", "text": "Die Truhe des Vogts öffnen", "braucht": "schluessel_vogt",
+				"gibt": {"silverleaf_ring": 1, "small_potion": 3}, "gold": 150,
+				"sagt": "Der Schlüssel dreht sich schwer. In der Truhe: Gold, ein Ring und Elrics Schuldschein, nie bezahlt."},
+			{"art": "reden", "npc": "geist_elric", "text": "Elric Bescheid geben", "merker": "geist_erloest"}
+		],
+		"belohnung": {"ep": 300, "region_ansehen": 50, "blaupausen": ["hammerkopf_t1_f4"]}
+	}
+}

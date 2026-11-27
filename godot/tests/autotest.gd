@@ -117,6 +117,11 @@ func _ready() -> void:
 		phase = "character_ui" # beendet nach 1,5 s; mit --write-movie entsteht ein Bild (Skillbaum oder mit --hud die Leiste)
 		if not OS.get_cmdline_user_args().has("--hud"):
 			get_tree().current_scene.get_node("HUD").set_skill_tree_open.call_deferred(true)
+	# Mit --quests: Quest-System (tests/quest_test.gd) mit allen Beispielquests und beiden Enden der Geister-Questreihe
+	if OS.get_cmdline_user_args().has("--quests"):
+		phase = "idle"
+		add_child(load("res://tests/quest_test.gd").new())
+		return
 	# Mit --fehlertest: Fehlermeldung (Taste B) (Fenster, Kommentar, Liste, Hinspringen); mit --write-movie Bild vom Fenster
 	if OS.get_cmdline_user_args().has("--fehlertest"):
 		phase = "character_ui" # beendet nach 1,5 s, auch während das Fenster das Spiel anhält
@@ -857,6 +862,7 @@ func _craft_test() -> void:
 	player.receive_items({"copper_ingot": 8, "timber": 4, "coarse_leather": 2})
 	var gesperrt: String = player.craft("copper_sword", 1, [], {"klinge": {"tier": 6, "form": 2}})
 	log_lines.append("Modul im gesperrten Stil -> %s" % ("FEHLER: angenommen" if gesperrt == "" else "abgelehnt (" + gesperrt + ")"))
+	player.blaupausen.append("*") # Formen 2–5 kommen sonst über Blaupausen (geprüft in tests/quest_test.gd)
 	var vorher: int = player.inventory.gear.size()
 	var wahl := {"klinge": {"tier": 1, "form": 3}, "parier": {"tier": 1, "form": 2}, "griff": {"tier": 1, "form": 5}, "knauf": {"tier": 1, "form": 4}}
 	var ok: String = player.craft("copper_sword", 1, [], wahl)

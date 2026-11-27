@@ -16,6 +16,7 @@ const NaturScript := preload("res://scripts/natur.gd")
 const Wasser := preload("res://scripts/wasser.gd")
 const GrasScript := preload("res://scripts/gras.gd")
 const TageszeitScript := preload("res://scripts/tageszeit.gd")
+const QuestWeltScript := preload("res://scripts/quest_welt.gd")
 
 const ISLAND_DATA := "res://welt_daten"
 const ISLAND_TERRAIN := "res://welt_daten/terrain3d"
@@ -70,6 +71,15 @@ func _ready() -> void:
 		clear_spots.append(VILLAGE_CENTER + Vector3(cos(angle), 0, sin(angle)) * VILLAGE_RADIUS)
 	for camp in camps:
 		clear_spots.append(camp["pos"])
+	# Quest-Orte und NPCs (data/npcs.json) bleiben frei von Bäumen und Rohstoffen
+	for stelle in QuestWeltScript.freie_stellen():
+		var mitte: Vector3 = stelle[0]
+		clear_spots.append(mitte)
+		var r: float = stelle[1]
+		if r > 4.0:
+			for i in 6:
+				var angle := TAU * i / 6.0
+				clear_spots.append(mitte + Vector3(cos(angle), 0, sin(angle)) * r * 0.6)
 	if not island:
 		# Teich: mehrere Punkte, damit nichts im Wasser wächst
 		clear_spots.append(POND_CENTER)
@@ -99,6 +109,9 @@ func _ready() -> void:
 	for camp in camps:
 		var c: Vector3 = area.position + Vector3(camp["pos"])
 		frei.append([Vector2(c.x, c.z), 10.5 if camp["style"] == "lair" else 7.5])
+	for stelle in QuestWeltScript.freie_stellen():
+		var s: Vector3 = area.position + Vector3(stelle[0])
+		frei.append([Vector2(s.x, s.z), float(stelle[1])])
 	if island:
 		# Bäume, Büsche, Sammelpflanzen und Bodenobjekte nach den Biom-Regeln (rund um den Spieler nachgeladen)
 		natur = NaturScript.new()
@@ -113,6 +126,12 @@ func _ready() -> void:
 		gras.setup(natur, player)
 		gras.frei = frei
 		add_child(gras)
+
+	# Quests: NPCs, Quest-Orte, Quest-Gegner (vor dem HUD, damit Kompass und Anzeige sie finden)
+	var quest_welt = QuestWeltScript.new()
+	quest_welt.name = "QuestWelt"
+	quest_welt.setup(self, player)
+	add_child(quest_welt)
 
 	var hud = HudScript.new()
 	hud.name = "HUD"

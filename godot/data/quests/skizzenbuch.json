@@ -1,0 +1,64 @@
+{
+	"skizze_1": {
+		"art": "blaupause", "reihe": "skizzenbuch", "titel": "Ein Auftrag für die Esse", "geber": "hedda", "region": "startgebiet",
+		"texte": {
+			"angebot": "Du willst schmieden lernen? Dann fang an, wo alle anfangen: Barren schmelzen, ein Schwert schlagen, mir zeigen.",
+			"laufend": "Kupferbarren an der Schmelze, das Schwert hier an der Waffenschmiede.",
+			"abschluss": "Gerade, scharf, ein bisschen langweilig. Genau wie meine ersten. Komm wieder, ich habe da eine Idee."
+		},
+		"ziele": [
+			{"art": "herstellen", "item": "copper_ingot", "anzahl": 4},
+			{"art": "herstellen", "item": "copper_sword", "anzahl": 1},
+			{"art": "reden", "npc": "hedda", "text": "Hedda das Schwert zeigen"}
+		],
+		"belohnung": {"ep": 100, "gold": 10}
+	},
+	"skizze_2": {
+		"art": "blaupause", "reihe": "skizzenbuch", "titel": "Die Werkstatt des alten Meisters", "geber": "hedda", "region": "startgebiet",
+		"bedingungen": {"quests": ["skizze_1"]},
+		"texte": {
+			"angebot": "Mein alter Meister hat Waffen nicht nur geschmiedet, er hat sie gezeichnet. Jede Form in einem Buch. Seine Werkstatt im Norden haben Banditen besetzt. Wenn das Buch noch da ist, bring es mir.",
+			"laufend": "Die Werkstatt liegt nordwestlich, hinter dem Banditenlager.",
+			"abschluss": "Das ist es. Angesengt, aber lesbar. Du hast keine Ahnung, was du mir da gebracht hast."
+		},
+		"ziele": [
+			{"art": "besuchen", "ort": "alte_schmiede"},
+			{"art": "toeten", "gegner": "bandit", "anzahl": 3, "text": "Die Banditen in der Werkstatt besiegen",
+				"erscheinen": {"ort": "alte_schmiede", "anzahl": 3}},
+			{"art": "untersuchen", "ort": "alte_esse", "text": "Die erkaltete Esse durchsuchen", "gibt": {"altes_skizzenbuch": 1},
+				"sagt": "Unter der Asche, in Öltuch gewickelt: ein dickes Buch voller Zeichnungen."},
+			{"art": "abgeben", "item": "altes_skizzenbuch", "anzahl": 1, "npc": "hedda", "text": "Hedda das Skizzenbuch bringen"}
+		],
+		"belohnung": {"ep": 150}
+	},
+	"skizze_3": {
+		"art": "blaupause", "reihe": "skizzenbuch", "titel": "Formen lesen", "geber": "hedda", "region": "startgebiet",
+		"bedingungen": {"quests": ["skizze_2"]},
+		"beim_annehmen": {"freischalten": ["skizzenbuch"], "blaupausen": ["*_t1_f2"]},
+		"texte": {
+			"angebot": "Schau her. Jede Zeichnung zeigt ein Teil: Klinge, Parierstange, Griff, Knauf. Wer die Zeichnung kennt, kann das Teil schmieden. Ich habe dir die ersten abgepaust. Schmiede ein Schwert, aber mit einem Teil aus dem Buch.",
+			"laufend": "An der Waffenschmiede kannst du jetzt in der Spalte \"Aussehen\" die Form wählen. Nimm für ein Teil Form 2.",
+			"abschluss": "Siehst du? Gleiche Klinge, gleicher Stahl, aber es ist deins. So fängt es an."
+		},
+		"ziele": [
+			{"art": "herstellen", "item": "copper_sword", "anzahl": 1, "form": 2, "text": "Ein Kupferschwert mit einem Teil in Form 2 schmieden"},
+			{"art": "reden", "npc": "hedda", "text": "Hedda das neue Schwert zeigen"}
+		],
+		"belohnung": {"ep": 100, "gold": 10}
+	},
+	"skizze_4": {
+		"art": "blaupause", "reihe": "skizzenbuch", "titel": "Die eigene Handschrift", "geber": "hedda", "region": "startgebiet",
+		"bedingungen": {"quests": ["skizze_3"]},
+		"texte": {
+			"angebot": "Eine Form ist erst der Anfang. Geh zu Linus, dem Färber. Er zeigt dir, wie man einer Klinge Farbe gibt. Und sag ihm, ich schulde ihm nichts mehr.",
+			"laufend": "Linus steht am Färberbottich im Dorf.",
+			"abschluss": "Er hat dir also seine Farben gezeigt. Gut. Hier, eine Seite aus dem Buch, die ich niemandem sonst gebe. Und der Rest des Buchs? Der Meister hat Seiten über die ganze Insel verstreut. Halte die Augen offen."
+		},
+		"ziele": [
+			{"art": "reden", "npc": "faerber", "text": "Mit Linus dem Färber reden",
+				"sagt": "Hedda schickt dich? Und sie schuldet mir nichts mehr, soso. Komm, ich zeig dir die Bottiche. Jede Farbe, die du einmal gemischt hast, merkst du dir."},
+			{"art": "reden", "npc": "hedda", "text": "Zu Hedda zurückkehren"}
+		],
+		"belohnung": {"ep": 80, "gold": 20, "blaupausen": ["*_t1_f3"]}
+	}
+}

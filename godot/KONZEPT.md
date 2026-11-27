@@ -506,9 +506,25 @@ Vorgabe von Philipp: Mit der Waffe sammelt man Erfahrung in ihrer Kategorie, jed
 - **Stand:** Schwert und Schild ist als Prototyp vollständig. Die anderen 14 Waffen haben noch nur Fähigkeiten, Passive und Ultimative; dort sind Passive und Fähigkeiten frei wählbar und die Ultimative braucht 4 Punkte, bis ihre Bäume geschrieben sind.
 - **Alte Spielstände** (Version 3 und älter): Skillpunkte werden erstattet, die Meisterschaftsstufen bleiben.
 
+### Quest-System (27.11., Beginn von M8)
+
+Entwurf mit Kommentaren: [Quest-System Morvane](https://claude.ai/artifact/32vJnGW6DmZh2dn7S54BRZ). Fünf Questarten nach Philipps Vorgabe:
+
+| Art | Zweck | Belohnung |
+| --- | --- | --- |
+| Nebenaufgabe | EP, mehr an Orten tun, an die man ohnehin kommt | viel EP, etwas Gold, Regionsansehen |
+| Blaupause | neue Waffenformen freischalten; Tutorial-Reihe „Das Skizzenbuch des alten Meisters“ schaltet die Spalte Aussehen an der Schmiede frei | Blaupause, wenig EP und Gold |
+| Hauptquest | durch alle Städte und einige POIs bis zum Raid, mit Fortschrittsbremse (Mindestlevel je Kapitel, Vorschlag: Raid ab 60) | viel EP, Freischaltungen |
+| Fraktion | nach dem Beitritt (M9) | EP, Gold, Fraktionsansehen |
+| Lore-Questreihe | eigene Geschichte mit Entscheidungen (Vorbild: Skyrim-Gilden, Daedra-Quests) | EP, Gold, besondere Gegenstände |
+
+**Umgesetzt:** Quests als Daten in `data/quests/*.json`, NPCs und Orte in `data/npcs.json`. Ziele töten, sammeln, abgeben, besuchen (auch nur nachts), untersuchen, reden, herstellen (auch mit Mindestform); Bedingungen (Level, Quests, Merker); Entscheidungen mit eigenen Folgequests; Belohnungen EP, Gold, Regions-/Fraktionsansehen, Gegenstände, Blaupausen, Freischaltungen. Questbuch (J), Gesprächsfenster (F bei NPCs), verfolgte Quest am Rand und als Raute im Kompass, Platzhalter-NPCs mit „!“, „?“ und „…“. Gold von Banditen und aus Quests. Blaupausen: je Tier-Stil ist Form 1 frei, Formen 2–5 kommen über Blaupausen (alte Spielstände behalten alle Formen). Beispielinhalte im Startgebiet: Prolog (2 Teile), 4 Nebenaufgaben, Skizzenbuch-Reihe (4 Teile), „Der Geist der Mühle“ (8 Teile, Wahl Gefängnis oder Töten).
+
+**Offen:** Fortschrittsbremse (Philipp wählt: Siegelsplitter, Stimme oder Stimme im Splitter), Hauptquest ab Kapitel 1, Fraktionsquests (M9), Platzierung in echten Städten (Karten-Editor).
+
 ### Nächster Schritt
 
-M8 Startgebiet.
+M8 Startgebiet: Fortschrittsbremse und Hauptquest-Kapitel 1, Schiffbruch-Einstieg, Dorf-Tutorial.
 
 ### Entscheidung für M6: Einhand- und Zweihand-Varianten
 

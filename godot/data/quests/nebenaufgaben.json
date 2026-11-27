@@ -1,0 +1,47 @@
+{
+	"neben_wolfsplage": {
+		"art": "neben", "titel": "Wolfsplage", "geber": "jaegerin", "region": "startgebiet",
+		"texte": {
+			"angebot": "Die Wölfe im Osten werden dreist. Letzte Nacht haben sie zwei Ziegen gerissen. Erleg drei von ihnen, dann ist erst mal Ruhe.",
+			"laufend": "Drei Wölfe. Ihr Bau liegt östlich vom Dorf.",
+			"abschluss": "Saubere Arbeit. Hier, für deine Mühe."
+		},
+		"ziele": [{"art": "toeten", "gegner": "wolf", "anzahl": 3}],
+		"belohnung": {"ep": 200, "gold": 10, "region_ansehen": 50}
+	},
+	"neben_banditen": {
+		"art": "neben", "titel": "Ärger im Norden", "geber": "wache", "region": "startgebiet",
+		"texte": {
+			"angebot": "Im Norden hat sich ein Banditenlager breitgemacht. Ich kann das Dorf nicht allein lassen. Du schon.",
+			"laufend": "Drei Banditen, mehr verlange ich nicht.",
+			"abschluss": "Ha! Das wird sie lehren. Dein Sold."
+		},
+		"ziele": [{"art": "toeten", "gegner": "bandit", "anzahl": 3}],
+		"belohnung": {"ep": 220, "gold": 25, "region_ansehen": 60}
+	},
+	"neben_wachturm": {
+		"art": "neben", "titel": "Licht im Wachturm", "geber": "wache", "region": "startgebiet",
+		"texte": {
+			"angebot": "Im alten Wachturm im Nordosten brennt nachts Licht. Der steht seit Jahren leer. Sieh nach, wer sich da herumtreibt.",
+			"laufend": "Der Wachturm liegt nordöstlich vom Dorf.",
+			"abschluss": "Schmuggler also. Ich lasse den Turm ab jetzt beobachten. Danke."
+		},
+		"ziele": [
+			{"art": "besuchen", "ort": "wachturm"},
+			{"art": "untersuchen", "ort": "wachturm_spuren", "text": "Die Spuren am Turm untersuchen",
+				"sagt": "Fußspuren, Kisten mit dem Zeichen eines Hafens und eine erloschene Laterne. Schmuggler."},
+			{"art": "reden", "npc": "wache", "text": "Rudger berichten"}
+		],
+		"belohnung": {"ep": 180, "gold": 15, "region_ansehen": 40}
+	},
+	"neben_fische": {
+		"art": "neben", "titel": "Fisch für die Schänke", "geber": "wirt", "region": "startgebiet",
+		"texte": {
+			"angebot": "Morgen kommen die Holzfäller, und ich habe keinen einzigen Fisch. Drei Barsche aus dem Teich, und ich zahle gut.",
+			"laufend": "Drei Barsche. Der Teich liegt westlich vom Dorf.",
+			"abschluss": "Frisch! Die Holzfäller werden dich lieben."
+		},
+		"ziele": [{"art": "abgeben", "item": "perch", "anzahl": 3, "npc": "wirt"}],
+		"belohnung": {"ep": 120, "gold": 15, "region_ansehen": 30}
+	}
+}

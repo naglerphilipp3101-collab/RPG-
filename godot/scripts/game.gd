@@ -95,6 +95,9 @@ var professions: Dictionary = {}
 var recipes: Dictionary = {}
 var stations: Dictionary = {}
 var attributes: Dictionary = {} # data/attributes.json
+var quests: Dictionary = {} # alle Dateien in data/quests/ zusammen: Quest-id -> Quest
+var npcs: Dictionary = {} # data/npcs.json "npcs"
+var quest_orte: Dictionary = {} # data/npcs.json "orte"
 var _next_uid := 1
 ## Uhrzeit in Stunden (0–24) und gezählte Tage; gespeichert im Spielstand, gesteuert von scripts/tageszeit.gd
 var time_of_day := START_HOUR
@@ -111,8 +114,27 @@ func _enter_tree() -> void:
 	recipes = _load_json("res://data/recipes.json")
 	stations = _load_json("res://data/stations.json")
 	attributes = _load_json("res://data/attributes.json")
+	_load_quests()
 	_generate_weapon_items()
 	_build_weapon_trees()
+
+
+## Quests aus allen JSON-Dateien in data/quests/ (eine Datei je Reihe oder Ort), dazu NPCs und Orte.
+func _load_quests() -> void:
+	quests.clear()
+	var dir := DirAccess.open("res://data/quests")
+	if dir:
+		var dateien := Array(dir.get_files())
+		dateien.sort()
+		for datei: String in dateien:
+			if datei.ends_with(".json"):
+				var inhalt := _load_json("res://data/quests/" + datei)
+				for id in inhalt:
+					if not String(id).begins_with("_"):
+						quests[id] = inhalt[id]
+	var npc_daten := _load_json("res://data/npcs.json")
+	npcs = npc_daten.get("npcs", {})
+	quest_orte = npc_daten.get("orte", {})
 
 
 ## Erzeugt aus data/weapons.json die Waffen-Gegenstände, ihre Rezepte und die Übungswaffen.
@@ -536,6 +558,7 @@ func _setup_input() -> void:
 	_add_mouse("weapon_prev", MOUSE_BUTTON_WHEEL_UP)
 	_add_key("skill_tree", KEY_K)
 	_add_key("character", KEY_P)
+	_add_key("questlog", KEY_J)
 	_add_key("debug_fly", KEY_F3)
 	_add_key("freie_kamera", KEY_F4)
 	_add_key("zeitlupe", KEY_G) # G statt Z: Tasten zählen nach US-Lage, Z wäre auf deutschen Tastaturen das Y
