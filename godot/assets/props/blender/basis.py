@@ -8,9 +8,14 @@ from mathutils import Vector, Matrix, Euler, noise
 from texturen import KACHEL
 
 MATERIALIEN = ["holz", "holz_alt", "holz_verkohlt", "eisen", "stoff", "seil", "stein", "putz", "schindeln",
-               "dielen", "glut", "glas", "asche"]
+               "dielen", "glut", "glas", "asche", "weide", "obst", "ton", "stroh", "leder", "farbe_rot", "farbe_weiss",
+               "teppich", "wolle_rot", "knochen", "glas_gruen", "erde",
+               "brot", "brot_innen", "kaese", "kaese_innen", "wurst", "kraut_trocken", "kraut_welk", "lavendel", "knoblauch", "mehl", "karotte", "kohl", "zwiebel", "faul", "schimmel",
+               "haut", "wasser", "fahne_weiss", "fahne_blau", "fahne_schwarz", "fahne_gruen", "fahne_rot", "fahne_gelb", "fahne_gold", "papier", "erz", "fisch", "fisch_trocken"]
 ## Kachelgrößen der Materialien ohne eigene Textur
-KACHEL_EXTRA = {"glas": (1.0, 1.0), "asche": (1.0, 1.0)}
+KACHEL_EXTRA = {"glas": (1.0, 1.0), "asche": (1.0, 1.0), "obst": (1.0, 1.0), "farbe_rot": (1.0, 1.0), "farbe_weiss": (1.0, 1.0),
+                "wolle_rot": (1.0, 1.0), "knochen": (1.0, 1.0), "glas_gruen": (1.0, 1.0), "erde": (1.0, 1.0),
+                "brot": (1.0, 1.0), "brot_innen": (1.0, 1.0), "kaese": (1.0, 1.0), "kaese_innen": (1.0, 1.0), "wurst": (1.0, 1.0), "kraut_trocken": (1.0, 1.0), "kraut_welk": (1.0, 1.0), "lavendel": (1.0, 1.0), "knoblauch": (1.0, 1.0), "mehl": (1.0, 1.0), "karotte": (1.0, 1.0), "kohl": (1.0, 1.0), "zwiebel": (1.0, 1.0), "faul": (1.0, 1.0), "schimmel": (1.0, 1.0), "haut": (1.0, 1.0), "wasser": (1.0, 1.0), "fahne_weiss": (1.0, 1.0), "fahne_blau": (1.0, 1.0), "fahne_schwarz": (1.0, 1.0), "fahne_gruen": (1.0, 1.0), "fahne_rot": (1.0, 1.0), "fahne_gelb": (1.0, 1.0), "fahne_gold": (1.0, 1.0), "papier": (1.0, 1.0), "erz": (1.0, 1.0), "fisch": (1.0, 1.0), "fisch_trocken": (1.0, 1.0)}
 
 
 def kachel(mat):
@@ -75,8 +80,9 @@ def _unterteilen(bm, nx, ny, nz):
             bmesh.ops.bisect_plane(bm, geom=geom, dist=1e-5, plane_co=co, plane_no=no)
 
 
-def rundholz(r, l, seg=10, nx=1, r2=None, kappen=True):
-    """Zylinder entlang x von -l/2 bis l/2, Radius r (an einem Ende r2 für verjüngte Stämme)."""
+def rundholz(r, l, seg=10, nx=1, r2=None, kappen=True, bruch=0, rnd=None, tiefe=None):
+    """Zylinder entlang x von -l/2 bis l/2, Radius r (an einem Ende r2 für verjüngte Stämme).
+    bruch: +1 Ende bei +x gesplittert abgebrochen, -1 bei -x, 2 beide (braucht rnd)."""
     r2 = r if r2 is None else r2
     bm = bmesh.new()
     ringe = []
@@ -87,15 +93,48 @@ def rundholz(r, l, seg=10, nx=1, r2=None, kappen=True):
     for a, b in zip(ringe, ringe[1:]):
         for k in range(seg):
             bm.faces.new((a[k], a[(k + 1) % seg], b[(k + 1) % seg], b[k]))
-    if kappen:
-        bm.faces.new(list(reversed(ringe[0])))
-        bm.faces.new(ringe[-1])
+    enden = ((-1, ringe[0], r), (1, ringe[-1], r2))
+    for seite, ring, rr in enden:
+        if bruch in (seite, 2):
+            _splitterende(bm, ring, seite, rr, rnd, tiefe if tiefe else rr * 2.2)
+        elif kappen:
+            bm.faces.new(list(reversed(ring)) if seite < 0 else ring)
     bm.normal_update()
     return bm
 
 
-def drehkoerper(profil, seg=16, oben_zu=True, unten_zu=True, winkel=(0.0, 360.0)):
-    """Drehkörper um die z-Achse aus Profilpunkten (radius, z), von unten nach oben."""
+def _splitterende(bm, ring, seite, r, rnd, tiefe):
+    """Gesplittertes Bruchende statt glatter Kappe: Fasern unterschiedlich lang, einige lange Spieße,
+    die Bruchfläche selbst zerklüftet und schräg (Holz bricht nie quer glatt)."""
+    seg = len(ring)
+    x0 = ring[0].co.x
+    schraeg = rnd.uniform(0.5, 1.0) * tiefe; phase = rnd.uniform(0, 2 * math.pi)
+    def laenge(w, rad):
+        # schräger Grundbruch + Zacken; außen längere Fasern als innen
+        basis_ = schraeg * (0.5 + 0.5 * math.cos(w - phase))
+        return basis_ * (0.6 + 0.4 * rad) + tiefe * 0.35 * rnd.random() ** 2
+    lagen = [ring]
+    for rad in (1.0, 0.65, 0.3):
+        neu = []
+        for k in range(seg):
+            w = 2 * math.pi * k / seg
+            rr = r * rad * rnd.uniform(0.75, 1.0) if rad < 1 else r * rnd.uniform(0.6, 0.95)
+            spiess = tiefe * rnd.uniform(0.6, 1.2) if (rad == 1.0 and rnd.random() < 0.25) else 0.0
+            neu.append(bm.verts.new((x0 + seite * (laenge(w, rad) + spiess), rr * math.cos(w), rr * math.sin(w))))
+        lagen.append(neu)
+    mitte = bm.verts.new((x0 + seite * laenge(phase, 0.0) * rnd.uniform(0.6, 1.1), 0, 0))
+    for a, b in zip(lagen, lagen[1:]):
+        for k in range(seg):
+            f = (a[k], a[(k + 1) % seg], b[(k + 1) % seg], b[k])
+            bm.faces.new(f if seite > 0 else tuple(reversed(f)))
+    for k in range(seg):
+        f = (lagen[-1][k], lagen[-1][(k + 1) % seg], mitte)
+        bm.faces.new(f if seite > 0 else tuple(reversed(f)))
+
+
+def drehkoerper(profil, seg=16, oben_zu=True, unten_zu=True, winkel=(0.0, 360.0), enden_zu=False):
+    """Drehkörper um die z-Achse aus Profilpunkten (radius, z), von unten nach oben.
+    enden_zu: bei einem Teilwinkel die Schnittflächen mit dem (geschlossenen) Profil schließen (Bruchstücke)."""
     bm = bmesh.new()
     voll = abs(winkel[1] - winkel[0]) >= 359.9
     n = seg if voll else seg + 1
@@ -115,6 +154,10 @@ def drehkoerper(profil, seg=16, oben_zu=True, unten_zu=True, winkel=(0.0, 360.0)
             bm.faces.new(list(reversed(ringe[0])))
         if oben_zu and profil[-1][0] > 1e-4:
             bm.faces.new(ringe[-1])
+    elif enden_zu:
+        bm.faces.new([r[0] for r in ringe])
+        bm.faces.new([r[-1] for r in reversed(ringe)])
+        bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
     bm.normal_update()
     return bm
 
@@ -147,9 +190,62 @@ def rohr(punkte, r, seg=6, kappen=True, r_ende=None):
     return bm
 
 
-def flaeche(punkte_gitter, dicke=0.0, loch=None):
+def gitter_verfeinern(g, f):
+    """Teilt ein Punktgitter [zeile][spalte] f-fach bilinear (feinere Zellen für natürliche Risse)."""
+    ny = len(g) - 1; nx = len(g[0]) - 1
+    out = []
+    for I in range(ny * f + 1):
+        i = min(I // f, ny - 1); a = I / f - i
+        zeile = []
+        for J in range(nx * f + 1):
+            j = min(J // f, nx - 1); b = J / f - j
+            p = (Vector(g[i][j]) * ((1 - a) * (1 - b)) + Vector(g[i][j + 1]) * ((1 - a) * b) +
+                 Vector(g[i + 1][j]) * (a * (1 - b)) + Vector(g[i + 1][j + 1]) * (a * b))
+            zeile.append(tuple(p))
+        out.append(zeile)
+    return out
+
+
+def _zufall2(u, v, saat):
+    x = math.sin(u * 127.1 + v * 311.7 + saat * 74.7) * 43758.5453
+    return x - math.floor(x)
+
+
+def risse(loecher=(), streck=1.0, saat=0, kanten=()):
+    """Natürliche Löcher für flaeche(loch_uv=...): u (Spalten) und v (Zeilen) laufen 0..1 über das Gitter.
+    loecher: (u, v, r) mit r in v-Einheiten; streck = Breite/Höhe in Metern (macht die Löcher rund).
+    Der Rand ist unregelmäßig (mehrere Wellen) und ausgefranst (einzelne Fasern fehlen oder bleiben stehen).
+    kanten: (achse 'u'/'v', seite 0/1, tiefe) -> angefressene, ausgefranste Außenkante."""
+    def feld(u, v):
+        for k, (cu, cv, r) in enumerate(loecher):
+            du, dv = (u - cu) * streck, v - cv
+            a = math.atan2(dv, du); s = saat + k * 1.7
+            reff = r * (1 + 0.28 * math.sin(3 * a + s) + 0.16 * math.sin(5 * a + 2 * s) + 0.09 * math.sin(9 * a + 3 * s))
+            d = math.hypot(du, dv)
+            if d < reff:
+                return True
+            if d < reff * 1.35 and _zufall2(u, v, s) < 0.55 * (1 - (d - reff) / (reff * 0.35)):
+                return True
+        for k, (achse, seite, tiefe) in enumerate(kanten):
+            w = u if achse == "v" else v
+            x = v if achse == "v" else u
+            abstand = x if seite == 0 else 1 - x
+            t = tiefe * (0.55 + 0.3 * math.sin(w * 23 + saat + k) + 0.2 * math.sin(w * 51 + 2 * saat))
+            if abstand < t or (abstand < t * 1.5 and _zufall2(u, v, saat + 9 + k) < 0.5):
+                return True
+        return False
+    return feld
+
+
+def flaeche(punkte_gitter, dicke=0.0, loch=None, loch_uv=None, fein=1):
     """Fläche aus einem Gitter von Punkten [zeile][spalte] (Tuch, Plane), optional mit Dicke.
-    loch(i, j) -> True: an dieser Zelle fehlt das Tuch (Risse)."""
+    loch(i, j) -> True: an dieser Zelle fehlt das Tuch (Risse). loch_uv(u, v) dasselbe über 0..1 (siehe risse());
+    fein > 1 teilt das Gitter vorher fein, damit Risse nicht eckig aussehen."""
+    if fein > 1:
+        punkte_gitter = gitter_verfeinern(punkte_gitter, fein)
+    if loch_uv is not None:
+        ny_, nx_ = len(punkte_gitter) - 1, len(punkte_gitter[0]) - 1
+        loch = lambda i, j: loch_uv((j + 0.5) / nx_, (i + 0.5) / ny_)
     bm = bmesh.new()
     vs = [[bm.verts.new(p) for p in zeile] for zeile in punkte_gitter]
     for i in range(len(vs) - 1):
@@ -157,6 +253,22 @@ def flaeche(punkte_gitter, dicke=0.0, loch=None):
             if loch and loch(i, j):
                 continue
             bm.faces.new((vs[i][j], vs[i][j + 1], vs[i + 1][j + 1], vs[i + 1][j]))
+    if loch:
+        # lose Inseln (einzelne stehengebliebene Zellen ohne Verbindung) fallen weg
+        rest = set(bm.faces); teile = []
+        while rest:
+            f0 = rest.pop(); teil_ = [f0]; stapel = [f0]
+            while stapel:
+                f = stapel.pop()
+                for e in f.edges:
+                    for f2 in e.link_faces:
+                        if f2 in rest:
+                            rest.discard(f2); teil_.append(f2); stapel.append(f2)
+            teile.append(teil_)
+        gross = max((len(t) for t in teile), default=0)
+        weg = [f for t in teile if len(t) < max(6, gross * 0.05) for f in t]
+        if weg:
+            bmesh.ops.delete(bm, geom=weg, context="FACES_ONLY")
     for v in [v for v in bm.verts if not v.link_faces]:
         bm.verts.remove(v)
     bm.normal_update()
@@ -339,6 +451,51 @@ class Modell:
         self.bm.from_mesh(me)
         bpy.data.meshes.remove(me)
 
+    # Umfallen --------------------------------------------------------------
+    def umfallen_start(self):
+        """Merkt sich, ab welchem Punkt die Teile eines Modells gebaut werden, das gleich umfällt."""
+        self.G = None
+        self._fall_ab = len(self.bm.verts)
+
+    def umfallen_ende(self, azimut):
+        """Kippt alle Teile seit umfallen_start in Richtung azimut (Grad, 0 = +x, 90 = +y) so lange um die jeweils
+        vorderste Bodenkante, bis der Schwerpunkt über der Auflage liegt: es liegt dann auf dem, was zuerst den Boden berührt."""
+        self.bm.verts.ensure_lookup_table()
+        vs = [self.bm.verts[i] for i in range(self._fall_ab, len(self.bm.verts))]
+        d = Vector((math.cos(math.radians(azimut)), math.sin(math.radians(azimut)), 0.0))
+        achse = Vector((0, 0, 1)).cross(d)
+        pts = [v.co.copy() for v in vs]
+        zmin = min(p.z for p in pts)
+        boden = [p for p in pts if p.z < zmin + 0.002]
+        dreh = Matrix.Translation((0, 0, -zmin))
+        pivot = max(boden, key=lambda p: p.dot(d)); pivot = Vector((pivot.x, pivot.y, 0.0))
+        for runde in range(8):
+            akt = [dreh @ p for p in pts]
+            schwer = sum(akt, Vector()) / len(akt)
+            if runde > 0 and schwer.dot(d) <= pivot.dot(d) + 1e-4:   # die erste Kippung erzwingt der Stoß
+                break
+            # kleinster Drehwinkel, bei dem ein weiterer Punkt den Boden erreicht
+            bester, wahl = 7.0, None
+            for p in akt:
+                ds = (p - pivot).dot(d); dz = p.z
+                if ds <= 1e-4 or dz < 1e-5 and ds < 1e-4:
+                    continue
+                w = math.atan2(dz, ds)
+                if w > 1e-4 and w < bester:
+                    bester, wahl = w, p
+            if wahl is None:
+                break
+            dreh = Matrix.Translation(pivot) @ Matrix.Rotation(bester, 4, achse) @ Matrix.Translation(-pivot) @ dreh
+            # neue Auflagekante: der Punkt, der gerade aufgesetzt hat (in Fallrichtung am weitesten vorne)
+            akt = [dreh @ p for p in pts]
+            unten = [p for p in akt if p.z < 0.002]
+            pivot = max(unten, key=lambda p: p.dot(d)); pivot = Vector((pivot.x, pivot.y, 0.0))
+        for v, p in zip(vs, pts):
+            v.co = dreh @ p
+        z0 = min(v.co.z for v in vs)
+        for v in vs:
+            v.co.z -= z0
+
     # Kurzformen ------------------------------------------------------------
     def brett(self, l, b, d, matrix, mat="holz", nx=None, fase=0.006, biegen=0.006, bruch=0, bruch_tiefe=0.08):
         """Brett/Balken: Länge l entlang x, Breite b (y), Dicke d (z). bruch = +1/-1: Ende abgebrochen."""
@@ -351,10 +508,11 @@ class Modell:
             verbiegen(bm, self.rnd, biegen, 0.6)
         self.teil(bm, mat, matrix)
 
-    def stab(self, a, b, r, mat="holz", seg=8, r2=None, biegen=0.004, kappen=True, uvmodus="zyl"):
-        """Rundholz/Stange von Punkt a nach Punkt b."""
+    def stab(self, a, b, r, mat="holz", seg=8, r2=None, biegen=0.004, kappen=True, uvmodus="zyl", bruch=0, bruch_tiefe=None):
+        """Rundholz/Stange von Punkt a nach Punkt b. bruch: +1 Ende b gesplittert, -1 Ende a, 2 beide
+        (die Splitter ragen über a/b hinaus; die Punkte sind die Grundlinie des Bruchs)."""
         l = (Vector(b) - Vector(a)).length
-        bm = rundholz(r, l, seg, max(1, int(l / 0.35)), r2, kappen)
+        bm = rundholz(r, l, seg, max(1, int(l / 0.35)), r2, kappen, bruch, self.rnd, bruch_tiefe)
         if biegen:
             verbiegen(bm, self.rnd, biegen, 0.5)
         self.teil(bm, mat, ausrichten(a, b), uv=uvmodus, r=r)
@@ -387,11 +545,15 @@ class Modell:
 # ---------------------------------------------------------------- Materialien (Blender, für Vorschau und glTF-Namen)
 
 TEXTUR_ORDNER = None   # wird von den Erzeuger-Skripten gesetzt
-GRUNDFARBE = {"holz": (0.33, 0.21, 0.11), "holz_alt": (0.38, 0.34, 0.29), "holz_verkohlt": (0.03, 0.03, 0.03),
+GRUNDFARBE = {"fisch_trocken": (0.52, 0.42, 0.28), "fisch": (0.58, 0.58, 0.55), "erz": (0.45, 0.27, 0.15), "papier": (0.82, 0.75, 0.58), "fahne_gold": (0.8, 0.62, 0.22), "fahne_gelb": (0.88, 0.68, 0.12), "fahne_rot": (0.58, 0.07, 0.06), "fahne_gruen": (0.15, 0.38, 0.14), "fahne_schwarz": (0.06, 0.06, 0.07), "fahne_blau": (0.12, 0.22, 0.55), "fahne_weiss": (0.86, 0.84, 0.78), "wasser": (0.12, 0.2, 0.22), "haut": (0.66, 0.52, 0.36), "brot": (0.56, 0.33, 0.13), "brot_innen": (0.86, 0.76, 0.56), "kaese": (0.8, 0.6, 0.22), "kaese_innen": (0.95, 0.83, 0.48), "wurst": (0.36, 0.11, 0.08), "kraut_trocken": (0.34, 0.4, 0.17), "kraut_welk": (0.36, 0.28, 0.15), "lavendel": (0.45, 0.38, 0.62), "knoblauch": (0.88, 0.84, 0.76), "mehl": (0.84, 0.82, 0.77), "karotte": (0.86, 0.4, 0.09), "kohl": (0.45, 0.62, 0.3), "zwiebel": (0.7, 0.47, 0.22), "faul": (0.22, 0.17, 0.09), "schimmel": (0.62, 0.68, 0.55),
+              "erde": (0.20, 0.145, 0.10), "wolle_rot": (0.40, 0.11, 0.09), "knochen": (0.74, 0.68, 0.55), "glas_gruen": (0.22, 0.36, 0.18),
+              "holz": (0.33, 0.21, 0.11), "holz_alt": (0.38, 0.34, 0.29), "holz_verkohlt": (0.03, 0.03, 0.03),
               "eisen": (0.13, 0.12, 0.12), "stoff": (0.58, 0.52, 0.39), "seil": (0.45, 0.37, 0.24),
               "stein": (0.47, 0.45, 0.41), "putz": (0.74, 0.70, 0.61), "schindeln": (0.32, 0.26, 0.20),
               "dielen": (0.38, 0.26, 0.15), "glut": (0.9, 0.3, 0.05), "glas": (0.75, 0.62, 0.38),
-              "asche": (0.22, 0.21, 0.20)}
+              "asche": (0.22, 0.21, 0.20), "weide": (0.55, 0.42, 0.25), "obst": (0.62, 0.12, 0.08),
+              "ton": (0.55, 0.32, 0.18), "stroh": (0.72, 0.58, 0.30), "leder": (0.28, 0.16, 0.09),
+              "farbe_rot": (0.55, 0.08, 0.06), "farbe_weiss": (0.85, 0.82, 0.74)}
 
 
 def material(name):
@@ -407,7 +569,7 @@ def material(name):
     bsdf.inputs["Roughness"].default_value = 0.85
     if name == "eisen":
         bsdf.inputs["Metallic"].default_value = 0.65
-    if name == "glas":
+    if name in ("glas", "glas_gruen", "wasser"):
         bsdf.inputs["Roughness"].default_value = 0.15
         bsdf.inputs["Transmission Weight"].default_value = 0.9
         bsdf.inputs["Alpha"].default_value = 0.45
@@ -432,3 +594,26 @@ def material(name):
             nt.links.new(f.outputs["Color"], bsdf.inputs["Emission Color"])
             bsdf.inputs["Emission Strength"].default_value = 6.0
     return m
+
+
+def ruhelage(bm, schritt=6):
+    """Stabile Ruhelage eines losen Bruchstücks auf flachem Boden: sucht die Drehung, in der der Schwerpunkt
+    (Flächenschwerpunkt der Hülle) am tiefsten über dem tiefsten Punkt liegt, wie ein Stück, das ausgerollt ist.
+    Gibt eine Matrix zurück, die das Teil so dreht und auf z = 0 stellt (Mitte über x/y = 0)."""
+    import numpy as np
+    bm.faces.ensure_lookup_table()
+    pts = np.array([v.co[:] for v in bm.verts])
+    flaechen = np.array([f.calc_area() for f in bm.faces])
+    mitten = np.array([f.calc_center_median()[:] for f in bm.faces])
+    sp = (mitten * flaechen[:, None]).sum(0) / flaechen.sum()
+    pts = pts - sp
+    beste = None
+    for ax in range(0, 360, schritt):
+        for ay in range(-90, 91, schritt):
+            r = Matrix.Rotation(math.radians(ay), 3, "Y") @ Matrix.Rotation(math.radians(ax), 3, "X")
+            R = np.array(r)
+            hoehe = -(pts @ R.T)[:, 2].min()          # Schwerpunkt über dem tiefsten Punkt
+            if beste is None or hoehe < beste[0]:
+                beste = (hoehe, r)
+    hoehe, r = beste
+    return Matrix.Translation((0, 0, hoehe)) @ r.to_4x4() @ Matrix.Translation(-Vector(sp))

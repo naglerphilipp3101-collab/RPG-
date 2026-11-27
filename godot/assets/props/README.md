@@ -17,9 +17,53 @@ Ansehen: `test/galerie.tscn` öffnen und mit **F6** starten (vorne heil, dahinte
 am Ende ein Fachwerk-Beispiel mit Außenecke; Pfeiltasten drehen/fahren, Mausrad Zoom, N Tag/Nacht).
 
 ## Inhalt
+**Vorratsbehälter** (`blender/behaelter.py`) stehen an den POIs und geben Vorräte und mit Glück Zusatzmaterialien.
+Hier heißt die `kaputt`-Fassung „geplündert“: offen und leer, nach einem Spieltag wird der Behälter wieder voll.
+vorratskiste (Dorf), versorgungswagen (Militärlager), grubenlore (Mine), fischerkorb (Strand), schatzkiste_klein (Burg).
+
 **Lager und Dorf** (`blender/props.py`): kiste, fass, stuhl, hocker, tisch, bank, zaun (2 m, Pfosten bei x = -1),
 palisade (2 m), zelt, lagerfeuer, karren, laterne (Ring zum Aufhängen 0,30 m über dem Boden), laternenpfahl,
 saeule, mauer (3 m), bogen.
+
+**Deko** (`blender/deko.py`), nicht interagierbar: stuhl_armlehne, stuhl_brett, tisch_rund, tisch_lang (2,4 m), krug, humpen, kochtopf
+(Kessel mit Pfännchen), buecher, wandfackel (Ursprung an der Wand, ragt nach -y), haengelampe (Ursprung am Deckenhaken, hängt 0,8 m),
+kerzen, kerzenstaender, grabstein, brunnen, trainingspuppe, zielscheibe, amboss, waffenstaender, ruestungsstaender.
+
+**Taverne** (`blender/taverne.py`): bett (Kopfende +y), strohlager, truhe, schrank, regal (mit Geschirr), geschirr (Gedeck), flaschen,
+feuerstelle (mit Kesselgalgen), teppich (2 x 1,4 m, Textur `teppich` = ganzes Bild), zapffass (liegend auf dem Bock, Hahn bei +x).
+
+**Friedhof** (`blender/friedhof.py`): gruft (2,4 x 3 m; kaputt = nur die Gittertür ausgeschlagen), holzkreuz (nur das Kreuz),
+grabkreuz (Kreuz mit Erdhügel; kaputt = aufgewühltes Loch mit Sargbrettern, als wäre jemand herausgekommen),
+eisenzaun (2 m, Pfosten bei x = -1 wie zaun), saeule_liegend, knochenhaufen, schaedel (nur heil: Modellfunktion mit `nur_heil = True`).
+Der Schädel ist ein Abstandsfeld (Marching Cubes) und braucht `pip install scikit-image`.
+
+**Küche und Vorrat** (`blender/kueche.py`, kaputt = angefressen, geplündert, verdorben): brotlaib (Schneidbrett), kaeselaib,
+wurststange (Ursprung = Deckenhaken, hängt 0,42 m tief), kraeuterbuendel (Wandleiste, Ursprung auf der Wand, ragt nach -y), mehlsack, gemuesekorb.
+Neue einfarbige Materialien: brot, brot_innen, kaese, kaese_innen, wurst, kraut_trocken, kraut_welk, lavendel, knoblauch, mehl, karotte, kohl, zwiebel, faul, schimmel.
+
+**Werkstätten** (`blender/werkstaetten.py`): schleifstein (mit Wassertrog), werkbank (Hobelbank mit Werkzeug), holzstapel (Holzlege mit Schwellen, Seitenrahmen und Pultdach, Hackklotz und Axt),
+webstuhl (mit Bank), gerberrahmen (eingeschnürte Haut, Bottich), wassertrog. Neue Materialien haut, wasser (durchsichtig wie glas).
+
+**Dorf und Straße** (`blender/dorf.py`): marktstand (Plane, Ware), wegweiser, pranger (auf Podest), brennholzstapel (Rundhölzer),
+heuballen, schubkarre, huehnerkaefig, futtertrog.
+
+**Lager und Militär** (`blender/militaer.py`): banner_weiss|blau|schwarz|gruen|rot|gelb (Fraktionsbanner New Light, Eternal Wrath,
+Deaths Dance, Archo's Legacy, Sentinels, Obex mit einfachem Wappen; kaputt = Stange gebrochen, Banner zerrissen am Boden), spanische_reiter,
+pfeilbuendel, ruestungsstapel, feldbett, kartentisch. Materialien fahne_* und papier.
+
+**Mine und Strand** (`blender/mine_strand.py`): stuetzbalken (Türstock), schienen (2 m, Spur 0,6 m), erzhaufen, spitzhacke_fels,
+ruderboot, steg (Deck bei z = 0,6, Pfähle bis -1,5 m), hummerkorb, fischgestell. Materialien erz, fisch, fisch_trocken.
+
+**Burg und Kirche** (`blender/burg_kirche.py`): thron (auf Podest), wandteppich (Ursprung am Boden an der Wand, Textur teppich),
+kronleuchter (Ursprung = Deckenhaken, 1,2 m tief), altar, kirchenbank, weihwasserbecken, statue (Heldin mit Schwert). Die Statue nimmt
+Oberkörper und Kopf aus dem Charakter-Editor (`blender/statue_mensch.py` liest `charakter/daten` über `tools/ruestung/mensch_lesen.py`,
+Arme per Knochengewichten auf den Schwertknauf gebeugt, Rumpf geglättet als Gewand, Augäpfel aus den Hilfskugeln, Haarkappe mit Knoten; braucht numpy und zstandard).
+
+**Bruch-Helfer** (`blender/basis.py`, für alle Sets): `stab(..., bruch=±1|2)` bzw. `rundholz(..., bruch=…)` gibt Rundhölzern ein gesplittertes,
+schräges Bruchende statt eines glatten Schnitts. `flaeche(gitter, dicke, loch_uv=risse([(u, v, r), …], streck, saat, kanten), fein=3)` schneidet
+natürliche, ausgefranste Risse in Tücher und Häute (feines Raster, unregelmäßiger Rand, lose Inseln fallen weg). `ruhelage(bm)` legt ein loses
+Bruchstück in seine stabile Lage auf dem Boden (tiefster Schwerpunkt). `drehkoerper(..., enden_zu=True)` schließt die Schnittflächen eines Teilstücks.
+Regel für kaputte Modelle: Gefallenes liegt so, wie es die Schwerkraft hinlegen würde; was nicht gestützt ist, sackt bis zum Boden.
 
 **Haus-Baukasten** (`blender/baukasten.py`). Regeln: 1-m-Raster (Stockwerkshöhe frei, Teile drehbar und überlappbar), alle Stoßflächen eben
 und genau im Raster (damit Blueprints einrasten und beim späteren Backen verdeckte Flächen entfernt werden können).
@@ -59,7 +103,7 @@ von Hand ist nichts einzustellen. Was höher ist oder übersteht, sieht man ganz
 
 ## Materialien
 Die Modelle enthalten nur Material-Namen. `prop.gd` setzt dafür `materialien/<name>.tres` ein:
-holz, holz_alt, holz_verkohlt (für Balken/Strebe als `*_balken`/`*_strebe` mit Vorrang), eisen, stoff, seil, stein, putz, schindeln, dielen, glut, glas, asche.
+holz, holz_alt, holz_verkohlt (für Balken/Strebe als `*_balken`/`*_strebe` mit Vorrang), eisen, stoff, seil, stein, putz, schindeln, dielen, glut, glas, asche, weide (Korbgeflecht), obst.
 Die Texturen (`texturen/`, 1024², kachelbar) sind prozedural erzeugt (`blender/texturen.py`, numpy),
 die UVs der Modelle sind schon in Metern gerechnet. Ein Material im Inspector ändern = alle Props ändern sich mit.
 Neu anlegen: `Godot --headless --path godot -s res://assets/props/test/materialien_erzeugen.gd`.
@@ -70,6 +114,16 @@ Python 3.13 mit `pip install bpy==5.2.2` (oder in Blender 5.2):
 python blender/texturen.py                         # Texturen
 python blender/props.py   [-- <ziel> --nur kiste,fass --vorschau <ordner>]
 python blender/baukasten.py [-- <ziel> --nur wand --vorschau <ordner>]
+python blender/behaelter.py [-- <ziel> --nur grubenlore --vorschau <ordner>]
+python blender/deko.py    [-- <ziel> --nur amboss,brunnen --vorschau <ordner>]
+python blender/taverne.py [-- <ziel> --nur bett,regal --vorschau <ordner>]
+python blender/friedhof.py [-- <ziel> --nur gruft --vorschau <ordner>]
+python blender/kueche.py [-- <ziel> --nur brotlaib --vorschau <ordner>]
+python blender/werkstaetten.py [-- <ziel> --nur webstuhl --vorschau <ordner>]
+python blender/dorf.py [-- <ziel> --nur pranger --vorschau <ordner>]
+python blender/militaer.py [-- <ziel> --nur banner_rot --vorschau <ordner>]
+python blender/mine_strand.py [-- <ziel> --nur steg --vorschau <ordner>]
+python blender/burg_kirche.py [-- <ziel> --nur thron --vorschau <ordner>]
 ```
 Ohne Ziel landen die Modelle in `modelle/`. `--vorschau` rendert jedes Modell mit Cycles als JPG.
 

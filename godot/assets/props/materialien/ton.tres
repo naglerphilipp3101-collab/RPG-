@@ -1,0 +1,13 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/props/texturen/ton_farbe.jpg" id="1_a0b5p"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/ton_normal.jpg" id="2_jheds"]
+[ext_resource type="Texture2D" path="res://assets/props/texturen/ton_rauheit.jpg" id="3_6jvfg"]
+
+[resource]
+resource_name = "ton"
+albedo_texture = ExtResource("1_a0b5p")
+roughness_texture = ExtResource("3_6jvfg")
+normal_enabled = true
+normal_texture = ExtResource("2_jheds")
+texture_filter = 5

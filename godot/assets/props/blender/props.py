@@ -817,7 +817,7 @@ def bauen(namen=None, modelle=MODELLE):
     for name, fn in modelle.items():
         if namen and name not in namen:
             continue
-        for kaputt in (False, True):
+        for kaputt in ((False,) if getattr(fn, "nur_heil", False) else (False, True)):
             n = name + ("_kaputt" if kaputt else "")
             m = Modell(n, saat=sum(map(ord, n)))
             fn(m, kaputt)
